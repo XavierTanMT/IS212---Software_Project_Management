@@ -1,0 +1,44 @@
+@startuml c3_backend
+!include <C4/C4_Component>
+
+title C3 - Component (Backend)
+
+Container(frontend, "Frontend", "Web Application", "User interface for task management")
+
+Container_Boundary(backend, "User Roles and Management") {
+    Component(auth, "Authentication", "Component", "Handles user login and session management")
+    Component(userRoles, "User Roles and Management", "Component", "Manages user permissions and roles")
+    Component(timer, "Timer Service", "Component", "Handles time tracking functionality")
+    
+    Component(taskMgmt, "Task Management", "Component", "Core task CRUD operations")
+    Component(dashboard, "Dashboard and Insights", "Component", "Provides analytics and reporting")
+    Component(notification, "Notification and Email Services", "Component", "Handles notifications and emails")
+    
+    Component(taskGroup, "Task Grouping and Organisation", "Component", "Manages task categories and organization")
+    Component(deadline, "Deadline and Schedule Tracking", "Component", "Handles task scheduling and deadlines")
+    Component(projectMgmt, "Project Management", "Component", "Manages projects and project-related tasks")
+    
+    Component(activity, "Activity Tracking and History", "Component", "Tracks user activities and maintains history")
+    Component(calendar, "Calendar (Timeline)", "Component", "Provides calendar and timeline views")
+    Component(report, "Report Service", "Component", "Generates various reports and analytics")
+}
+
+ContainerDb(db, "DB", "Database", "Stores task data and user information")
+
+Rel(frontend, auth, "Login requests")
+Rel(frontend, userRoles, "User management")
+Rel(frontend, timer, "Time tracking")
+Rel(frontend, taskMgmt, "Task operations")
+Rel(frontend, dashboard, "Dashboard data")
+Rel(frontend, notification, "Notifications")
+Rel(frontend, taskGroup, "Task organization")
+Rel(frontend, deadline, "Schedule management")
+Rel(frontend, projectMgmt, "Project operations")
+Rel(frontend, activity, "Activity data")
+Rel(frontend, calendar, "Calendar views")
+Rel(frontend, report, "Report generation")
+
+Rel(auth, db, "Read/Write")
+Rel(taskMgmt, db, "Read/Write")
+Rel(taskGroup, db, "Read/Write")
+@enduml

@@ -1,0 +1,28 @@
+@startuml c4_db_entity
+
+title C4 - Database Entity Diagram
+
+entity User {
+  * **PK** user_id
+  --
+  Email VARCHAR
+  Password_Hash VARCHAR
+  Role ENUM('manager', 'staff', 'admin')
+  Name TEXT
+}
+
+entity Task {
+  * **PK** task_id
+  --
+  * **FK** Created_by User.user_id NULL
+  --
+  Title VARCHAR
+  Description TEXT
+  Status ENUM('todo', 'in_progress', 'done', 'review')
+  Due_Date DATETIME NULL
+  Updated_Date DATETIME NULL
+}
+
+User ||--o{ Task : "creates"
+
+@enduml

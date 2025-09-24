@@ -1,0 +1,43 @@
+@startuml c4_class
+!include <C4/C4_Context>
+
+title C4 - Code
+
+class User {
+  - name: string
+  - email: string
+  - email: string
+  + createTask(): Task
+  + deleteTask(Task): Task
+  + updateTask(Task): Task
+  + viewTask(Task): Task
+  + changePassword(): Task
+}
+
+class Task {
+  - TaskName: VARCHAR
+  + method(type): type
+}
+
+class Admin {
+  - attribute: type
+  + method(): Type
+}
+
+class Manager {
+  - attribute: type
+  + assignTask(Task, List<Staff>): Bool
+}
+
+class Staff {
+  - attribute: type
+  + method(): Type
+}
+
+User ||--o{ Admin : extends
+User ||--o{ Manager : extends  
+User ||--o{ Staff : extends
+
+User --> Task : creates/manages
+
+@enduml
