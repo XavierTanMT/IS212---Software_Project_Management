@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Management - Employee Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+
+        .header {
+            background: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .header h1 {
+            color: #2c3e50;
+        }
+
+        .user-info {
+            float: right;
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+
+        .nav {
+            margin-top: 1rem;
+            clear: both;
+        }
+
+        .nav a {
+            color: #3498db;
+            text-decoration: none;
+            margin-right: 1rem;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+
+        .nav a:hover {
+            background-color: #ecf0f1;
+        }
+
+        .nav a.active {
+            background-color: #3498db;
+            color: white;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .dashboard-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .stat-label {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+
+        .filters {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .filter-row {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .filter-group label {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #555;
+        }
+
+        .filter-group input, .filter-group select {
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .task-list {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .task-item {
+            border-bottom: 1px solid #f0f0f0;
+            padding: 1.5rem;
+            transition: background-color 0.2s;
+        }
+
+        .task-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .task-item:last-child {
+            border-bottom: none;
+        }
+
+        .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .task-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #2c3e50;
+            flex: 1;
+        }
+
+        .task-meta {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            margin-bottom: 1rem;
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .status {
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .status-todo { background-color: #e2e8f0; color: #4a5568; }
+        .status-in_progress { background-color: #bee3f8; color: #2b6cb0; }
+        .status-done { background-color: #c6f6d5; color: #22543d; }
+        .status-review { background-color: #fbb6ce; color: #b83280; }
+
+        .due-date {
+            font-weight: 500;
+        }
+
+        .due-soon {
+            color: #e53e3e;
+            background-color: #fed7d7;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .task-description {
+            color: #4a5568;
+            margin-bottom: 1rem;
+            line-height: 1.5;
+        }
+
+        .task-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .btn-edit {
+            background-color: #4299e1;
+            color: white;
+        }
+
+        .btn-delete {
+            background-color: #e53e3e;
+            color: white;
+        }
+
+        .btn-primary {
+            background-color: #48bb78;
+            color: white;
+            font-size: 1rem;
+            padding: 0.75rem 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #7f8c8d;
+        }
+
+        .timestamps {
+            font-size: 0.8rem;
+            color: #9ca3af;
+            margin-top: 0.5rem;
+        }
+
+        .attachments {
+            margin-top: 1rem;
+        }
+
+        .attachments-label {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #555;
+            margin-bottom: 0.5rem;
+        }
+
+        .attachment-list {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .attachment-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            background: #f8f9fa;
+            border-radius: 4px;
+            border: 1px solid #e9ecef;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .attachment-item:hover {
+            background: #e9ecef;
+        }
+
+        .attachment-icon {
+            width: 20px;
+            height: 20px;
+            background: #3498db;
+            color: white;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.6rem;
+            font-weight: bold;
+        }
+
+        .attachment-name {
+            font-size: 0.8rem;
+            color: #555;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 2rem;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+            text-align: center;
+        }
+
+        .modal h3 {
+            margin-bottom: 1rem;
+            color: #e53e3e;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="user-info">Welcome, John Doe (Employee) | john.doe@company.com</div>
+        <h1>Task Management System</h1>
+        <div class="nav">
+            <a href="homepage.html" class="active">Home</a>
+            <a href="create.html">Create Task</a>
+            <a href="archive.html">Archive</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <a href="create.html" class="btn btn-primary">+ Create New Task</a>
+
+        <div class="dashboard-stats">
+            <div class="stat-card">
+                <div class="stat-number" id="totalTasks">6</div>
+                <div class="stat-label">Total Tasks</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="todoTasks">2</div>
+                <div class="stat-label">To Do</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="inProgressTasks">2</div>
+                <div class="stat-label">In Progress</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="doneTasks">1</div>
+                <div class="stat-label">Done</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="reviewTasks">1</div>
+                <div class="stat-label">Review</div>
+            </div>
+        </div>
+
+        <div class="filters">
+            <div class="filter-row">
+                <div class="filter-group search-box">
+                    <label for="searchTasks">Search Tasks</label>
+                    <input type="text" id="searchTasks" placeholder="Search by title or description...">
+                </div>
+
+                <div class="filter-group">
+                    <label for="filterStatus">Status</label>
+                    <select id="filterStatus">
+                        <option value="">All Statuses</option>
+                        <option value="todo">To Do</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="done">Done</option>
+                        <option value="review">Review</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label for="dateFrom">Due Date From</label>
+                    <input type="date" id="dateFrom">
+                </div>
+
+                <div class="filter-group">
+                    <label for="dateTo">Due Date To</label>
+                    <input type="date" id="dateTo">
+                </div>
+
+                <div class="filter-group">
+                    <label for="sortBy">Sort By</label>
+                    <select id="sortBy">
+                        <option value="updated_date">Last Updated</option>
+                        <option value="due_date">Due Date</option>
+                        <option value="title">Title (A-Z)</option>
+                        <option value="status">Status</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="task-list" id="taskList">
+            <!-- Tasks will be loaded here -->
+        </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmModal" class="modal">
+        <div class="modal-content">
+            <h3 id="modalTitle">Confirm Action</h3>
+            <p id="modalMessage">Are you sure you want to perform this action?</p>
+            <div class="modal-actions">
+                <button class="btn btn-delete" id="confirmBtn">Confirm</button>
+                <button class="btn" onclick="closeModal()" style="background-color: #718096; color: white;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sample task data matching database schema
+        const tasks = [
+            {
+                task_id: 1,
+                title: "Complete project documentation",
+                description: "Write comprehensive documentation for the new feature including API docs and user guide",
+                status: "in_progress",
+                due_date: "2025-09-30T14:00:00",
+                updated_date: "2025-09-22T10:30:00",
+                created_by: 1,
+                attachments: [
+                    { name: "api_spec.pdf", size: 2304000 },
+                    { name: "user_guide.docx", size: 1048576 },
+                    { name: "mockups.png", size: 512000 }
+                ]
+            },
+            {
+                task_id: 2,
+                title: "Fix login authentication bug",
+                description: "Users are experiencing login issues on mobile devices. Need to investigate session timeout.",
+                status: "todo",
+                due_date: "2025-09-25T18:00:00",
+                updated_date: "2025-09-21T11:30:00",
+                created_by: 1,
+                attachments: [
+                    { name: "bug_report.pdf", size: 1572864 },
+                    { name: "error_logs.txt", size: 204800 }
+                ]
+            },
+            {
+                task_id: 3,
+                title: "Update website header design",
+                description: "Refresh the header design to match new brand guidelines",
+                status: "review",
+                due_date: "2025-10-05T10:00:00",
+                updated_date: "2025-09-20T14:15:00",
+                created_by: 1,
+                attachments: [
+                    { name: "brand_guidelines.pdf", size: 3145728 },
+                    { name: "header_designs.zip", size: 5242880 }
+                ]
+            },
+            {
+                task_id: 4,
+                title: "Database performance optimization",
+                description: "Optimize database queries to improve application response time",
+                status: "todo",
+                due_date: "2025-10-15T16:00:00",
+                updated_date: "2025-09-18T16:45:00",
+                created_by: 1,
+                attachments: []
+            },
+            {
+                task_id: 5,
+                title: "Prepare monthly report",
+                description: "Compile sales and performance metrics for monthly review meeting",
+                status: "done",
+                due_date: "2025-09-22T17:00:00",
+                updated_date: "2025-09-22T15:30:00",
+                created_by: 1,
+                attachments: [
+                    { name: "monthly_report.xlsx", size: 2097152 },
+                    { name: "charts.pptx", size: 4194304 }
+                ]
+            },
+            {
+                task_id: 6,
+                title: "Security audit preparation",
+                description: "Prepare documentation and systems for upcoming security audit",
+                status: "in_progress",
+                due_date: "2025-10-01T09:00:00",
+                updated_date: "2025-09-19T09:30:00",
+                created_by: 1,
+                attachments: [
+                    { name: "security_checklist.pdf", size: 1048576 },
+                    { name: "compliance_docs.zip", size: 7340032 }
+                ]
+            }
+        ];
+
+        let filteredTasks = [...tasks];
+        let currentTaskId = null;
+
+        // File handling functions
+        function getFileIcon(fileName) {
+            const ext = fileName.split('.').pop().toLowerCase();
+            const iconMap = {
+                'pdf': 'PDF',
+                'doc': 'DOC', 'docx': 'DOC',
+                'xls': 'XLS', 'xlsx': 'XLS',
+                'ppt': 'PPT', 'pptx': 'PPT',
+                'jpg': 'IMG', 'jpeg': 'IMG', 'png': 'IMG', 'gif': 'IMG',
+                'txt': 'TXT',
+                'zip': 'ZIP'
+            };
+            return iconMap[ext] || 'FILE';
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function downloadFile(taskId, fileName) {
+            // TODO: API call to download file
+            // GET /api/tasks/{taskId}/attachments/{fileName}
+            console.log(`Downloading file: ${fileName} from task ${taskId}`);
+            alert(`Download started: ${fileName} (Demo mode)`);
+        }
+
+        function renderTasks(tasksToRender) {
+            const taskList = document.getElementById('taskList');
+
+            if (tasksToRender.length === 0) {
+                taskList.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No tasks found</h3>
+                        <p>Try adjusting your filters or create a new task to get started.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            taskList.innerHTML = tasksToRender.map(task => {
+                const dueDateFormatted = task.due_date ? 
+                    new Date(task.due_date).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    }) : 'No due date';
+
+                const updatedDateFormatted = new Date(task.updated_date).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+
+                const isDueSoon = task.due_date && 
+                    new Date(task.due_date) <= new Date(Date.now() + (3 * 24 * 60 * 60 * 1000)) && 
+                    task.status !== 'done';
+
+                const statusText = task.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+
+                return `
+                    <div class="task-item">
+                        <div class="task-header">
+                            <div class="task-title">${task.title}</div>
+                        </div>
+
+                        <div class="task-meta">
+                            <div class="meta-item">
+                                <span class="status status-${task.status}">${statusText}</span>
+                            </div>
+                            ${task.due_date ? `
+                                <div class="meta-item">
+                                    <span class="due-date ${isDueSoon ? 'due-soon' : ''}">
+                                        Due: ${dueDateFormatted}
+                                    </span>
+                                </div>
+                            ` : ''}
+                        </div>
+
+                        <div class="task-description">${task.description}</div>
+
+                        <div class="timestamps">
+                            Last updated: ${updatedDateFormatted}
+                        </div>
+
+                        ${task.attachments && task.attachments.length > 0 ? `
+                            <div class="attachments">
+                                <div class="attachments-label">Attachments (${task.attachments.length})</div>
+                                <div class="attachment-list">
+                                    ${task.attachments.map(attachment => `
+                                        <div class="attachment-item" onclick="downloadFile(${task.task_id}, '${attachment.name}')">
+                                            <div class="attachment-icon">${getFileIcon(attachment.name)}</div>
+                                            <div class="attachment-name">${attachment.name}</div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        <div class="task-actions" style="margin-top: 1rem;">
+                            <a href="edit.html?id=${task.task_id}" class="btn btn-edit">Edit</a>
+                            <button class="btn btn-delete" onclick="confirmDelete(${task.task_id})">Archive</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateStats(tasksToCount) {
+            document.getElementById('totalTasks').textContent = tasksToCount.length;
+            document.getElementById('todoTasks').textContent = tasksToCount.filter(t => t.status === 'todo').length;
+            document.getElementById('inProgressTasks').textContent = tasksToCount.filter(t => t.status === 'in_progress').length;
+            document.getElementById('doneTasks').textContent = tasksToCount.filter(t => t.status === 'done').length;
+            document.getElementById('reviewTasks').textContent = tasksToCount.filter(t => t.status === 'review').length;
+        }
+
+        function applyFilters() {
+            const searchTerm = document.getElementById('searchTasks').value.toLowerCase();
+            const statusFilter = document.getElementById('filterStatus').value;
+            const dateFrom = document.getElementById('dateFrom').value;
+            const dateTo = document.getElementById('dateTo').value;
+            const sortBy = document.getElementById('sortBy').value;
+
+            filteredTasks = tasks.filter(task => {
+                const matchesSearch = !searchTerm || 
+                    task.title.toLowerCase().includes(searchTerm) ||
+                    task.description.toLowerCase().includes(searchTerm);
+
+                const matchesStatus = !statusFilter || task.status === statusFilter;
+
+                const taskDueDate = task.due_date ? new Date(task.due_date).toISOString().split('T')[0] : null;
+                const matchesDateFrom = !dateFrom || !taskDueDate || taskDueDate >= dateFrom;
+                const matchesDateTo = !dateTo || !taskDueDate || taskDueDate <= dateTo;
+
+                return matchesSearch && matchesStatus && matchesDateFrom && matchesDateTo;
+            });
+
+            // Sort tasks
+            filteredTasks.sort((a, b) => {
+                switch (sortBy) {
+                    case 'updated_date':
+                        return new Date(b.updated_date) - new Date(a.updated_date);
+                    case 'due_date':
+                        if (!a.due_date && !b.due_date) return 0;
+                        if (!a.due_date) return 1;
+                        if (!b.due_date) return -1;
+                        return new Date(a.due_date) - new Date(b.due_date);
+                    case 'title':
+                        return a.title.localeCompare(b.title);
+                    case 'status':
+                        return a.status.localeCompare(b.status);
+                    default:
+                        return 0;
+                }
+            });
+
+            renderTasks(filteredTasks);
+            updateStats(filteredTasks);
+        }
+
+        function confirmDelete(taskId) {
+            currentTaskId = taskId;
+            const task = tasks.find(t => t.task_id === taskId);
+
+            document.getElementById('modalTitle').textContent = 'Archive Task';
+            document.getElementById('modalMessage').textContent = `Are you sure you want to archive "${task.title}"? It will be moved to the archive and can be restored later.`;
+            document.getElementById('confirmBtn').textContent = 'Archive';
+            document.getElementById('confirmModal').style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('confirmModal').style.display = 'none';
+            currentTaskId = null;
+        }
+
+        function executeDelete() {
+            if (currentTaskId) {
+                // TODO: API call to archive task
+                // PUT /api/tasks/{id}/archive
+                alert('Task archived successfully! (Demo mode)');
+
+                // Remove from current list
+                const index = tasks.findIndex(t => t.task_id === currentTaskId);
+                if (index > -1) {
+                    tasks.splice(index, 1);
+                    applyFilters();
+                }
+            }
+            closeModal();
+        }
+
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', function() {
+            renderTasks(filteredTasks);
+            updateStats(filteredTasks);
+
+            // Add event listeners for filters
+            document.getElementById('searchTasks').addEventListener('input', applyFilters);
+            document.getElementById('filterStatus').addEventListener('change', applyFilters);
+            document.getElementById('dateFrom').addEventListener('change', applyFilters);
+            document.getElementById('dateTo').addEventListener('change', applyFilters);
+            document.getElementById('sortBy').addEventListener('change', applyFilters);
+
+            // Modal event listeners
+            document.getElementById('confirmBtn').addEventListener('click', executeDelete);
+
+            // Close modal when clicking outside of it
+            document.getElementById('confirmModal').addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closeModal();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
