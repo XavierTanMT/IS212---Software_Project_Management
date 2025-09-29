@@ -17,6 +17,8 @@ class User {
 class Task {
   - TaskName: VARCHAR
   + method(type): type
+  +addAttachment(Attachment): void
+  +getAttachments(): List<Attachment>
 }
 
 class Admin {
@@ -33,6 +35,16 @@ class Staff {
   - attribute: type
   + method(): Type
 }
+
+class Attachment {
+  -fileName: string
+  -filePath: string
+  -uploadedBy: User
+  -uploadDate: DateTime
+}
+
+Task "1" o-- "*" Attachment : has
+User "1" o-- "*" Attachment : uploads
 
 User ||--o{ Admin : extends
 User ||--o{ Manager : extends  
