@@ -3,22 +3,19 @@
 
 title C4 - Code
 
-class User {
+class Employee {
+  - id: int
   - name: string
+  - username: string
   - email: string
-  - email: string
-  + createTask(): Task
-  + deleteTask(Task): Task
-  + updateTask(Task): Task
-  + viewTask(Task): Task
-  + changePassword(): Task
-}
-
-class Task {
-  - TaskName: VARCHAR
-  + method(type): type
-  +addAttachment(Attachment): void
-  +getAttachments(): List<Attachment>
+  - password: string
+  - manager: Manager
+  + changePassword(): Bool
+  + createTask(): void
+  + deleteTask(Task): void
+  + updateTask(Task): void
+  + viewTask(Task): void
+  + generateReport(Project): Report
 }
 
 class Admin {
@@ -27,29 +24,104 @@ class Admin {
 }
 
 class Manager {
-  - attribute: type
-  + assignTask(Task, List<Staff>): Bool
+  - teamMembers: List<Employee>
+  - projects: List<Project>
+  + assignTask(Task, List<Employee>): Bool
+  + createProject(): Project
 }
 
-class Staff {
-  - attribute: type
-  + method(): Type
+enum Priority {
+    Low
+    Medium
+    High
+}
+
+enum Status {
+    ToDo
+    InProgress
+    Completed
+    Blocked
+}
+
+class Task {
+  - title: String
+  - description: String
+  - attachments: List<Attachment>
+  - subTasks: List<Task>
+  - priority: Priority
+  - dueDate: Date
+  - assignedTo: List<Employee>
+  - tags: List<String>
+  - status: Status
+  - isArchived: Bool
+  - archived_at: DateTime
+  - archived_by_id: String
+  + setTitle(title: String): Void
+  + setDescription(description: String): void
+  + setPriority(priority: Priority): void
+  + setDueDate(dueDate: Date): void
+  + setStatus(status: Status): void
+  + setTags(tags: List<String>): void
+}
+
+class Project {
+  - id: int
+  - name: String
+  - description: String
+  - tasks: List<Task>
+  - members: List<Employee>
 }
 
 class Attachment {
-  -fileName: string
-  -filePath: string
-  -uploadedBy: User
+  -fileName: String
+  -filePath: String
+  -uploadedBy: Employee
   -uploadDate: DateTime
 }
 
-Task "1" o-- "*" Attachment : has
-User "1" o-- "*" Attachment : uploads
+class Report {
+  - id: int
+  - project: Project
+  - generatedBy: Employee
+  - generatedOn: DateTime
+  - projectedTasks: List<Task>
+  - completedTasks: List<Task>
+  - inProgressTasks: List<Task>
+  - tasksUnderReview: List<Task>
+}
 
-User ||--o{ Admin : extends
-User ||--o{ Manager : extends  
-User ||--o{ Staff : extends
+class Notification {
+  - id: int
+  - recipient: Employee
+  - type: NotificationType
+  - title: String
+  - message: String
+  - relatedTask: Task
+  - relatedProject: Project
+  - relatedComment: Comment
+}
 
-User --> Task : creates/manages
+enum NotificationType {
+    APPROACHING_DEADLINE
+    NEW_COMMENT
+    TASK_UPDATES
+    MENTIONS
+}
+
+class Comment {
+  - id: int
+  - content: String
+  - author: Employee
+  - createdOn: DateTime
+  - relatedTask: Task
+}
+
+Task "1" *-- "*" Attachment : has
+Employee "1" o-- "*" Attachment : uploads
+
+Admin --|> Employee : extends
+Manager --|> Employee : extends
+
+Employee --> Task : creates/manages
 
 @enduml
