@@ -1,0 +1,27 @@
+
+@startuml c2.scale 1.5
+'scale 1.5 | scale 200 width | scale 100 height | scale [max] 200x100
+!include <C4/C4_Container>
+
+title C2 - Container
+
+Person(employee, "Employee/staff member")
+Person(manager, "Manager/Director - Employee with managerial rights") 
+Person(admin, "Admin - HR and Senior Leadership")
+
+System_Boundary(taskSystem, "Task Management System") {
+    Container(frontend, "Frontend", "Web Application", "User interface for task management")
+    Container(backend, "Backend", "Application Server", "Business logic and API")
+    ContainerDb(db, "DB", "Database", "Stores task data and user information")
+}
+
+Rel(employee, frontend, "Uses")
+Rel(manager, frontend, "Uses")
+Rel(admin, frontend, "Uses")
+
+Rel(frontend, backend, "API calls")
+Rel(backend, frontend, "API responses")
+Rel(backend, db, "Reads/Writes")
+Rel(db, backend, "Returns data")
+
+@enduml

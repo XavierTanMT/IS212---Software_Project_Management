@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Task - Task Manager</title>
+    
+    <!-- Firebase SDK v8 (compatible with HTML) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    
+    <!-- Configuration and Auth utilities -->
+    <script src="js/config.js"></script>
+    <script src="js/error-handler.js"></script>
+    <script src="js/auth.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 15px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 600px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .header .logo {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        
+        .header h1 {
+            color: #333;
+            margin-bottom: 0.5rem;
+            font-size: 1.8rem;
+        }
+        
+        .header p {
+            color: #666;
+            font-size: 0.95rem;
+        }
+        
+        .task-info {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            border-left: 4px solid #667eea;
+        }
+        
+        .task-meta {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.9rem;
+            color: #666;
+            flex-wrap: wrap;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #333;
+            font-weight: 500;
+            font-size: 0.95rem;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-family: inherit;
+            transition: border-color 0.3s, box-shadow 0.3s;
+            background-color: #fafafa;
+        }
+        
+        .form-group textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            background-color: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .form-group input:valid,
+        .form-group textarea:valid {
+            border-color: #28a745;
+        }
+        
+        .input-hint {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 0.25rem;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        
+        .btn {
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-right: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn-danger:hover:not(:disabled) {
+            box-shadow: 0 8px 25px rgba(220, 53, 69, 0.3);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+        }
+        
+        .message {
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            border-radius: 8px;
+            font-weight: 500;
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+        
+        .message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            color: #667eea;
+            font-weight: 500;
+            margin: 1rem 0;
+        }
+        
+        .loading::after {
+            content: '';
+            width: 20px;
+            height: 20px;
+            border: 2px solid #667eea;
+            border-top: 2px solid transparent;
+            border-radius: 50%;
+            display: inline-block;
+            margin-left: 10px;
+            animation: spin 1s linear infinite;
+        }
+        
+        .form-footer {
+            text-align: center;
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #e1e5e9;
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .back-link {
+            display: inline-block;
+            color: #667eea;
+            text-decoration: none;
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: color 0.3s;
+            margin: 0 0.5rem;
+        }
+        
+        .back-link:hover {
+            color: #764ba2;
+            text-decoration: underline;
+        }
+        
+        .required {
+            color: #dc3545;
+        }
+        
+        .status-badge {
+            padding: 0.3rem 0.8rem;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        
+        .status-todo {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+        
+        .status-progress {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+        
+        .status-completed {
+            background: #e8f5e8;
+            color: #2e7d32;
+        }
+        
+        .status-blocked {
+            background: #ffebee;
+            color: #c62828;
+        }
+        
+        .priority-badge {
+            padding: 0.3rem 0.8rem;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        
+        .priority-high {
+            background: #ffebee;
+            color: #c62828;
+        }
+        
+        .priority-medium {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+        
+        .priority-low {
+            background: #e8f5e8;
+            color: #2e7d32;
+        }
+        
+        /* Modal styles for delete confirmation */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+        }
+        
+        .modal-content {
+            background: white;
+            margin: 10% auto;
+            padding: 2rem;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+        
+        .modal h3 {
+            color: #dc3545;
+            margin-bottom: 1rem;
+        }
+        
+        .modal p {
+            color: #666;
+            margin-bottom: 1.5rem;
+            line-height: 1.5;
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .btn-group {
+                flex-direction: column;
+            }
+            
+            .btn {
+                margin-right: 0;
+                width: 100%;
+            }
+            
+            .container {
+                padding: 1.5rem;
+                margin: 10px;
+            }
+            
+            .header h1 {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">✏️</div>
+            <h1>Edit Task</h1>
+            <p>Update task details and track progress</p>
+        </div>
+        
+        <div class="message" id="message"></div>
+        
+        <!-- Task Info Display -->
+        <div class="task-info" id="taskInfo" style="display: none;">
+            <div class="task-meta">
+                <span><strong>Task ID:</strong> <span id="taskId">-</span></span>
+                <span><strong>Created:</strong> <span id="createdDate">-</span></span>
+                <span><strong>Created by:</strong> <span id="createdBy">-</span></span>
+            </div>
+        </div>
+        
+        <div class="loading" id="pageLoading">
+            Loading task details
+        </div>
+        
+        <form id="editTaskForm" style="display: none;" novalidate>
+            <div class="form-group">
+                <label for="title">
+                    Task Title <span class="required">*</span>
+                </label>
+                <input 
+                    type="text" 
+                    id="title" 
+                    name="title" 
+                    placeholder="e.g., Fix login bug or Design homepage" 
+                    required
+                    maxlength="100"
+                >
+                <div class="input-hint">Brief, descriptive title (3-100 characters)</div>
+            </div>
+            
+            <div class="form-group">
+                <label for="description">
+                    Description <span class="required">*</span>
+                </label>
+                <textarea 
+                    id="description" 
+                    name="description" 
+                    placeholder="Describe what needs to be done..."
+                    required
+                    maxlength="500"
+                ></textarea>
+                <div class="input-hint">Detailed description of the task (10-500 characters)</div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="priority">Priority</label>
+                    <select id="priority" name="priority">
+                        <option value="Low">🟢 Low Priority</option>
+                        <option value="Medium">🟡 Medium Priority</option>
+                        <option value="High">🔴 High Priority</option>
+                    </select>
+                    <div class="input-hint">How urgent is this task?</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="status">Status</label>
+                    <select id="status" name="status">
+                        <option value="To Do">📋 To Do</option>
+                        <option value="In Progress">⏳ In Progress</option>
+                        <option value="Completed">✅ Completed</option>
+                        <option value="Blocked">🚫 Blocked</option>
+                    </select>
+                    <div class="input-hint">Current task status</div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="due_date">Due Date (Optional)</label>
+                <input 
+                    type="datetime-local" 
+                    id="due_date" 
+                    name="due_date"
+                >
+                <div class="input-hint">When should this task be completed?</div>
+            </div>
+            
+            <div class="loading" id="formLoading">
+                Updating task
+            </div>
+            
+            <div class="btn-group">
+                <button type="submit" class="btn btn-primary" id="updateBtn">
+                    Update Task
+                </button>
+                
+                <button type="button" class="btn btn-secondary" onclick="goToDashboard()">
+                    Cancel
+                </button>
+                
+                <button type="button" class="btn btn-danger" onclick="confirmDelete()" id="deleteBtn">
+                    Delete Task
+                </button>
+            </div>
+        </form>
+        
+        <div class="form-footer">
+            <a href="dashboard.html" class="back-link">← Back to Dashboard</a>
+            <span>|</span>
+            <a href="create_task.html" class="back-link">Create New Task</a>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal" class="modal">
+        <div class="modal-content">
+            <h3>🗑️ Delete Task</h3>
+            <p id="deleteMessage">Are you sure you want to delete this task? This action cannot be undone.</p>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeDeleteModal()">Cancel</button>
+                <button class="btn btn-danger" onclick="executeDelete()" id="confirmDeleteBtn">
+                    Delete Task
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = null;
+        let currentTask = null;
+        let taskId = null;
+        
+        // Get elements
+        const form = document.getElementById('editTaskForm');
+        const updateBtn = document.getElementById('updateBtn');
+        const deleteBtn = document.getElementById('deleteBtn');
+        const pageLoading = document.getElementById('pageLoading');
+        const formLoading = document.getElementById('formLoading');
+        const message = document.getElementById('message');
+        const taskInfo = document.getElementById('taskInfo');
+        
+        // Check authentication and load task
+        window.addEventListener('load', async () => {
+            // Check if user is logged in
+            const userData = localStorage.getItem('currentUser');
+            if (!userData) {
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            currentUser = JSON.parse(userData);
+            
+            // Get task ID from URL parameter
+            const urlParams = new URLSearchParams(window.location.search);
+            taskId = urlParams.get('task_id');
+            
+            if (!taskId) {
+                showMessage('❌ No task ID provided. Redirecting to dashboard...', 'error');
+                setTimeout(() => {
+                    window.location.href = 'dashboard.html';
+                }, 2000);
+                return;
+            }
+            
+            await loadTaskData();
+        });
+        
+        async function loadTaskData() {
+            try {
+                pageLoading.style.display = 'block';
+                
+                const response = await fetch(`http://localhost:5000/api/tasks/${taskId}`);
+                
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        throw new Error('Task not found');
+                    }
+                    throw new Error('Failed to load task');
+                }
+                
+                currentTask = await response.json();
+                populateForm();
+                
+            } catch (error) {
+                console.error('Error loading task:', error);
+                showMessage(`❌ Error loading task: ${error.message}`, 'error');
+                
+                setTimeout(() => {
+                    window.location.href = 'dashboard.html';
+                }, 3000);
+            } finally {
+                pageLoading.style.display = 'none';
+            }
+        }
+        
+        function populateForm() {
+            // Update page title
+            document.title = `Edit: ${currentTask.title}`;
+            
+            // Show task info
+            document.getElementById('taskId').textContent = currentTask.task_id;
+            document.getElementById('createdDate').textContent = formatDate(currentTask.created_at);
+            document.getElementById('createdBy').textContent = currentTask.created_by?.name || 'Unknown';
+            taskInfo.style.display = 'block';
+            
+            // Populate form fields
+            document.getElementById('title').value = currentTask.title || '';
+            document.getElementById('description').value = currentTask.description || '';
+            document.getElementById('priority').value = currentTask.priority || 'Medium';
+            document.getElementById('status').value = currentTask.status || 'To Do';
+            
+            // Handle due date
+            if (currentTask.due_date) {
+                const dueDate = new Date(currentTask.due_date);
+                dueDate.setMinutes(dueDate.getMinutes() - dueDate.getTimezoneOffset());
+                document.getElementById('due_date').value = dueDate.toISOString().slice(0, 16);
+            }
+            
+            // Set minimum due date to current date/time
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            document.getElementById('due_date').min = now.toISOString().slice(0, 16);
+            
+            // Check if current user can edit/delete this task
+            const canEdit = currentTask.created_by?.user_id === currentUser.user_id;
+            if (!canEdit) {
+                showMessage('⚠️ You can only edit tasks that you created.', 'error');
+                updateBtn.disabled = true;
+                deleteBtn.disabled = true;
+                
+                // Make form read-only
+                const inputs = form.querySelectorAll('input, select, textarea');
+                inputs.forEach(input => input.disabled = true);
+            }
+            
+            // Show the form
+            form.style.display = 'block';
+        }
+        
+        // Handle form submission
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(form);
+            const taskData = {
+                ...currentTask, // Keep existing data
+                title: formData.get('title').trim(),
+                description: formData.get('description').trim(),
+                priority: formData.get('priority'),
+                status: formData.get('status'),
+                due_date: formData.get('due_date') || null
+            };
+            
+            // Validation
+            if (!taskData.title || taskData.title.length < 3) {
+                showMessage('❌ Please enter a task title (at least 3 characters)', 'error');
+                return;
+            }
+            
+            if (!taskData.description || taskData.description.length < 10) {
+                showMessage('❌ Please enter a detailed description (at least 10 characters)', 'error');
+                return;
+            }
+            
+            setLoading(true);
+            hideMessage();
+            
+            try {
+                const response = await fetch(`http://localhost:5000/api/tasks/${taskId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(taskData)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showMessage(`✅ Task "${taskData.title}" updated successfully!`, 'success');
+                    
+                    // Update current task data
+                    currentTask = result;
+                    
+                    // Redirect to dashboard after 2 seconds
+                    setTimeout(() => {
+                        window.location.href = 'dashboard.html';
+                    }, 2000);
+                    
+                } else {
+                    showMessage(`❌ Error: ${result.error}`, 'error');
+                }
+                
+            } catch (error) {
+                console.error('Error updating task:', error);
+                showMessage('❌ Network error. Please check server connection.', 'error');
+            } finally {
+                setLoading(false);
+            }
+        });
+        
+        // Delete functionality
+        function confirmDelete() {
+            document.getElementById('deleteMessage').textContent = 
+                `Are you sure you want to delete "${currentTask.title}"? This action cannot be undone.`;
+            document.getElementById('deleteModal').style.display = 'block';
+        }
+        
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').style.display = 'none';
+        }
+        
+        async function executeDelete() {
+            const confirmBtn = document.getElementById('confirmDeleteBtn');
+            const originalText = confirmBtn.textContent;
+            
+            try {
+                confirmBtn.textContent = 'Deleting...';
+                confirmBtn.disabled = true;
+                
+                const response = await fetch(`http://localhost:5000/api/tasks/${taskId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    showMessage(`✅ Task deleted successfully!`, 'success');
+                    closeDeleteModal();
+                    
+                    setTimeout(() => {
+                        window.location.href = 'dashboard.html';
+                    }, 1500);
+                    
+                } else {
+                    const result = await response.json();
+                    showMessage(`❌ Error: ${result.error}`, 'error');
+                }
+                
+            } catch (error) {
+                console.error('Error deleting task:', error);
+                showMessage('❌ Network error. Please try again.', 'error');
+            } finally {
+                confirmBtn.textContent = originalText;
+                confirmBtn.disabled = false;
+            }
+        }
+        
+        // Helper functions
+        function setLoading(isLoading) {
+            updateBtn.disabled = isLoading;
+            deleteBtn.disabled = isLoading;
+            formLoading.style.display = isLoading ? 'block' : 'none';
+            updateBtn.textContent = isLoading ? 'Updating...' : 'Update Task';
+        }
+        
+        function showMessage(text, type) {
+            message.textContent = text;
+            message.className = `message ${type}`;
+            message.style.display = 'block';
+            
+            if (type === 'error') {
+                setTimeout(() => {
+                    if (message.classList.contains('error')) {
+                        hideMessage();
+                    }
+                }, 8000);
+            }
+        }
+        
+        function hideMessage() {
+            message.style.display = 'none';
+        }
+        
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleString();
+        }
+        
+        function goToDashboard() {
+            window.location.href = 'dashboard.html';
+        }
+        
+        // Close modal when clicking outside
+        window.addEventListener('click', (event) => {
+            const modal = document.getElementById('deleteModal');
+            if (event.target === modal) {
+                closeDeleteModal();
+            }
+        });
+        
+        // Close modal with Escape key
+        window.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                closeDeleteModal();
+            }
+        });
+    </script>
+</body>
+</html>

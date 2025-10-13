@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create New Task - Task Manager</title>
+    
+    <!-- Firebase SDK v8 (compatible with HTML) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    
+    <!-- Configuration and Auth utilities -->
+    <script src="js/config.js"></script>
+    <script src="js/error-handler.js"></script>
+    <script src="js/auth.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 15px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 600px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .header .logo {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        
+        .header h1 {
+            color: #333;
+            margin-bottom: 0.5rem;
+            font-size: 1.8rem;
+        }
+        
+        .header p {
+            color: #666;
+            font-size: 0.95rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #333;
+            font-weight: 500;
+            font-size: 0.95rem;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-family: inherit;
+            transition: border-color 0.3s, box-shadow 0.3s;
+            background-color: #fafafa;
+        }
+        
+        .form-group textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+        
+        /* Priority slider styles */
+        .priority-slider {
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: linear-gradient(to right, #28a745 0%, #ffc107 50%, #dc3545 100%);
+            outline: none;
+            -webkit-appearance: none;
+            margin: 0.5rem 0;
+        }
+        
+        .priority-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #fff;
+            border: 2px solid #007bff;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .priority-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #fff;
+            border: 2px solid #007bff;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .priority-display {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+        }
+        
+        #priority_value {
+            font-weight: bold;
+            color: #007bff;
+        }
+        
+        /* Recurrence settings */
+        .recurrence-settings {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .form-row {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .form-row .form-group {
+            flex: 1;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            background-color: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .form-group input:valid,
+        .form-group textarea:valid {
+            border-color: #28a745;
+        }
+        
+        .form-group input:invalid:not(:focus):not(:placeholder-shown),
+        .form-group textarea:invalid:not(:focus):not(:placeholder-shown) {
+            border-color: #dc3545;
+        }
+        
+        .input-hint {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 0.25rem;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 1rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-bottom: 1rem;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .message {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 8px;
+            font-weight: 500;
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+        
+        .message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            color: #667eea;
+            font-weight: 500;
+            margin: 1rem 0;
+        }
+        
+        .loading::after {
+            content: '';
+            width: 20px;
+            height: 20px;
+            border: 2px solid #667eea;
+            border-top: 2px solid transparent;
+            border-radius: 50%;
+            display: inline-block;
+            margin-left: 10px;
+            animation: spin 1s linear infinite;
+        }
+        
+        .form-footer {
+            text-align: center;
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #e1e5e9;
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .back-link {
+            display: inline-block;
+            color: #667eea;
+            text-decoration: none;
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: color 0.3s;
+            margin: 0 0.5rem;
+        }
+        
+        .back-link:hover {
+            color: #764ba2;
+            text-decoration: underline;
+        }
+        
+        .required {
+            color: #dc3545;
+        }
+        
+        .priority-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+        }
+        
+        .priority-high {
+            background: #dc3545;
+        }
+        
+        .priority-medium {
+            background: #ffc107;
+        }
+        
+        .priority-low {
+            background: #28a745;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            margin-right: 0.5rem;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .container {
+                padding: 1.5rem;
+                margin: 10px;
+            }
+            
+            .header h1 {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">📝</div>
+            <h1>Create New Task</h1>
+            <p>Add a new task to your project</p>
+        </div>
+        
+        <div class="message" id="message"></div>
+        
+        <form id="createTaskForm" novalidate>
+            <div class="form-group">
+                <label for="title">
+                    Task Title <span class="required">*</span>
+                </label>
+                <input 
+                    type="text" 
+                    id="title" 
+                    name="title" 
+                    placeholder="e.g., Fix login bug or Design homepage" 
+                    required
+                    maxlength="100"
+                    pattern="^.{3,100}$"
+                    title="3-100 characters required"
+                >
+                <div class="input-hint">Brief, descriptive title (3-100 characters)</div>
+            </div>
+            
+            <div class="form-group">
+                <label for="description">
+                    Description <span class="required">*</span>
+                </label>
+                <textarea 
+                    id="description" 
+                    name="description" 
+                    placeholder="Describe what needs to be done, include any requirements or details..."
+                    required
+                    maxlength="500"
+                    pattern="^.{10,500}$"
+                    title="10-500 characters required"
+                ></textarea>
+                <div class="input-hint">Detailed description of the task (10-500 characters)</div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="priority_bucket">Priority Level</label>
+                    <input 
+                        type="range" 
+                        id="priority_bucket" 
+                        name="priority_bucket" 
+                        min="1" 
+                        max="10" 
+                        value="5"
+                        class="priority-slider"
+                    >
+                    <div class="priority-display">
+                        <span id="priority_value">5</span>
+                        <span class="priority-label">Medium Priority</span>
+                    </div>
+                    <div class="input-hint">1 = Least important, 10 = Most important</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="status">Status</label>
+                    <select id="status" name="status">
+                        <option value="To Do" selected>
+                            <span class="status-indicator">📋</span>
+                            To Do
+                        </option>
+                        <option value="In Progress">
+                            <span class="status-indicator">⏳</span>
+                            In Progress
+                        </option>
+                        <option value="Completed">
+                            <span class="status-indicator">✅</span>
+                            Completed
+                        </option>
+                        <option value="Blocked">
+                            <span class="status-indicator">🚫</span>
+                            Blocked
+                        </option>
+                    </select>
+                    <div class="input-hint">Current task status</div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="due_date">Due Date (Optional)</label>
+                <input 
+                    type="datetime-local" 
+                    id="due_date" 
+                    name="due_date"
+                >
+                <div class="input-hint">When should this task be completed?</div>
+            </div>
+            
+            <!-- Recurrence Settings -->
+            <div class="checkbox-group">
+                <input type="checkbox" id="recurrence_enabled" name="recurrence_enabled">
+                <label for="recurrence_enabled">Make this a recurring task</label>
+            </div>
+            
+            <div id="recurrence_settings" class="recurrence-settings" style="display: none;">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="recurrence_frequency">Frequency</label>
+                        <select id="recurrence_frequency" name="recurrence_frequency">
+                            <option value="daily">Daily</option>
+                            <option value="weekly" selected>Weekly</option>
+                            <option value="monthly">Monthly</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="recurrence_interval">Every</label>
+                        <input 
+                            type="number" 
+                            id="recurrence_interval" 
+                            name="recurrence_interval" 
+                            min="1" 
+                            max="365" 
+                            value="1"
+                        >
+                        <span id="interval_label">week(s)</span>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="recurrence_end_date">End Date (Optional)</label>
+                    <input 
+                        type="date" 
+                        id="recurrence_end_date" 
+                        name="recurrence_end_date"
+                    >
+                    <div class="input-hint">Leave empty for indefinite recurrence</div>
+                </div>
+            </div>
+            
+            <div class="loading" id="loading">
+                Creating your task
+            </div>
+            
+            <button type="submit" class="btn btn-primary" id="submitBtn">
+                Create Task
+            </button>
+            
+            <button type="button" class="btn btn-secondary" onclick="goToDashboard()">
+                Cancel
+            </button>
+        </form>
+        
+        <div class="form-footer">
+            <a href="dashboard.html" class="back-link">← Back to Dashboard</a>
+            <span>|</span>
+            <a href="login.html" class="back-link">Logout</a>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = null;
+        
+        // Get form elements
+        const form = document.getElementById('createTaskForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const loading = document.getElementById('loading');
+        const message = document.getElementById('message');
+        
+        // Input elements
+        const titleInput = document.getElementById('title');
+        const descriptionInput = document.getElementById('description');
+        const dueDateInput = document.getElementById('due_date');
+        
+        // Priority slider and recurrence elements
+        const prioritySlider = document.getElementById('priority_bucket');
+        const priorityValue = document.getElementById('priority_value');
+        const recurrenceEnabled = document.getElementById('recurrence_enabled');
+        const recurrenceSettings = document.getElementById('recurrence_settings');
+        const frequencySelect = document.getElementById('recurrence_frequency');
+        const intervalLabel = document.getElementById('interval_label');
+        
+        // Priority slider interaction
+        prioritySlider.addEventListener('input', function() {
+            const value = this.value;
+            priorityValue.textContent = value;
+            
+            // Update color based on priority
+            if (value <= 3) {
+                priorityValue.style.color = '#28a745'; // Green
+            } else if (value <= 7) {
+                priorityValue.style.color = '#ffc107'; // Yellow
+            } else {
+                priorityValue.style.color = '#dc3545'; // Red
+            }
+        });
+        
+        // Recurrence settings toggle
+        recurrenceEnabled.addEventListener('change', function() {
+            recurrenceSettings.style.display = this.checked ? 'block' : 'none';
+        });
+        
+        // Frequency change handler
+        frequencySelect.addEventListener('change', function() {
+            const frequency = this.value;
+            const labels = {
+                'daily': 'day(s)',
+                'weekly': 'week(s)',
+                'monthly': 'month(s)'
+            };
+            intervalLabel.textContent = labels[frequency];
+        });
+        
+        // Check authentication and initialize
+        window.addEventListener('load', async () => {
+            const authInitialized = await AuthUtils.init();
+            if (!authInitialized) {
+                console.error('Failed to initialize Firebase auth');
+                showMessage('Failed to initialize authentication. Please refresh the page.', 'error');
+                return;
+            }
+
+            // Check Firebase Auth state
+            AuthUtils.onAuthStateChanged(async (user) => {
+                if (user) {
+                    // User is authenticated
+                    const userData = localStorage.getItem('currentUser');
+                    if (userData) {
+                        currentUser = JSON.parse(userData);
+                        initializePage();
+                    } else {
+                        // Create a temporary user object from Firebase Auth data
+                        currentUser = AuthUtils.createTempUser(user);
+                        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                        localStorage.setItem('idToken', await user.getIdToken());
+                        initializePage();
+                    }
+                } else {
+                    // User not authenticated, redirect to login
+                    window.location.href = 'login.html';
+                }
+            });
+        });
+        
+        function initializePage() {
+            // Update page title
+            document.title = `Create Task - ${currentUser.name}`;
+            
+            // Set minimum due date to current date/time
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            dueDateInput.min = now.toISOString().slice(0, 16);
+            
+            // Auto-focus title input
+            titleInput.focus();
+            
+            // Test server connection
+            testServerConnection();
+        }
+        
+        // Real-time validation
+        titleInput.addEventListener('input', validateTitle);
+        descriptionInput.addEventListener('input', validateDescription);
+        
+        // Handle form submission
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Get form data
+            const formData = new FormData(form);
+                const taskData = {
+                    title: formData.get('title').trim(),
+                    description: formData.get('description').trim(),
+                    created_by_id: currentUser.user_id,
+                    priority_bucket: parseInt(formData.get('priority_bucket')),
+                    status: formData.get('status'),
+                    due_date: formData.get('due_date') || null
+                };
+                
+                // Add recurrence if enabled
+                if (formData.get('recurrence_enabled')) {
+                    taskData.recurrence = {
+                        enabled: true,
+                        frequency: formData.get('recurrence_frequency'),
+                        interval: parseInt(formData.get('recurrence_interval')),
+                        end_date: formData.get('recurrence_end_date') || null
+                    };
+                } else {
+                    taskData.recurrence = { enabled: false };
+                }
+            
+            // Client-side validation
+            if (!validateForm(taskData)) {
+                return;
+            }
+            
+            // Show loading state
+            setLoading(true);
+            hideMessage();
+            
+            try {
+                // Call API to create task
+                const response = await fetch(`http://localhost:5000/api/tasks`, {
+                    method: 'POST',
+                    headers: await AuthUtils.getAuthHeaders(),
+                    body: JSON.stringify(taskData)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    // Success - task created
+                    showMessage(`🎉 Task "${taskData.title}" created successfully!`, 'success');
+                    
+                    // Clear form
+                    form.reset();
+                    
+                    // Reset due date minimum
+                    const now = new Date();
+                    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+                    dueDateInput.min = now.toISOString().slice(0, 16);
+                    
+                    // Redirect to dashboard after 2 seconds
+                    setTimeout(() => {
+                        window.location.href = 'dashboard.html';
+                    }, 2000);
+                    
+                } else {
+                    // API error
+                    let errorMessage = result.error || 'An error occurred';
+                    showMessage(`❌ ${errorMessage}`, 'error');
+                }
+                
+            } catch (error) {
+                // Network error
+                console.error('Error creating task:', error);
+                showMessage('❌ Network error. Please check that the server is running and try again.', 'error');
+            } finally {
+                setLoading(false);
+            }
+        });
+        
+        // Validation functions
+        function validateTitle() {
+            const value = titleInput.value.trim();
+            const isValid = value.length >= 3 && value.length <= 100;
+            
+            if (value && !isValid) {
+                titleInput.style.borderColor = '#dc3545';
+                return false;
+            } else if (value && isValid) {
+                titleInput.style.borderColor = '#28a745';
+                return true;
+            }
+            return value.length === 0;
+        }
+        
+        function validateDescription() {
+            const value = descriptionInput.value.trim();
+            const isValid = value.length >= 10 && value.length <= 500;
+            
+            if (value && !isValid) {
+                descriptionInput.style.borderColor = '#dc3545';
+                return false;
+            } else if (value && isValid) {
+                descriptionInput.style.borderColor = '#28a745';
+                return true;
+            }
+            return value.length === 0;
+        }
+        
+        function validateForm(taskData) {
+            let isValid = true;
+            let firstErrorField = null;
+            
+            // Validate title
+            if (!taskData.title || taskData.title.length < 3) {
+                showMessage('❌ Please enter a task title (at least 3 characters)', 'error');
+                firstErrorField = titleInput;
+                isValid = false;
+            }
+            // Validate description
+            else if (!taskData.description || taskData.description.length < 10) {
+                showMessage('❌ Please enter a detailed description (at least 10 characters)', 'error');
+                firstErrorField = descriptionInput;
+                isValid = false;
+            }
+            // Validate due date (if provided)
+            else if (taskData.due_date) {
+                const dueDate = new Date(taskData.due_date);
+                const now = new Date();
+                
+                if (dueDate <= now) {
+                    showMessage('❌ Due date must be in the future', 'error');
+                    firstErrorField = dueDateInput;
+                    isValid = false;
+                }
+            }
+            
+            // Focus first error field
+            if (firstErrorField) {
+                firstErrorField.focus();
+            }
+            
+            return isValid;
+        }
+        
+        // Helper functions
+        function setLoading(isLoading) {
+            submitBtn.disabled = isLoading;
+            loading.style.display = isLoading ? 'block' : 'none';
+            submitBtn.textContent = isLoading ? 'Creating Task...' : 'Create Task';
+            
+            // Disable form inputs during loading
+            const inputs = form.querySelectorAll('input, select, textarea');
+            inputs.forEach(input => input.disabled = isLoading);
+        }
+        
+        function showMessage(text, type) {
+            message.textContent = text;
+            message.className = `message ${type}`;
+            message.style.display = 'block';
+            
+            // Auto-hide error messages after 10 seconds
+            if (type === 'error') {
+                setTimeout(() => {
+                    if (message.classList.contains('error')) {
+                        hideMessage();
+                    }
+                }, 10000);
+            }
+        }
+        
+        function hideMessage() {
+            message.style.display = 'none';
+        }
+        
+        async function testServerConnection() {
+            try {
+                const response = await fetch(`http://localhost:5000/`, {
+                    method: 'GET',
+                    timeout: 5000
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Server not responding');
+                }
+                
+                console.log('✅ Server connection successful');
+                
+            } catch (error) {
+                console.error('❌ Server connection failed:', error);
+                showMessage('⚠️ Cannot connect to server. Make sure the Flask app is running on http://localhost:5000', 'error');
+            }
+        }
+        
+        // Navigation functions
+        function goToDashboard() {
+            window.location.href = 'dashboard.html';
+        }
+        
+        // Character counters (optional enhancement)
+        titleInput.addEventListener('input', () => {
+            const remaining = 100 - titleInput.value.length;
+            if (remaining < 20) {
+                titleInput.style.color = remaining < 5 ? '#dc3545' : '#ffc107';
+            } else {
+                titleInput.style.color = '#333';
+            }
+        });
+        
+        descriptionInput.addEventListener('input', () => {
+            const remaining = 500 - descriptionInput.value.length;
+            if (remaining < 50) {
+                descriptionInput.style.color = remaining < 10 ? '#dc3545' : '#ffc107';
+            } else {
+                descriptionInput.style.color = '#333';
+            }
+        });
+        
+        // Prevent form submission with Enter key in textarea
+        descriptionInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                form.dispatchEvent(new Event('submit'));
+            }
+        });
+    </script>
+</body>
+</html>
