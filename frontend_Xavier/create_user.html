@@ -1,5 +1,11 @@
 <!DOCTYPE html>
+<html lang=\"en\">
+<head>
+<meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
+<title>Create New User - Task Manager</title>
+<!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,7 +16,7 @@
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -20,7 +26,7 @@
             justify-content: center;
             padding: 20px;
         }
-        
+
         .container {
             background: white;
             padding: 2.5rem;
@@ -29,32 +35,32 @@
             width: 100%;
             max-width: 450px;
         }
-        
+
         .header {
             text-align: center;
             margin-bottom: 2rem;
         }
-        
+
         .header .logo {
             font-size: 3rem;
             margin-bottom: 1rem;
         }
-        
+
         .header h1 {
             color: #333;
             margin-bottom: 0.5rem;
             font-size: 1.8rem;
         }
-        
+
         .header p {
             color: #666;
             font-size: 0.95rem;
         }
-        
+
         .form-group {
             margin-bottom: 1.5rem;
         }
-        
+
         .form-group label {
             display: block;
             margin-bottom: 0.5rem;
@@ -62,7 +68,7 @@
             font-weight: 500;
             font-size: 0.95rem;
         }
-        
+
         .form-group input {
             width: 100%;
             padding: 1rem;
@@ -72,28 +78,28 @@
             transition: border-color 0.3s, box-shadow 0.3s;
             background-color: #fafafa;
         }
-        
+
         .form-group input:focus {
             outline: none;
             border-color: #667eea;
             background-color: white;
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
-        
+
         .form-group input:valid {
             border-color: #28a745;
         }
-        
+
         .form-group input:invalid:not(:focus):not(:placeholder-shown) {
             border-color: #dc3545;
         }
-        
+
         .input-hint {
             font-size: 0.8rem;
             color: #666;
             margin-top: 0.25rem;
         }
-        
+
         .btn {
             width: 100%;
             padding: 1rem;
@@ -107,23 +113,23 @@
             transition: transform 0.2s, box-shadow 0.2s;
             margin-bottom: 1rem;
         }
-        
+
         .btn:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
         }
-        
+
         .btn:active {
             transform: translateY(0);
         }
-        
+
         .btn:disabled {
             opacity: 0.6;
             cursor: not-allowed;
             transform: none;
             box-shadow: none;
         }
-        
+
         .message {
             margin-top: 1rem;
             padding: 1rem;
@@ -132,19 +138,19 @@
             display: none;
             animation: slideIn 0.3s ease;
         }
-        
+
         .message.success {
             background-color: #d4edda;
             color: #155724;
             border: 1px solid #c3e6cb;
         }
-        
+
         .message.error {
             background-color: #f8d7da;
             color: #721c24;
             border: 1px solid #f5c6cb;
         }
-        
+
         .loading {
             display: none;
             text-align: center;
@@ -152,7 +158,7 @@
             font-weight: 500;
             margin: 1rem 0;
         }
-        
+
         .loading::after {
             content: '';
             width: 20px;
@@ -164,7 +170,7 @@
             margin-left: 10px;
             animation: spin 1s linear infinite;
         }
-        
+
         .back-link {
             display: block;
             text-align: center;
@@ -175,12 +181,12 @@
             font-weight: 500;
             transition: color 0.3s;
         }
-        
+
         .back-link:hover {
             color: #764ba2;
             text-decoration: underline;
         }
-        
+
         .form-footer {
             text-align: center;
             margin-top: 1.5rem;
@@ -189,117 +195,92 @@
             color: #666;
             font-size: 0.9rem;
         }
-        
+
         .required {
             color: #dc3545;
         }
-        
+
         @keyframes slideIn {
             from {
                 opacity: 0;
                 transform: translateY(-10px);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0);
             }
         }
-        
+
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
-        
+
         @media (max-width: 480px) {
             .container {
                 padding: 1.5rem;
                 margin: 10px;
             }
-            
+
             .header h1 {
                 font-size: 1.5rem;
             }
-            
+
             .form-group input {
                 padding: 0.875rem;
             }
-            
+
             .btn {
                 padding: 0.875rem;
             }
         }
     </style>
 </head>
+
 <body>
+    <div id="nav"></div>
+    <script src="common.js"></script>
+
     <div class="container">
         <div class="header">
             <div class="logo">👤</div>
             <h1>Create New Account</h1>
             <p>Join the task management system</p>
         </div>
-        
+
         <form id="createUserForm" novalidate>
             <div class="form-group">
-                <label for="user_id">
-                    User ID <span class="required">*</span>
-                </label>
-                <input 
-                    type="text" 
-                    id="user_id" 
-                    name="user_id" 
-                    placeholder="e.g., alice123 or john_doe" 
-                    required 
-                    pattern="^[a-zA-Z0-9_]{3,20}$"
-                    title="3-20 characters: letters, numbers, and underscores only"
-                    autocomplete="username"
-                >
+                <label for="user_id">User ID <span class="required">*</span></label>
+                <input type="text" id="user_id" name="user_id" placeholder="e.g., alice123 or john_doe" required
+                    pattern="^[a-zA-Z0-9_]{3,20}$" title="3-20 characters: letters, numbers, and underscores only"
+                    autocomplete="username">
                 <div class="input-hint">3-20 characters: letters, numbers, and underscores only</div>
             </div>
-            
+
             <div class="form-group">
-                <label for="name">
-                    Full Name <span class="required">*</span>
-                </label>
-                <input 
-                    type="text" 
-                    id="name" 
-                    name="name" 
-                    placeholder="e.g., Alice Smith" 
-                    required
-                    maxlength="100"
-                    pattern="^[a-zA-Z\s]{2,100}$"
-                    title="2-100 characters: letters and spaces only"
-                    autocomplete="name"
-                >
+                <label for="name">Full Name <span class="required">*</span></label>
+                <input type="text" id="name" name="name" placeholder="e.g., Alice Smith" required maxlength="100"
+                    pattern="^[a-zA-Z\s]{2,100}$" title="2-100 characters: letters and spaces only" autocomplete="name">
                 <div class="input-hint">Your full name (2-100 characters)</div>
             </div>
-            
+
             <div class="form-group">
-                <label for="email">
-                    Email Address <span class="required">*</span>
-                </label>
-                <input 
-                    type="email" 
-                    id="email" 
-                    name="email" 
-                    placeholder="e.g., alice@email.com" 
-                    required
-                    autocomplete="email"
-                >
+                <label for="email">Email Address <span class="required">*</span></label>
+                <input type="email" id="email" name="email" placeholder="e.g., alice@email.com" required autocomplete="email">
                 <div class="input-hint">We'll use this for notifications and account recovery</div>
             </div>
-            
-            <button type="submit" class="btn" id="submitBtn">
-                Create Account
-            </button>
-            
-            <div class="loading" id="loading">
-                Creating your account
-            </div>
-            
+
+            <button type="submit" class="btn" id="submitBtn">Create Account</button>
+            <div class="loading" id="loading">Creating your account</div>
             <div class="message" id="message"></div>
         </form>
-        
+
         <div class="form-footer">
             Already have an account?
             <a href="login.html" class="back-link" style="display: inline; margin: 0;">Sign in here</a>
@@ -307,230 +288,57 @@
     </div>
 
     <script>
-        // API base URL - change this to match your Flask server
-        const API_BASE_URL = 'http://localhost:5000';
-        
-        // Get form elements
-        const form = document.getElementById('createUserForm');
-        const submitBtn = document.getElementById('submitBtn');
-        const loading = document.getElementById('loading');
-        const message = document.getElementById('message');
-        
-        // Input elements
-        const userIdInput = document.getElementById('user_id');
-        const nameInput = document.getElementById('name');
-        const emailInput = document.getElementById('email');
-        
-        // Real-time validation
-        userIdInput.addEventListener('input', validateUserId);
-        nameInput.addEventListener('input', validateName);
-        emailInput.addEventListener('input', validateEmail);
-        
-        // Handle form submission
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            // Get form data
-            const formData = new FormData(form);
-            const userData = {
-                user_id: formData.get('user_id').trim(),
-                name: formData.get('name').trim(),
-                email: formData.get('email').trim()
-            };
-            
-            // Client-side validation
-            if (!validateForm(userData)) {
-                return;
-            }
-            
-            // Show loading state
-            setLoading(true);
-            hideMessage();
-            
-            try {
-                // Call API to create user
-                const response = await fetch(`${API_BASE_URL}/api/users`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(userData)
-                });
-                
-                const result = await response.json();
-                
-                if (response.ok) {
-                    // Success - user created
-                    showMessage(`🎉 Welcome, ${userData.name}! Your account has been created successfully.`, 'success');
-                    
-                    // Store user session (auto-login)
-                    localStorage.setItem('currentUser', JSON.stringify(result.user));
-                    
-                    // Clear form
-                    form.reset();
-                    
-                    // Redirect to dashboard after 2 seconds
-                    setTimeout(() => {
-                        window.location.href = 'dashboard.html';
-                    }, 2000);
-                    
-                } else {
-                    // API error
-                    let errorMessage = result.error || 'An error occurred';
-                    
-                    // Handle specific errors
-                    if (response.status === 409) {
-                        if (errorMessage.includes('User already exists')) {
-                            errorMessage = `User ID "${userData.user_id}" is already taken. Please choose a different one.`;
-                        } else if (errorMessage.includes('Email already exists')) {
-                            errorMessage = `Email "${userData.email}" is already registered. Please use a different email.`;
-                        }
-                    }
-                    
-                    showMessage(`❌ ${errorMessage}`, 'error');
-                }
-                
-            } catch (error) {
-                // Network error
-                console.error('Error creating user:', error);
-                showMessage('❌ Network error. Please check that the server is running and try again.', 'error');
-            } finally {
-                setLoading(false);
-            }
-        });
-        
-        // Validation functions
-        function validateUserId() {
-            const value = userIdInput.value.trim();
-            const isValid = /^[a-zA-Z0-9_]{3,20}$/.test(value);
-            
-            if (value && !isValid) {
-                userIdInput.style.borderColor = '#dc3545';
-                return false;
-            } else if (value && isValid) {
-                userIdInput.style.borderColor = '#28a745';
-                return true;
-            }
-            return value.length === 0;
+    const API_BASE_URL = 'http://localhost:5000';
+    const form = document.getElementById('createUserForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const loading = document.getElementById('loading');
+    const message = document.getElementById('message');
+    const userIdInput = document.getElementById('user_id');
+    const nameInput = document.getElementById('name');
+    const emailInput = document.getElementById('email');
+
+    function showMessage(text, type){ message.textContent = text; message.className = 'message ' + type; message.style.display='block'; }
+    function hideMessage(){ message.style.display='none'; }
+    function setLoading(isLoading){
+        submitBtn.disabled = isLoading;
+        loading.style.display = isLoading ? 'block' : 'none';
+        submitBtn.textContent = isLoading ? 'Creating Account...' : 'Create Account';
+        [userIdInput, nameInput, emailInput].forEach(i=>i.disabled = isLoading);
+    }
+
+    form.addEventListener('submit', async (e)=>{
+        e.preventDefault();
+        const userData = {
+            user_id: userIdInput.value.trim(),
+            name: nameInput.value.trim(),
+            email: emailInput.value.trim()
+        };
+        if(!userData.user_id || !userData.name || !userData.email){
+            showMessage('❌ Please fill all fields', 'error'); return;
         }
-        
-        function validateName() {
-            const value = nameInput.value.trim();
-            const isValid = /^[a-zA-Z\s]{2,100}$/.test(value);
-            
-            if (value && !isValid) {
-                nameInput.style.borderColor = '#dc3545';
-                return false;
-            } else if (value && isValid) {
-                nameInput.style.borderColor = '#28a745';
-                return true;
+        hideMessage(); setLoading(true);
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/users`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(userData)
+            });
+            const result = await response.json();
+            if(response.ok){
+                // Success
+                localStorage.setItem('currentUser', JSON.stringify(result.user));
+                showMessage(`🎉 Welcome, ${userData.name}! Your account has been created successfully.`, 'success');
+                setTimeout(()=>{ window.location.href = 'dashboard.html'; }, 800);
+            }else{
+                let errorMessage = result.error || 'An error occurred';
+                showMessage('❌ ' + errorMessage, 'error');
             }
-            return value.length === 0;
+        } catch(err){
+            showMessage('❌ Network error. Please ensure the server is running.', 'error');
+        } finally {
+            setLoading(false);
         }
-        
-        function validateEmail() {
-            const value = emailInput.value.trim();
-            const isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-            
-            if (value && !isValid) {
-                emailInput.style.borderColor = '#dc3545';
-                return false;
-            } else if (value && isValid) {
-                emailInput.style.borderColor = '#28a745';
-                return true;
-            }
-            return value.length === 0;
-        }
-        
-        function validateForm(userData) {
-            let isValid = true;
-            let firstErrorField = null;
-            
-            // Validate all fields
-            if (!userData.user_id || !validateUserId()) {
-                showMessage('❌ Please enter a valid User ID (3-20 characters: letters, numbers, underscores)', 'error');
-                firstErrorField = userIdInput;
-                isValid = false;
-            } else if (!userData.name || !validateName()) {
-                showMessage('❌ Please enter a valid name (2-100 characters: letters and spaces)', 'error');
-                firstErrorField = nameInput;
-                isValid = false;
-            } else if (!userData.email || !validateEmail()) {
-                showMessage('❌ Please enter a valid email address', 'error');
-                firstErrorField = emailInput;
-                isValid = false;
-            }
-            
-            // Focus first error field
-            if (firstErrorField) {
-                firstErrorField.focus();
-            }
-            
-            return isValid;
-        }
-        
-        // Helper functions
-        function setLoading(isLoading) {
-            submitBtn.disabled = isLoading;
-            loading.style.display = isLoading ? 'block' : 'none';
-            submitBtn.textContent = isLoading ? 'Creating Account...' : 'Create Account';
-            
-            // Disable form inputs during loading
-            const inputs = form.querySelectorAll('input');
-            inputs.forEach(input => input.disabled = isLoading);
-        }
-        
-        function showMessage(text, type) {
-            message.textContent = text;
-            message.className = `message ${type}`;
-            message.style.display = 'block';
-            
-            // Auto-hide error messages after 10 seconds
-            if (type === 'error') {
-                setTimeout(() => {
-                    if (message.classList.contains('error')) {
-                        hideMessage();
-                    }
-                }, 10000);
-            }
-        }
-        
-        function hideMessage() {
-            message.style.display = 'none';
-        }
-        
-        // Test server connection on page load
-        window.addEventListener('load', async () => {
-            try {
-                const response = await fetch(`${API_BASE_URL}/`, {
-                    method: 'GET',
-                    timeout: 5000
-                });
-                
-                if (!response.ok) {
-                    throw new Error('Server not responding');
-                }
-                
-                console.log('✅ Server connection successful');
-                
-            } catch (error) {
-                console.error('❌ Server connection failed:', error);
-                showMessage('⚠️ Cannot connect to server. Make sure the Flask app is running on http://localhost:5000', 'error');
-            }
-        });
-        
-        // Auto-focus first input
-        window.addEventListener('load', () => {
-            userIdInput.focus();
-        });
-        
-        // Prevent form submission with Enter key if validation fails
-        form.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                form.dispatchEvent(new Event('submit'));
-            }
-        });
+    });
     </script>
 </body>
 </html>

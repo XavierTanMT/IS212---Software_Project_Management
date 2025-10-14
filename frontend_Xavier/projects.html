@@ -1,0 +1,120 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Projects</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body{font-family:system-ui,Segoe UI,Arial;margin:0}
+    .page{max-width:1000px;margin:20px auto;padding:0 16px}
+    form, .card{border:1px solid #ddd;padding:12px;border-radius:8px;margin:12px 0}
+    input, select, textarea{padding:8px;margin:4px 0;width:100%}
+    button{padding:8px 12px;cursor:pointer}
+    .row{display:flex;gap:12px;flex-wrap:wrap}
+    .row > .col{flex:1 1 280px}
+    .list > div{padding:10px;border-bottom:1px dashed #e3e3e3}
+    .pill{display:inline-block;padding:2px 8px;border-radius:999px;background:#eee;margin-left:6px}
+  </style>
+</head>
+<body>
+  <div id="nav"></div>
+  <div class="page">
+    <h1>Projects</h1>
+
+    <div class="card">
+      <h3>Create Project</h3>
+      <form id="createForm">
+        <label>Name</label>
+        <input id="name" placeholder="e.g., Team Task Manager" required />
+        <label>Key (short code)</label>
+        <input id="key" placeholder="e.g., TMS" />
+        <label>Owner ID</label>
+        <input id="owner_id" placeholder="e.g., u123" />
+        <label>Description</label>
+        <textarea id="description" placeholder="Optional..."></textarea>
+        <button type="submit">Create</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <div class="col"><h3>All Projects</h3></div>
+        <div class="col" style="text-align:right">
+          <button id="refresh">Refresh</button>
+        </div>
+      </div>
+      <div id="list" class="list"></div>
+    </div>
+  </div>
+
+  <script src="common.js"></script>
+  <script>
+  async function createProject(e){
+    e.preventDefault();
+    const payload = {
+      name: document.getElementById("name").value.trim(),
+      key: document.getElementById("key").value.trim(),
+      owner_id: document.getElementById("owner_id").value.trim() || (getCurrentUser() ? getCurrentUser().user_id : ""),
+      description: document.getElementById("description").value.trim()
+    };
+    const res = await fetch(API_BASE + "/api/projects", {
+      method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if(!res.ok){ alert((data && data.error) || "Create failed"); return; }
+    alert("Project created");
+    setCurrentProject({ project_id: data.project_id, name: data.name });
+    document.getElementById("createForm").reset();
+    load();
+  }
+
+  function chooseProject(p){
+    setCurrentProject({ project_id: p.project_id, name: p.name });
+    alert("Selected project: " + p.name);
+  }
+
+  async function deleteProject(p){
+    if(!confirm(`Delete project "${p.name}"? This cannot be undone.`)) return;
+    const res = await fetch(API_BASE + "/api/projects/" + encodeURIComponent(p.project_id), { method:"DELETE" });
+    const data = await res.json();
+    if(!res.ok){ alert((data && data.error) || "Delete failed"); return; }
+    alert("Project deleted");
+    load();
+  }
+
+  async function load(){
+    const res = await fetch(API_BASE + "/api/projects");
+    const data = await res.json();
+    const host = document.getElementById("list"); host.innerHTML = "";
+    if(!Array.isArray(data) || !data.length){ host.innerHTML = "<p>No projects yet</p>"; return; }
+    data.forEach(p=>{
+      const row = document.createElement("div");
+      row.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+          <div>
+            <strong>${p.name || ""}</strong>
+            <span class="pill">${p.key || "—"}</span>
+            <div>Owner: ${p.owner_id || "—"} | Created: ${p.created_at || ""}</div>
+          </div>
+          <div class="actions" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <button data-act="select">Use</button>
+            <a href="project_members.html?project_id=${encodeURIComponent(p.project_id)}">Members</a>
+            <a href="tasks_list.html" title="See tasks list (filtered by selected project)">Tasks</a>
+            <a href="create_task.html" title="Create task under selected project">Create Task</a>
+            <button data-act="delete" style="background:#dc3545;color:#fff;border:none;border-radius:6px;padding:6px 10px">Delete</button>
+          </div>
+        </div>`;
+      const btn = row.querySelector('[data-act="select"]');
+      const delBtn = row.querySelector('[data-act="delete"]');
+      btn.addEventListener("click", ()=>chooseProject(p));
+      delBtn.addEventListener("click", ()=>deleteProject(p));
+      host.appendChild(row);
+    });
+  }
+
+  document.getElementById("createForm").addEventListener("submit", createProject);
+  document.getElementById("refresh").addEventListener("click", load);
+  load();
+  </script>
+</body>
+</html>

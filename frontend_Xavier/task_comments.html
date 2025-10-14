@@ -1,0 +1,123 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <title>Task Comments</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      font-family: system-ui, Segoe UI, Arial;
+      margin: 20px;
+      max-width: 900px
+    }
+
+    form,
+    .card {
+      border: 1px solid #ddd;
+      padding: 12px;
+      border-radius: 8px;
+      margin: 12px 0
+    }
+
+    textarea,
+    input {
+      padding: 8px;
+      margin: 4px 0;
+      width: 100%
+    }
+
+    button {
+      padding: 8px 12px;
+      cursor: pointer
+    }
+
+    .cmt {
+      padding: 10px;
+      border-bottom: 1px dashed #e3e3e3
+    }
+
+    .meta {
+      color: #666;
+      font-size: 12px
+    }
+  </style>
+</head>
+
+<body>
+  <div id="nav"></div>
+  <script src="common.js"></script>
+
+  <h1>Task Comments</h1>
+  <p id="task"></p>
+
+  <div class="card">
+    <h3>Add Comment</h3>
+    <form id="addForm">
+      <label>Author ID</label>
+      <input id="author_id" placeholder="u123" />
+      <label>Comment</label>
+      <textarea id="body" rows="3" placeholder="Type your comment..." required></textarea>
+      <button type="submit">Add</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <h3>Comments</h3>
+      <button id="refresh">Refresh</button>
+    </div>
+    <div id="list"></div>
+  </div>
+
+
+  <script>
+    const API_BASE = "http://localhost:5000";
+    function getCurrentUser() { try { return JSON.parse(localStorage.getItem("currentUser") || "null"); } catch (e) { return null; } }
+    function setCurrentUser(u) { localStorage.setItem("currentUser", JSON.stringify(u)); }
+    function q(s) { return document.querySelector(s); }
+    function ce(t) { return document.createElement(t); }
+    function fmtDate(d) { try { return new Date(d).toLocaleString(); } catch (e) { return d; } }
+  </script>
+
+  <script>
+    var params = new URLSearchParams(location.search);
+    var task_id = params.get("task_id");
+    if (!task_id) { document.body.innerHTML = "<p>Missing ?task_id</p>"; throw new Error("no task_id"); }
+    q("#task").innerText = "Task ID: " + task_id;
+
+    async function addComment(e) {
+      e.preventDefault();
+      var payload = {
+        task_id: task_id,
+        author_id: q("#author_id").value.trim() || (getCurrentUser() ? getCurrentUser().user_id : ""),
+        body: q("#body").value.trim()
+      };
+      var res = await fetch(API_BASE + "/api/comments", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
+      });
+      var data = await res.json();
+      if (!res.ok) { alert((data && data.error) || "Add failed"); return; }
+      q("#addForm").reset();
+      load();
+    }
+
+    async function load() {
+      var res = await fetch(API_BASE + "/api/comments/by-task/" + encodeURIComponent(task_id));
+      var list = await res.json();
+      var host = q("#list"); host.innerHTML = "";
+      if (!Array.isArray(list) || !list.length) { host.innerHTML = "<p>No comments</p>"; return; }
+      list.forEach(function (c) {
+        var div = ce("div"); div.className = "cmt";
+        div.innerHTML = "<div>" + (c.body || "") + "</div><div class=\"meta\">by " + (c.author_id || "") + " • " + fmtDate(c.created_at) + "</div>";
+        host.appendChild(div);
+      });
+    }
+
+    q("#addForm").addEventListener("submit", addComment);
+    q("#refresh").addEventListener("click", load);
+    load();
+  </script>
+</body>
+
+</html>

@@ -377,6 +377,9 @@
     </style>
 </head>
 <body>
+  <div id="nav"></div>
+  <script src="common.js"></script>
+  <script>try{requireAuth();}catch(e){}</script>
     <div class="container">
         <div class="header">
             <div class="logo">✏️</div>
@@ -436,6 +439,7 @@
                         <option value="Low">🟢 Low Priority</option>
                         <option value="Medium">🟡 Medium Priority</option>
                         <option value="High">🔴 High Priority</option>
+                        <option value="Urgent">🚨 Urgent</option>
                     </select>
                     <div class="input-hint">How urgent is this task?</div>
                 </div>
