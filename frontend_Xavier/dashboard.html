@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,13 +11,13 @@
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: #f5f6fa;
             min-height: 100vh;
         }
-        
+
         /* Header */
         .header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -27,20 +28,20 @@
             align-items: center;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
-        
+
         .header h1 {
             font-size: 1.5rem;
             display: flex;
             align-items: center;
             gap: 0.5rem;
         }
-        
+
         .user-info {
             display: flex;
             align-items: center;
             gap: 1rem;
         }
-        
+
         .user-avatar {
             width: 40px;
             height: 40px;
@@ -52,7 +53,7 @@
             font-weight: bold;
             font-size: 1.2rem;
         }
-        
+
         .logout-btn {
             background: rgba(255, 255, 255, 0.2);
             color: white;
@@ -62,18 +63,18 @@
             cursor: pointer;
             transition: background-color 0.3s;
         }
-        
+
         .logout-btn:hover {
             background: rgba(255, 255, 255, 0.3);
         }
-        
+
         /* Main Container */
         .container {
             max-width: 1200px;
             margin: 0 auto;
             padding: 2rem;
         }
-        
+
         /* Statistics Cards */
         .stats-grid {
             display: grid;
@@ -81,7 +82,7 @@
             gap: 1.5rem;
             margin-bottom: 2rem;
         }
-        
+
         .stat-card {
             background: white;
             padding: 1.5rem;
@@ -90,50 +91,50 @@
             border-left: 4px solid;
             transition: transform 0.2s;
         }
-        
+
         .stat-card:hover {
             transform: translateY(-2px);
         }
-        
+
         .stat-card.created {
             border-left-color: #3498db;
         }
-        
+
         .stat-card.assigned {
             border-left-color: #e74c3c;
         }
-        
+
         .stat-card.completed {
             border-left-color: #27ae60;
         }
-        
+
         .stat-card.overdue {
             border-left-color: #f39c12;
         }
-        
+
         .stat-header {
             display: flex;
             align-items: center;
             gap: 0.5rem;
             margin-bottom: 0.5rem;
         }
-        
+
         .stat-icon {
             font-size: 1.5rem;
         }
-        
+
         .stat-title {
             color: #666;
             font-size: 0.9rem;
             font-weight: 500;
         }
-        
+
         .stat-number {
             font-size: 2rem;
             font-weight: bold;
             color: #333;
         }
-        
+
         /* Charts Section */
         .charts-section {
             display: grid;
@@ -141,21 +142,21 @@
             gap: 1.5rem;
             margin-bottom: 2rem;
         }
-        
+
         .chart-card {
             background: white;
             padding: 1.5rem;
             border-radius: 10px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
         }
-        
+
         .chart-title {
             font-size: 1.1rem;
             font-weight: 600;
             margin-bottom: 1rem;
             color: #333;
         }
-        
+
         .chart-item {
             display: flex;
             justify-content: space-between;
@@ -163,42 +164,42 @@
             padding: 0.5rem 0;
             border-bottom: 1px solid #f0f0f0;
         }
-        
+
         .chart-item:last-child {
             border-bottom: none;
         }
-        
+
         .chart-label {
             display: flex;
             align-items: center;
             gap: 0.5rem;
         }
-        
+
         .chart-dot {
             width: 12px;
             height: 12px;
             border-radius: 50%;
         }
-        
+
         .chart-value {
             font-weight: 600;
             color: #333;
         }
-        
+
         /* Tasks Section */
         .tasks-section {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 1.5rem;
         }
-        
+
         .tasks-card {
             background: white;
             border-radius: 10px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
             overflow: hidden;
         }
-        
+
         .tasks-header {
             background: #f8f9fa;
             padding: 1rem 1.5rem;
@@ -207,13 +208,13 @@
             justify-content: between;
             align-items: center;
         }
-        
+
         .tasks-title {
             font-size: 1.1rem;
             font-weight: 600;
             color: #333;
         }
-        
+
         .view-all-btn {
             background: #667eea;
             color: white;
@@ -224,101 +225,101 @@
             font-size: 0.8rem;
             transition: background-color 0.3s;
         }
-        
+
         .view-all-btn:hover {
             background: #5a67d8;
         }
-        
+
         .tasks-list {
             max-height: 300px;
             overflow-y: auto;
         }
-        
+
         .task-item {
             padding: 1rem 1.5rem;
             border-bottom: 1px solid #f0f0f0;
             transition: background-color 0.2s;
         }
-        
+
         .task-item:hover {
             background: #f8f9fa;
         }
-        
+
         .task-item:last-child {
             border-bottom: none;
         }
-        
+
         .task-title {
             font-weight: 600;
             color: #333;
             margin-bottom: 0.25rem;
         }
-        
+
         .task-meta {
             display: flex;
             gap: 1rem;
             font-size: 0.8rem;
             color: #666;
         }
-        
+
         .task-status {
             padding: 0.2rem 0.5rem;
             border-radius: 12px;
             font-size: 0.7rem;
             font-weight: 500;
         }
-        
+
         .status-todo {
             background: #e3f2fd;
             color: #1976d2;
         }
-        
+
         .status-progress {
             background: #fff3e0;
             color: #f57c00;
         }
-        
+
         .status-completed {
             background: #e8f5e8;
             color: #2e7d32;
         }
-        
+
         .status-blocked {
             background: #ffebee;
             color: #c62828;
         }
-        
+
         .priority {
             display: flex;
             align-items: center;
             gap: 0.25rem;
         }
-        
+
         .priority-dot {
             width: 8px;
             height: 8px;
             border-radius: 50%;
         }
-        
+
         .priority-high .priority-dot {
             background: #e74c3c;
         }
-        
+
         .priority-medium .priority-dot {
             background: #f39c12;
         }
-        
+
         .priority-low .priority-dot {
             background: #27ae60;
         }
-        
+
         /* Loading State */
         .loading {
             text-align: center;
             padding: 2rem;
             color: #666;
         }
-        
+
         .loading::after {
             content: '';
             display: inline-block;
@@ -330,7 +331,7 @@
             margin-left: 10px;
             animation: spin 1s linear infinite;
         }
-        
+
         /* Error State */
         .error {
             background: #ffebee;
@@ -340,20 +341,20 @@
             margin: 1rem 0;
             text-align: center;
         }
-        
+
         /* Empty State */
         .empty-state {
             text-align: center;
             padding: 2rem;
             color: #666;
         }
-        
+
         .empty-state-icon {
             font-size: 3rem;
             margin-bottom: 1rem;
             opacity: 0.5;
         }
-        
+
         /* Quick Actions */
         .quick-actions {
             position: fixed;
@@ -363,7 +364,7 @@
             flex-direction: column;
             gap: 1rem;
         }
-        
+
         .fab {
             width: 56px;
             height: 56px;
@@ -480,36 +481,41 @@
         .modal-btn.cancel:hover {
             background: #545b62;
         }
-        
+
         .fab:hover {
             transform: scale(1.1);
             box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
         }
-        
+
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
-        
+
         /* Responsive Design */
         @media (max-width: 768px) {
             .container {
                 padding: 1rem;
             }
-            
+
             .header {
                 padding: 1rem;
             }
-            
+
             .charts-section,
             .tasks-section {
                 grid-template-columns: 1fr;
             }
-            
+
             .stats-grid {
                 grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             }
-            
+
             .quick-actions {
                 bottom: 1rem;
                 right: 1rem;
@@ -517,7 +523,11 @@
         }
     </style>
 </head>
+
 <body>
+    <div id="nav"></div>
+    <script src="common.js"></script>
+
     <!-- Header -->
     <div class="header">
         <h1>
@@ -545,7 +555,7 @@
                 </div>
                 <div class="stat-number" id="createdCount">-</div>
             </div>
-            
+
             <div class="stat-card assigned">
                 <div class="stat-header">
                     <span class="stat-icon">📋</span>
@@ -553,7 +563,7 @@
                 </div>
                 <div class="stat-number" id="assignedCount">-</div>
             </div>
-            
+
             <div class="stat-card completed">
                 <div class="stat-header">
                     <span class="stat-icon">✅</span>
@@ -561,7 +571,7 @@
                 </div>
                 <div class="stat-number" id="completedCount">-</div>
             </div>
-            
+
             <div class="stat-card overdue">
                 <div class="stat-header">
                     <span class="stat-icon">⏰</span>
@@ -579,7 +589,7 @@
                     <div class="loading">Loading status data</div>
                 </div>
             </div>
-            
+
             <div class="chart-card">
                 <div class="chart-title">🎯 Priority Breakdown</div>
                 <div id="priorityChart">
@@ -599,7 +609,7 @@
                     <div class="loading">Loading created tasks</div>
                 </div>
             </div>
-            
+
             <div class="tasks-card">
                 <div class="tasks-header">
                     <div class="tasks-title">📋 Recent Assigned Tasks</div>
@@ -619,7 +629,46 @@
         </button>
     </div>
 
-    <!-- Add the Delete Modal HERE, before closing </body> -->
+    <!-- Add the Delete Modal HERE, before closing <script>
+const API_BASE = "http://localhost:5000";
+function getCurrentUser(){ try{ return JSON.parse(localStorage.getItem("currentUser")||"null"); }catch(e){ return null; } }
+function setCurrentUser(u){ localStorage.setItem("currentUser", JSON.stringify(u)); }
+</script>
+<script>
+(function(){
+  const current = getCurrentUser();
+  if(!current){ window.location.href = "login.html"; return; }
+  async function load(){
+    const res = await fetch(`${API_BASE}/api/users/${encodeURIComponent(current.user_id)}/dashboard`);
+    const data = await res.json();
+    if(!res.ok){ alert(data.error || "Failed to load dashboard"); return; }
+    let host = document.getElementById("api-output");
+    if(!host){ host = document.createElement("div"); host.id="api-output"; document.body.appendChild(host); }
+    let html = "";
+    const s = data.statistics || {};
+    html += `<h3>Stats</h3>
+      <ul>
+        <li>Total Created: ${s.total_created || 0}</li>
+        <li>Total Assigned: ${s.total_assigned || 0}</li>
+        <li>Overdue: ${s.overdue_count || 0}</li>
+      </ul>`;
+    function list(title, items){
+      html += `<h4>${title}</h4>`;
+      if(!items || !items.length){ html += "<p>None</p>"; return; }
+      html += "<ol>";
+      items.forEach(t=>{
+        html += `<li><a href="edit_task.html?id=${encodeURIComponent(t.task_id)}">${t.title}</a> — ${t.status} (${t.priority})</li>`;
+      });
+      html += "</ol>";
+    }
+    list("Recent Created Tasks", data.recent_created_tasks);
+    list("Recent Assigned Tasks", data.recent_assigned_tasks);
+    host.innerHTML = html;
+  }
+  load();
+})();
+</script>
+</body> -->
     <!-- Delete Confirmation Modal -->
     <div id="deleteModal" class="modal">
         <div class="modal-content">
@@ -637,7 +686,7 @@
     <script>
         const API_BASE_URL = 'http://localhost:5000';
         let currentUser = null;
-        
+
         // Check authentication and load dashboard
         window.addEventListener('load', async () => {
             // Check if user is logged in
@@ -646,12 +695,12 @@
                 window.location.href = 'login.html';
                 return;
             }
-            
+
             currentUser = JSON.parse(userData);
             initializeDashboard();
             await loadDashboardData();
         });
-        
+
         function initializeDashboard() {
             // Update header with user info
             document.getElementById('welcomeMessage').textContent = `Welcome, ${currentUser.name}!`;
@@ -660,60 +709,60 @@
             document.getElementById('userAvatar').textContent = currentUser.name.charAt(0).toUpperCase();
             document.title = `Dashboard - ${currentUser.name}`;
         }
-        
+
         async function loadDashboardData() {
             try {
                 // Load dashboard data from API
                 const response = await fetch(`${API_BASE_URL}/api/users/${currentUser.user_id}/dashboard`);
-                
+
                 if (!response.ok) {
                     throw new Error('Failed to load dashboard data');
                 }
-                
+
                 const dashboardData = await response.json();
                 renderDashboard(dashboardData);
-                
+
             } catch (error) {
                 console.error('Error loading dashboard:', error);
                 showError('Failed to load dashboard data. Please refresh the page.');
             }
         }
-        
+
         function renderDashboard(data) {
             // Update statistics
             document.getElementById('createdCount').textContent = data.statistics.total_created;
             document.getElementById('assignedCount').textContent = data.statistics.total_assigned;
             document.getElementById('completedCount').textContent = data.statistics.status_breakdown['Completed'] || 0;
             document.getElementById('overdueCount').textContent = data.statistics.overdue_count;
-            
+
             // Render status chart
             renderStatusChart(data.statistics.status_breakdown);
-            
+
             // Render priority chart
             renderPriorityChart(data.statistics.priority_breakdown);
-            
+
             // Render task lists
             renderTaskList('createdTasksList', data.recent_created_tasks, 'created');
             renderTaskList('assignedTasksList', data.recent_assigned_tasks, 'assigned');
         }
-        
+
         function renderStatusChart(statusData) {
             const chartContainer = document.getElementById('statusChart');
-            
+
             if (Object.keys(statusData).length === 0) {
                 chartContainer.innerHTML = '<div class="empty-state">No task data available</div>';
                 return;
             }
-            
+
             const statusColors = {
                 'To Do': '#2196f3',
                 'In Progress': '#ff9800',
                 'Completed': '#4caf50',
                 'Blocked': '#f44336'
             };
-            
+
             const total = Object.values(statusData).reduce((sum, count) => sum + count, 0);
-            
+
             let chartHTML = '';
             for (const [status, count] of Object.entries(statusData)) {
                 if (count > 0) {
@@ -729,26 +778,26 @@
                     `;
                 }
             }
-            
+
             chartContainer.innerHTML = chartHTML || '<div class="empty-state">No status data</div>';
         }
-        
+
         function renderPriorityChart(priorityData) {
             const chartContainer = document.getElementById('priorityChart');
-            
+
             if (Object.keys(priorityData).length === 0) {
                 chartContainer.innerHTML = '<div class="empty-state">No priority data available</div>';
                 return;
             }
-            
+
             const priorityColors = {
                 'High': '#e74c3c',
                 'Medium': '#f39c12',
                 'Low': '#27ae60'
             };
-            
+
             const total = Object.values(priorityData).reduce((sum, count) => sum + count, 0);
-            
+
             let chartHTML = '';
             for (const [priority, count] of Object.entries(priorityData)) {
                 if (count > 0) {
@@ -764,14 +813,14 @@
                     `;
                 }
             }
-            
+
             chartContainer.innerHTML = chartHTML || '<div class="empty-state">No priority data</div>';
         }
-        
+
         // Replace the existing renderTaskList function with this updated version
         function renderTaskList(containerId, tasks, type) {
             const container = document.getElementById(containerId);
-            
+
             if (!tasks || tasks.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
@@ -781,15 +830,15 @@
                 `;
                 return;
             }
-            
+
             let tasksHTML = '';
             tasks.forEach(task => {
                 const statusClass = `status-${task.status.toLowerCase().replace(' ', '-')}`;
                 const priorityClass = `priority-${task.priority.toLowerCase()}`;
-                
+
                 // Only show delete button for tasks created by current user
                 const showDelete = task.created_by && task.created_by.user_id === currentUser.user_id;
-                
+
                 tasksHTML += `
                     <div class="task-item">
                         <div class="task-title">${task.title}</div>
@@ -814,16 +863,16 @@
                     </div>
                 `;
             });
-            
+
             container.innerHTML = tasksHTML;
-}
-        
+        }
+
         function formatDate(dateString) {
             const date = new Date(dateString);
             const now = new Date();
             const diffTime = date.getTime() - now.getTime();
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            
+
             if (diffDays < 0) {
                 return `${Math.abs(diffDays)} days ago`;
             } else if (diffDays === 0) {
@@ -834,7 +883,7 @@
                 return `${diffDays} days`;
             }
         }
-        
+
         function showError(message) {
             const container = document.querySelector('.container');
             const errorDiv = document.createElement('div');
@@ -842,27 +891,27 @@
             errorDiv.textContent = message;
             container.insertBefore(errorDiv, container.firstChild);
         }
-        
+
         // Navigation functions
         function logout() {
             localStorage.removeItem('currentUser');
             window.location.href = 'login.html';
         }
-        
+
         function createNewTask() {
             window.location.href = 'create_task.html';
         }
-        
+
         function viewTask(taskId) {
             window.location.href = `edit_task.html?task_id=${taskId}`;
         }
-        
+
         function viewAllCreated() {
-            window.location.href = `tasks.html?filter=created&user_id=${currentUser.user_id}`;
+            window.location.href = `tasks_list.html`;
         }
-        
+
         function viewAllAssigned() {
-            window.location.href = `tasks.html?filter=assigned&user_id=${currentUser.user_id}`;
+            window.location.href = `tasks_list.html`;
         }
 
         // Add these functions to your existing JavaScript
@@ -872,7 +921,7 @@
         // Show delete confirmation modal
         function confirmDeleteTask(taskId, taskTitle) {
             taskToDelete = { id: taskId, title: taskTitle };
-            document.getElementById('deleteMessage').textContent = 
+            document.getElementById('deleteMessage').textContent =
                 `Are you sure you want to delete "${taskTitle}"? This action cannot be undone.`;
             document.getElementById('deleteModal').style.display = 'block';
         }
@@ -886,39 +935,39 @@
         // Execute the deletion
         async function executeDelete() {
             if (!taskToDelete) return;
-            
+
             const confirmBtn = document.getElementById('confirmDeleteBtn');
             const originalText = confirmBtn.textContent;
-            
+
             try {
                 // Show loading state
                 confirmBtn.textContent = 'Deleting...';
                 confirmBtn.disabled = true;
-                
+
                 // Call delete API
                 const response = await fetch(`${API_BASE_URL}/api/tasks/${taskToDelete.id}`, {
                     method: 'DELETE'
                 });
-                
+
                 const result = await response.json();
-                
+
                 if (response.ok) {
                     // Success - show message and refresh dashboard
                     showSuccessMessage(`Task "${taskToDelete.title}" deleted successfully!`);
                     closeDeleteModal();
-                    
+
                     // Refresh dashboard data
                     await loadDashboardData();
-                    
+
                 } else {
                     // Error from API
                     showErrorMessage(`Failed to delete task: ${result.error}`);
                 }
-                
+
             } catch (error) {
                 console.error('Error deleting task:', error);
                 showErrorMessage('Network error. Please check your connection and try again.');
-                
+
             } finally {
                 // Reset button state
                 confirmBtn.textContent = originalText;
@@ -944,9 +993,9 @@
                 animation: slideInRight 0.3s ease;
             `;
             successDiv.textContent = `✅ ${message}`;
-            
+
             document.body.appendChild(successDiv);
-            
+
             // Auto-remove after 3 seconds
             setTimeout(() => {
                 successDiv.remove();
@@ -971,9 +1020,9 @@
                 animation: slideInRight 0.3s ease;
             `;
             errorDiv.textContent = `❌ ${message}`;
-            
+
             document.body.appendChild(errorDiv);
-            
+
             // Auto-remove after 5 seconds
             setTimeout(() => {
                 errorDiv.remove();
@@ -994,9 +1043,49 @@
                 closeDeleteModal();
             }
         });
-        
+
         // Auto-refresh dashboard every 5 minutes
         setInterval(loadDashboardData, 5 * 60 * 1000);
     </script>
+    <script>
+        const API_BASE = "http://localhost:5000";
+        function getCurrentUser() { try { return JSON.parse(localStorage.getItem("currentUser") || "null"); } catch (e) { return null; } }
+        function setCurrentUser(u) { localStorage.setItem("currentUser", JSON.stringify(u)); }
+    </script>
+    <script>
+        (function () {
+            const current = getCurrentUser();
+            if (!current) { window.location.href = "login.html"; return; }
+            async function load() {
+                const res = await fetch(`${API_BASE}/api/users/${encodeURIComponent(current.user_id)}/dashboard`);
+                const data = await res.json();
+                if (!res.ok) { alert(data.error || "Failed to load dashboard"); return; }
+                let host = document.getElementById("api-output");
+                if (!host) { host = document.createElement("div"); host.id = "api-output"; document.body.appendChild(host); }
+                let html = "";
+                const s = data.statistics || {};
+                html += `<h3>Stats</h3>
+      <ul>
+        <li>Total Created: ${s.total_created || 0}</li>
+        <li>Total Assigned: ${s.total_assigned || 0}</li>
+        <li>Overdue: ${s.overdue_count || 0}</li>
+      </ul>`;
+                function list(title, items) {
+                    html += `<h4>${title}</h4>`;
+                    if (!items || !items.length) { html += "<p>None</p>"; return; }
+                    html += "<ol>";
+                    items.forEach(t => {
+                        html += `<li><a href="edit_task.html?id=${encodeURIComponent(t.task_id)}">${t.title}</a> — ${t.status} (${t.priority})</li>`;
+                    });
+                    html += "</ol>";
+                }
+                list("Recent Created Tasks", data.recent_created_tasks);
+                list("Recent Assigned Tasks", data.recent_assigned_tasks);
+                host.innerHTML = html;
+            }
+            load();
+        })();
+    </script>
 </body>
+
 </html>

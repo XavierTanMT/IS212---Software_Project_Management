@@ -1,0 +1,141 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Tasks</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <style>
+    body{font-family:system-ui,Segoe UI,Arial;margin:0}
+    .page{max-width:1000px;margin:20px auto;padding:0 16px}
+    .toolbar{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:10px}
+    input, select{padding:6px}
+    table{width:100%;border-collapse:collapse}
+    th, td{padding:8px;border-bottom:1px solid #eee;text-align:left}
+    .pill{display:inline-block;padding:2px 8px;background:#eee;border-radius:999px}
+  </style>
+</head>
+<body>
+  <div id="nav"></div>
+  <div class="page">
+    <h1>Tasks</h1>
+    <div class="toolbar">
+      <div>
+        <label>Project</label><br/>
+        <select id="project_select"><option value="">(all my tasks)</option></select>
+      </div>
+      <div>
+        <label>Project ID</label><br/>
+        <input id="project_id" placeholder="(optional)"/>
+      </div>
+      <div>
+        <label>Assigned To</label><br/>
+        <input id="assigned_to_id" placeholder="user id"/>
+      </div>
+      <div>
+        <label>Label ID</label><br/>
+        <input id="label_id" placeholder="label id"/>
+      </div>
+      <div>
+        <label>Limit</label><br/>
+        <input id="limit" type="number" value="50" min="1" max="200"/>
+      </div>
+      <div>
+        <button id="refresh">Refresh</button>
+        <a href="create_task.html">Create Task</a>
+      </div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Status</th>
+          <th>Priority</th>
+          <th>Due</th>
+          <th>Project</th>
+          <th>Assignee</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+  <script src="common.js"></script>
+  <script>requireAuth();</script>
+  <script>
+  // Cache project id -> name
+  const projectMap = Object.create(null);
+
+  function paramsFromUI(){
+    const p = new URLSearchParams();
+    const project_id = document.getElementById("project_id").value.trim();
+    const assigned_to_id = document.getElementById("assigned_to_id").value.trim();
+    const label_id = document.getElementById("label_id").value.trim();
+    const limit = document.getElementById("limit").value.trim();
+    if(project_id) p.set("project_id", project_id);
+    if(assigned_to_id) p.set("assigned_to_id", assigned_to_id);
+    if(label_id) p.set("label_id", label_id);
+    if(limit) p.set("limit", limit);
+    return p.toString();
+  }
+
+  function nameForProject(id){
+    if(!id) return "";
+    return projectMap[id] || id; // fallback to id until map loaded
+  }
+
+  async function load(){
+    const qs = paramsFromUI();
+    const res = await fetch(API_BASE + "/api/tasks" + (qs ? "?" + qs : ""));
+    const list = await res.json();
+    const tbody = document.getElementById("rows"); tbody.innerHTML = "";
+    if(!res.ok){ tbody.innerHTML = "<tr><td colspan='7'>"+ (list.error || "Failed to load") +"</td></tr>"; return; }
+    if(!Array.isArray(list) || !list.length){
+      tbody.innerHTML = "<tr><td colspan='7'>No tasks</td></tr>";
+      return;
+    }
+    list.forEach(t=>{
+      const tr = document.createElement("tr");
+      tr.innerHTML = ""
+        + "<td>" + (t.title || "") + "</td>"
+        + "<td><span class='pill'>" + (t.status || "") + "</span></td>"
+        + "<td>" + (t.priority || "") + "</td>"
+        + "<td>" + (t.due_date || "") + "</td>"
+        + "<td>" + nameForProject(t.project_id) + "</td>"
+        + "<td>" + ((t.assigned_to && t.assigned_to.user_id) || "") + "</td>"
+        + "<td>"
+        +   "<a href='edit_task.html?task_id=" + encodeURIComponent(t.task_id) + "'>Edit</a> · "
+        +   "<a href='task_comments.html?task_id=" + encodeURIComponent(t.task_id) + "'>Comments</a> · "
+        +   "<a href='attachments.html?task_id=" + encodeURIComponent(t.task_id) + "'>Files</a>"
+        + "</td>";
+      tbody.appendChild(tr);
+    });
+  }
+
+  document.getElementById("refresh").addEventListener("click", load);
+
+  async function fillProjects(){
+    const res = await fetch(API_BASE + "/api/projects");
+    const list = await res.json();
+    const sel = document.getElementById("project_select");
+    sel.innerHTML = '<option value="">(all my tasks)</option>';
+    (Array.isArray(list)?list:[]).forEach(p=>{
+      const opt = document.createElement("option");
+      opt.value = p.project_id; opt.textContent = p.name + " (" + p.project_id + ")";
+      sel.appendChild(opt);
+      projectMap[p.project_id] = p.name || p.project_id; // populate map
+    });
+    const cp = getCurrentProject();
+    if(cp && cp.project_id){ sel.value = cp.project_id; document.getElementById("project_id").value = cp.project_id; }
+    sel.addEventListener("change", ()=>{
+      document.getElementById("project_id").value = sel.value;
+      load();
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", async function(){
+    await fillProjects();
+    await load();
+  });
+  </script>
+</body>
+</html>

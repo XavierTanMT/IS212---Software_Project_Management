@@ -1,0 +1,118 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Project Members</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body{font-family:system-ui,Segoe UI,Arial;margin:20px;max-width:900px}
+    form, .card{border:1px solid #ddd;padding:12px;border-radius:8px;margin:12px 0}
+    input, select{padding:8px;margin:4px 0;width:100%}
+    button{padding:8px 12px;cursor:pointer}
+    .list > div{padding:8px;border-bottom:1px dashed #e3e3e3}
+  </style>
+</head>
+<body>
+  <div id="nav"></div>
+  <script src="common.js"></script>
+  <h1>Project Members</h1>
+
+  <div id="pickerCard" class="card" style="display:none">
+    <label>Select a project</label>
+    <select id="picker"><option value="">— Choose —</option></select>
+    <button id="go">Open Members</button>
+  </div>
+
+  <p id="proj" style="display:none"></p>
+
+  <div id="addCard" class="card" style="display:none">
+    <h3>Add Member</h3>
+    <form id="addForm">
+      <label>User ID</label>
+      <input id="user_id" placeholder="u123" required />
+      <label>Role</label>
+      <select id="role">
+        <option value="contributor">contributor</option>
+        <option value="manager">manager</option>
+        <option value="viewer">viewer</option>
+        <option value="owner">owner</option>
+      </select>
+      <button type="submit">Add</button>
+    </form>
+  </div>
+
+  <div id="listCard" class="card" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <h3>Members</h3>
+      <button id="refresh">Refresh</button>
+    </div>
+    <div id="list" class="list"></div>
+  </div>
+
+<script>
+const API_BASE = "http://localhost:5000";
+function q(s){ return document.querySelector(s); }
+
+let project_id = new URLSearchParams(location.search).get("project_id") || "";
+
+document.addEventListener("DOMContentLoaded", init);
+
+async function init(){
+  if(!project_id){
+    q("#pickerCard").style.display = "block";
+    await populateProjects();
+    q("#go").addEventListener("click", ()=>{
+      const v = q("#picker").value.trim();
+      if(!v){ alert("Pick a project"); return; }
+      location.href = "project_members.html?project_id=" + encodeURIComponent(v);
+    });
+    return;
+  }
+  // Normal members UI
+  q("#proj").textContent = "Project ID: " + project_id;
+  q("#proj").style.display = "block";
+  q("#addCard").style.display = "block";
+  q("#listCard").style.display = "block";
+  q("#addForm").addEventListener("submit", addMember);
+  q("#refresh").addEventListener("click", load);
+  await load();
+}
+
+async function populateProjects(){
+  const res = await fetch(API_BASE + "/api/projects");
+  const list = await res.json();
+  const sel = q("#picker");
+  sel.innerHTML = '<option value="">— Choose —</option>';
+  (Array.isArray(list)?list:[]).forEach(p=>{
+    const opt = document.createElement("option");
+    opt.value = p.project_id; opt.textContent = p.name + " (" + p.project_id + ")";
+    sel.appendChild(opt);
+  });
+}
+
+async function addMember(e){
+  e.preventDefault();
+  const payload = { project_id, user_id: q("#user_id").value.trim(), role: q("#role").value };
+  const res = await fetch(API_BASE + "/api/memberships", {
+    method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(payload)
+  });
+  const data = await res.json();
+  if(!res.ok){ alert((data && data.error) || "Add failed"); return; }
+  q("#addForm").reset();
+  load();
+}
+
+async function load(){
+  const res = await fetch(API_BASE + "/api/memberships/by-project/" + encodeURIComponent(project_id));
+  const data = await res.json();
+  const host = q("#list"); host.innerHTML = "";
+  if(!Array.isArray(data) || !data.length){ host.innerHTML = "<p>No members yet</p>"; return; }
+  data.forEach(m=>{
+    const row = document.createElement("div");
+    row.innerHTML = "<strong>" + (m.user_id || "") + "</strong> — role: <em>" + (m.role || "") + "</em>";
+    host.appendChild(row);
+  });
+}
+</script>
+</body>
+</html>
