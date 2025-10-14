@@ -39,36 +39,3 @@ jobs:
         with:
           name: coverage-html
           path: htmlcov
-
-  frontend-coverage:
-    name: Frontend coverage
-    runs-on: ubuntu-latest
-    needs: coverage
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-
-      - name: Install frontend coverage tool
-        working-directory: tools/frontend-coverage
-        run: |
-          npm install
-
-      - name: Install Playwright browsers
-        working-directory: tools/frontend-coverage
-        run: |
-          npx playwright install --with-deps
-
-      - name: Run frontend coverage collection
-        working-directory: tools/frontend-coverage
-        run: |
-          npm run collect
-
-      - name: Upload frontend coverage artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-coverage
-          path: tools/frontend-coverage/coverage
