@@ -1,7 +1,7 @@
 const path = require('path');
 const fs = require('fs');
 const express = require('express');
-const { instrumentSync } = require('istanbul-lib-instrument');
+const { createInstrumenter } = require('istanbul-lib-instrument');
 const glob = require('glob');
 const mkdirp = require('mkdirp');
 const { chromium } = require('playwright');
@@ -16,11 +16,12 @@ const PORT = process.env.PORT || 8001;
 
 function instrumentFiles(srcDir, outDir) {
   const files = glob.sync('**/*.js', { cwd: srcDir, nodir: true });
+  const instrumenter = createInstrumenter();
   files.forEach((file) => {
     const srcPath = path.join(srcDir, file);
     const outPath = path.join(outDir, file);
     const code = fs.readFileSync(srcPath, 'utf8');
-    const instrumented = instrumentSync(code, { filename: file });
+    const instrumented = instrumenter.instrumentSync(code, srcPath);
     mkdirp.sync(path.dirname(outPath));
     fs.writeFileSync(outPath, instrumented, 'utf8');
   });
@@ -75,12 +76,12 @@ async function run() {
 
   // Write coverage to lcov and html
   const map = coverage;
-  const context = libReport.createContext({ dir: path.join(__dirname, 'coverage') });
+  const outDir = path.join(__dirname, 'coverage');
+  mkdirp.sync(outDir);
+  const context = libReport.createContext({ dir: outDir, coverageMap: map });
   const tree = libReport.summarizers.pkg(map);
-  const lcovReport = reports.create('lcovonly', {});
-  const htmlReport = reports.create('html', {});
-  lcovReport.execute(context);
-  htmlReport.execute(context);
+  tree.visit(reports.create('lcovonly', {}), context);
+  tree.visit(reports.create('html', {}), context);
 
   // Cleanup
   await browser.close();
@@ -88,7 +89,7 @@ async function run() {
 
   // Also dump coverage.json for debugging
   mkdirp.sync(path.join(__dirname, 'coverage'));
-  fs.writeFileSync(path.join(__dirname, 'coverage', 'coverage.json'), JSON.stringify(map), 'utf8');
+  fs.writeFileSync(path.join(__dirname, 'coverage', 'coverage.json'), JSON.stringify(map.toJSON ? map.toJSON() : map), 'utf8');
 
   console.log('Coverage written to tools/frontend-coverage/coverage');
 }
