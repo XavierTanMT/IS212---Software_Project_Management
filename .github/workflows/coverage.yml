@@ -55,7 +55,12 @@ jobs:
       - name: Install frontend coverage tool
         working-directory: tools/frontend-coverage
         run: |
-          npm ci
+          npm install
+
+      - name: Install Playwright browsers
+        working-directory: tools/frontend-coverage
+        run: |
+          npx playwright install --with-deps
 
       - name: Run frontend coverage collection
         working-directory: tools/frontend-coverage
