@@ -1,39 +1,11 @@
 import sys
 import os
-import types
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock
 import pytest
 from datetime import datetime, timezone
 
-# Ensure repo root is on sys.path
-REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-if REPO_ROOT not in sys.path:
-    sys.path.insert(0, REPO_ROOT)
-
-BACKEND_DIR = os.path.join(REPO_ROOT, "backend")
-if BACKEND_DIR not in sys.path:
-    sys.path.insert(0, BACKEND_DIR)
-
-# Mock firebase_admin before importing
-fake_firebase = types.ModuleType("firebase_admin")
-fake_firebase._apps = []
-
-fake_credentials = types.ModuleType("firebase_admin.credentials")
-def _dummy_certificate(path):
-    class _C: pass
-    return _C()
-
-fake_credentials.Certificate = _dummy_certificate
-fake_firebase.credentials = fake_credentials
-fake_firebase.initialize_app = lambda cred: None
-
-fake_firestore = types.ModuleType("firebase_admin.firestore")
-fake_firestore.client = Mock()
-fake_firebase.firestore = fake_firestore
-
-sys.modules["firebase_admin"] = fake_firebase
-sys.modules["firebase_admin.credentials"] = fake_credentials
-sys.modules["firebase_admin.firestore"] = fake_firestore
+# Get fake_firestore from sys.modules (set up by conftest.py)
+fake_firestore = sys.modules.get("firebase_admin.firestore")
 
 from flask import Flask
 from backend.api import attachments_bp
@@ -43,9 +15,14 @@ from backend.api import attachments as attachments_module
 @pytest.fixture
 def app():
     """Create a Flask app for testing."""
-    app = Flask(__name__)
+    app = Flask('test_attachments_app')
     app.config['TESTING'] = True
-    app.register_blueprint(attachments_bp)
+    # Use try-except to handle blueprint already registered
+    try:
+        app.register_blueprint(attachments_bp)
+    except AssertionError:
+        # Blueprint already registered, that's okay
+        pass
     return app
 
 
@@ -55,13 +32,7 @@ def client(app):
     return app.test_client()
 
 
-@pytest.fixture
-def mock_db():
-    """Create a mock Firestore database."""
-    mock_db = Mock()
-    mock_collection = Mock()
-    mock_db.collection = Mock(return_value=mock_collection)
-    return mock_db
+# Remove the mock_db fixture since it's now in conftest.py
 
 
 class TestNowIso:
