@@ -1,8 +1,23 @@
-// common.js — shared helpers + navbar + auth-aware fetch
+// common.js — shared helpers + global sticky navbar + auth-aware fetch
 const API_BASE = "http://localhost:5000";
 
-function getCurrentUser(){ try { return JSON.parse(localStorage.getItem("currentUser") || "null"); } catch(e){ return null; } }
-function setCurrentUser(u){ localStorage.setItem("currentUser", JSON.stringify(u)); }
+function normalizeUser(u){
+  if (!u) return null;
+  if (!u.user_id && u.uid) u.user_id = u.uid;
+  if (!u.name && u.displayName) u.name = u.displayName;
+  if (u.email){ try{ u.email = String(u.email).toLowerCase(); }catch(e){} }
+  return u;
+}
+function getCurrentUser(){
+  try{
+    const raw = localStorage.getItem("currentUser");
+    if(!raw) return null;
+    const u = normalizeUser(JSON.parse(raw));
+    if (u) localStorage.setItem("currentUser", JSON.stringify(u)); // write-back
+    return u;
+  }catch(e){ return null; }
+}
+function setCurrentUser(u){ localStorage.setItem("currentUser", JSON.stringify(normalizeUser(u))); }
 function clearCurrentUser(){ localStorage.removeItem("currentUser"); }
 
 function getCurrentProject(){ try { return JSON.parse(localStorage.getItem("currentProject") || "null"); } catch(e){ return null; } }
@@ -13,51 +28,122 @@ function requireAuth(){
   if(!u){ window.location.href = "login.html"; throw new Error("not authed"); }
   return u;
 }
-
 function signOut(){ clearCurrentUser(); window.location.href = "login.html"; }
 function el(id){ return document.getElementById(id); }
 
-// Patch fetch to add X-User-Id
-(function(){
+// Patch fetch to add Authorization and viewer header
+;(function(){
   const _fetch = window.fetch;
   window.fetch = function(resource, init){
     init = init || {};
     init.headers = init.headers || {};
     const u = getCurrentUser();
-    if(u && u.user_id){
-      // Normalize headers object
+    if (u && u.idToken){
       if (init.headers instanceof Headers){
-        init.headers.set("X-User-Id", u.user_id);
+        init.headers.set("Authorization", "Bearer " + u.idToken);
       } else if (typeof init.headers === "object"){
-        init.headers["X-User-Id"] = u.user_id;
+        init.headers["Authorization"] = "Bearer " + u.idToken;
+      }
+    }
+    // Always provide viewer id for backend convenience
+    const viewerId = u && (u.user_id || u.uid);
+    if (viewerId){
+      if (init.headers instanceof Headers){
+        if (!init.headers.has("X-User-Id")) init.headers.set("X-User-Id", viewerId);
+      } else if (typeof init.headers === "object"){
+        if (!init.headers["X-User-Id"]) init.headers["X-User-Id"] = viewerId;
       }
     }
     return _fetch(resource, init);
   }
 })();
 
-async function buildNavbar(){
-  const host = document.getElementById("nav");
-  if(!host) return;
+// Sticky navbar at top of every page
+function injectNavbar(){
+  if (!document.getElementById("app-navbar-style")){
+    const style = document.createElement("style");
+    style.id = "app-navbar-style";
+    style.textContent = `
+      :root { --nav-bg:#fff; --nav-border:#eaeaea; --nav-link:#333; --nav-accent:#667eea; }
+      body { margin:0; }
+      #app-navbar { position: sticky; top:0; z-index:9999; background:var(--nav-bg); border-bottom:1px solid var(--nav-border); }
+      #app-navbar .row { max-width:1100px; margin:0 auto; padding:10px 14px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;}
+      #app-navbar .links a { color:var(--nav-link); text-decoration:none; font-weight:600; margin-right:12px; }
+      #app-navbar .links a.active { color:var(--nav-accent); }
+      #app-navbar .right { display:flex; align-items:center; gap:10px; font-size:13px; color:#444; }
+      #app-navbar button { padding:6px 10px; border-radius:8px; border:1px solid var(--nav-border); background:#f7f7fb; cursor:pointer; }
+      #app-navbar button:hover { background:#eef0ff; border-color:#d7dbff; }
+      .with-navbar { padding-top: 4px; }
+    `;
+    document.head.appendChild(style);
+  }
+  if (!document.getElementById("app-navbar")){
+    const wrap = document.createElement("header");
+    wrap.id = "app-navbar";
+    wrap.innerHTML = `
+      <div class="row">
+        <div class="links">
+          <a href="index.html"><strong>TaskMgr</strong></a>
+          <a href="dashboard.html" data-route="dashboard.html">Dashboard</a>
+          <a href="projects.html" data-route="projects.html">Projects</a>
+          <a href="tasks_list.html" data-route="tasks_list.html">Tasks</a>
+          <a href="create_task.html" data-route="create_task.html">Create Task</a>
+        </div>
+        <div class="right">
+          <span id="navProject"></span>
+          <span id="navUser"></span>
+          <button id="logoutBtn" style="display:none">Sign out</button>
+          <a id="loginLink" href="login.html" style="display:none">Login</a>
+        </div>
+      </div>
+    `;
+    document.body.insertAdjacentElement("afterbegin", wrap);
+    document.body.classList.add("with-navbar");
+  }
+
+  const current = (location.pathname.split("/").pop() || "").toLowerCase();
+  document.querySelectorAll('#app-navbar .links a[data-route]').forEach(a => {
+    a.classList.toggle('active', a.getAttribute('data-route').toLowerCase() === current);
+  });
+
   const u = getCurrentUser();
   const p = getCurrentProject();
-  host.innerHTML = `
-    <div style="display:flex;gap:12px;align-items:center;justify-content:space-between;padding:10px;border-bottom:1px solid #eee">
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <a href="index.html"><strong>TaskMgr</strong></a>
-        <a href="dashboard.html">Dashboard</a>
-        <a href="projects.html">Projects</a>
-        <a href="tasks_list.html">Tasks</a>
-        <a href="create_task.html">Create Task</a>
-      </div>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12px;color:#333">
-        <span>Project: <em>${p ? (p.name || p.project_id || "selected") : "none"}</em></span>
-        <span>User: <em>${u ? (u.user_id || u.email || "signed-in") : "guest"}</em></span>
-        ${u ? '<button id="logoutBtn">Sign out</button>' : '<a href="login.html">Login</a>'}
-      </div>
-    </div>
-  `;
-  const btn = document.getElementById("logoutBtn");
-  if(btn) btn.addEventListener("click", signOut);
+  const navUser = document.getElementById("navUser");
+  const navProj = document.getElementById("navProject");
+  const logoutBtn = document.getElementById("logoutBtn");
+  const loginLink = document.getElementById("loginLink");
+
+  navProj.textContent = "Project: " + (p ? (p.name || p.project_id || "selected") : "none");
+
+  // Prefer email if present, then name, never show raw uid unless nothing else exists
+  let who = "guest";
+  if (u){
+    who = u.email ? u.email : (u.name ? u.name : "signed-in");
+  }
+  navUser.textContent = "User: " + who;
+
+  if (u){
+    logoutBtn.style.display = "inline-block";
+    loginLink.style.display = "none";
+    logoutBtn.onclick = signOut;
+  } else {
+    logoutBtn.style.display = "none";
+    loginLink.style.display = "inline-block";
+  }
 }
-document.addEventListener("DOMContentLoaded", buildNavbar);
+document.addEventListener("DOMContentLoaded", injectNavbar);
+
+// UI helpers
+function showEmptyState(hostSelector, text){
+  try{
+    const host = document.querySelector(hostSelector);
+    if (!host) return;
+    host.innerHTML = `<div style="padding:16px;color:#666">${text}</div>`;
+  }catch(e){}
+}
+function stopLoading(selector){
+  try{
+    const el = document.querySelector(selector);
+    if (el){ el.remove(); }
+  }catch(e){}
+}

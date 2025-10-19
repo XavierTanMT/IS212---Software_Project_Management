@@ -17,6 +17,7 @@
   <div class="page">
     <h1>Create Task</h1>
     <form id="form">
+      <div id="formMsg" style="margin:8px 0;color:#666;"></div>
       <label>Title</label>
       <input id="title" required />
       <label>Description</label>
@@ -75,28 +76,74 @@
     if(cp && cp.project_id){ sel.value = cp.project_id; }
   }
 
-  document.getElementById("form").addEventListener("submit", async (e)=>{
-    e.preventDefault();
-    const current = getCurrentUser();
-    const payload = {
-      title: document.getElementById("title").value.trim(),
-      description: document.getElementById("description").value.trim(),
-      priority: document.getElementById("priority").value,
-      status: document.getElementById("status").value,
-      due_date: document.getElementById("due_date").value || null,
-      created_by_id: current.user_id,
-      project_id: document.getElementById("project_id").value || null
-    };
-    const res = await fetch(API_BASE + "/api/tasks", {
-      method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(payload)
-    });
-    const data = await res.json();
-    if(!res.ok){ alert((data && data.error) || "Create task failed"); return; }
+  
+document.getElementById("form").addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  const current = requireAuth();
+  const btn = e.submitter || document.querySelector('#form button[type="submit"]');
+  const msg = document.getElementById("formMsg");
+  const payload = {
+    title: document.getElementById("title").value.trim(),
+    description: document.getElementById("description").value.trim(),
+    priority: document.getElementById("priority").value,
+    status: document.getElementById("status").value,
+    due_date: document.getElementById("due_date").value || null,
+    created_by_id: current.user_id,
+    project_id: document.getElementById("project_id").value || null
+  };
+  if (!payload.title || payload.title.length < 3){
+    alert("Title must be at least 3 characters"); return;
+  }
+  if (!payload.description || payload.description.length < 10){
+    alert("Description must be at least 10 characters"); return;
+  }
+  btn.disabled = true; const old = btn.textContent; btn.textContent = "Creating..."; msg.textContent = "Creating task...";
+  try{
+    const res = await fetch(API_BASE + "/api/tasks", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(payload) });
+    let data = null; let text = "";
+    try{ data = await res.json(); }catch(_){ try{ text = await res.text(); }catch(e){} }
+    if (!res.ok){
+      const err = (data && (data.error || JSON.stringify(data))) || text || ("HTTP " + res.status);
+      alert("Create task failed: " + err);
+      msg.textContent = "❌ " + err;
+      return;
+    }
+    msg.textContent = "✅ Task created";
     alert("Task created");
     window.location.href = "tasks_list.html";
-  });
+  }catch(err){
+    console.error(err);
+    alert("Create task failed: " + (err.message || err));
+    msg.textContent = "❌ " + (err.message || err);
+  }finally{
+    btn.disabled = false; btn.textContent = old;
+  }
+});
 
-  loadProjects();
-  </script>
-</body>
-</html>
+loadProjects();
+</script>
+
+<script>
+// --- PATCH: generic empty-state guard --- //
+(function(){
+  if (window.__genericEmptyPatchApplied) return; window.__genericEmptyPatchApplied = true;
+  function afterLoad(){
+    document.querySelectorAll('.loading,.spinner').forEach(el=>el.remove());
+    const empties = [
+      ['#labelsList,.labels-list', 'No labels yet.'],
+      ['#attachmentsList,.attachments-list', 'No attachments yet.'],
+      ['#commentsList,.comments-list', 'No comments yet.'],
+      ['#membersList,.members-list', 'No members yet.'],
+    ];
+    for (const [sel, text] of empties){
+      const host = document.querySelector(sel);
+      if (host && (host.children.length === 0 || host.innerHTML.trim() === '')){
+        host.innerHTML = `<div style="padding:12px;color:#666">${text}</div>`;
+      }
+    }
+  }
+  window.addEventListener('load', ()=> setTimeout(afterLoad, 200));
+})();
+</script>
+
+</body></html>

@@ -270,13 +270,21 @@
                 <div class="input-hint">Your full name (2-100 characters)</div>
             </div>
 
-            <div class="form-group">
-                <label for="email">Email Address <span class="required">*</span></label>
+            
+<div class="form-group">
+        <label for="email">Email Address <span class="required">*</span></label>
                 <input type="email" id="email" name="email" placeholder="e.g., alice@email.com" required autocomplete="email">
                 <div class="input-hint">We'll use this for notifications and account recovery</div>
-            </div>
+            
+</div>
 
-            <button type="submit" class="btn" id="submitBtn">Create Account</button>
+    <div class="form-group">
+        <label for="password">Password <span class="required">*</span></label>
+        <input type="password" id="password" name="password" placeholder="At least 6 characters" required autocomplete="new-password">
+        <div class="input-hint">Minimum 6 characters</div>
+    </div>
+
+    <button type="submit" class="btn" id="submitBtn">Create Account</button>
             <div class="loading" id="loading">Creating your account</div>
             <div class="message" id="message"></div>
         </form>
@@ -287,58 +295,105 @@
         </div>
     </div>
 
-    <script>
-    const API_BASE_URL = 'http://localhost:5000';
-    const form = document.getElementById('createUserForm');
-    const submitBtn = document.getElementById('submitBtn');
-    const loading = document.getElementById('loading');
-    const message = document.getElementById('message');
-    const userIdInput = document.getElementById('user_id');
-    const nameInput = document.getElementById('name');
-    const emailInput = document.getElementById('email');
+    
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
+  import { getAuth, createUserWithEmailAndPassword, updateProfile } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
 
-    function showMessage(text, type){ message.textContent = text; message.className = 'message ' + type; message.style.display='block'; }
-    function hideMessage(){ message.style.display='none'; }
-    function setLoading(isLoading){
-        submitBtn.disabled = isLoading;
-        loading.style.display = isLoading ? 'block' : 'none';
-        submitBtn.textContent = isLoading ? 'Creating Account...' : 'Create Account';
-        [userIdInput, nameInput, emailInput].forEach(i=>i.disabled = isLoading);
+  async function loadConfig(){
+    try{
+      const mod = await import("./firebase-config.js");
+      if (window.firebaseConfig) return window.firebaseConfig;
+      if (mod && (mod.default || mod.firebaseConfig)) return mod.default || mod.firebaseConfig;
+    }catch(e){}
+    try{
+      await new Promise((resolve,reject)=>{
+        const s=document.createElement("script"); s.src="firebase-config.js"; s.onload=resolve; s.onerror=reject; document.head.appendChild(s);
+      });
+      if (window.firebaseConfig) return window.firebaseConfig;
+    }catch(e){}
+    return null;
+  }
+  const cfg = await loadConfig();
+  if(!cfg){ alert("Missing Firebase web config. Create firebase-config.js with window.firebaseConfig = {...}"); throw new Error("No Firebase cfg"); }
+  const app = initializeApp(cfg);
+  const auth = getAuth(app);
+
+  const API_BASE_URL = 'http://localhost:5000';
+  const form = document.getElementById('createUserForm');
+  const submitBtn = document.getElementById('submitBtn');
+  const loading = document.getElementById('loading');
+  const message = document.getElementById('message');
+  const userIdInput = document.getElementById('user_id');
+  const nameInput = document.getElementById('name');
+  const emailInput = document.getElementById('email');
+  const passwordInput = document.getElementById('password');
+
+  function showMessage(text, type){ message.textContent = text; message.className = 'message ' + type; message.style.display='block'; }
+  function hideMessage(){ message.style.display='none'; }
+  function setLoading(isLoading){
+    submitBtn.disabled = isLoading;
+    loading.style.display = isLoading ? 'block' : 'none';
+    submitBtn.textContent = isLoading ? 'Creating Account...' : 'Create Account';
+    [userIdInput, nameInput, emailInput, passwordInput].forEach(i=>i.disabled = isLoading);
+  }
+
+  form.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const payload = {
+      user_id: userIdInput.value.trim(),      // kept for your UI label; we will map to Firebase UID after sign-up
+      name: nameInput.value.trim(),
+      email: emailInput.value.trim().toLowerCase(),
+      password: passwordInput.value
+    };
+    if(!payload.user_id || !payload.name || !payload.email || !payload.password){
+      showMessage('❌ Please fill all fields', 'error'); return;
     }
+    hideMessage(); setLoading(true);
 
-    form.addEventListener('submit', async (e)=>{
-        e.preventDefault();
-        const userData = {
-            user_id: userIdInput.value.trim(),
-            name: nameInput.value.trim(),
-            email: emailInput.value.trim()
-        };
-        if(!userData.user_id || !userData.name || !userData.email){
-            showMessage('❌ Please fill all fields', 'error'); return;
-        }
-        hideMessage(); setLoading(true);
-        try {
-            const response = await fetch(`${API_BASE_URL}/api/users`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(userData)
-            });
-            const result = await response.json();
-            if(response.ok){
-                // Success
-                localStorage.setItem('currentUser', JSON.stringify(result.user));
-                showMessage(`🎉 Welcome, ${userData.name}! Your account has been created successfully.`, 'success');
-                setTimeout(()=>{ window.location.href = 'dashboard.html'; }, 800);
-            }else{
-                let errorMessage = result.error || 'An error occurred';
-                showMessage('❌ ' + errorMessage, 'error');
-            }
-        } catch(err){
-            showMessage('❌ Network error. Please ensure the server is running.', 'error');
-        } finally {
-            setLoading(false);
-        }
-    });
-    </script>
+    try{
+      // 1) Create account in Firebase Auth
+      const cred = await createUserWithEmailAndPassword(auth, payload.email, payload.password);
+      if (payload.name){ await updateProfile(cred.user, { displayName: payload.name }); }
+      const idToken = await cred.user.getIdToken();
+
+      // 2) Tell backend to upsert Firestore profile
+      const res = await fetch(`${API_BASE_URL}/api/auth/session`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + idToken
+        },
+        body: JSON.stringify({ name: payload.name })
+      });
+      if(!res.ok){
+        const err = await res.json().catch(()=>({error:'Unknown error'}));
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+
+      // 3) Save session locally (use Firebase UID as user_id for the rest of the app)
+      const session = {
+        user_id: cred.user.uid,
+        uid: cred.user.uid,
+        email: cred.user.email,
+        name: data?.user?.name || payload.name,
+        idToken
+      };
+      localStorage.setItem('currentUser', JSON.stringify(session));
+
+      // Optional: If you still need to create a classic /api/users record keyed by Firebase UID:
+      // await fetch(`${API_BASE_URL}/api/users`, { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+idToken,'X-User-Id':cred.user.uid}, body: JSON.stringify({ user_id: cred.user.uid, email: session.email, name: session.name }) });
+
+      showMessage(`🎉 Welcome, ${session.name}! Your account has been created.`, 'success');
+      setTimeout(()=>{ window.location.href = 'dashboard.html'; }, 900);
+    }catch(err){
+      console.error(err);
+      showMessage('❌ ' + (err.message || 'Failed to create account'), 'error');
+    }finally{
+      setLoading(false);
+    }
+  });
+</script>
 </body>
 </html>

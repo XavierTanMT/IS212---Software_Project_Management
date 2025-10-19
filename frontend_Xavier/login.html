@@ -1,321 +1,261 @@
 <!DOCTYPE html>
 <html lang="en">
-<!doctype html>
-<html>
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Task Manager</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .login-container {
-            background: white;
-            padding: 2.5rem;
-            border-radius: 15px;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
-            width: 100%;
-            max-width: 420px;
-            text-align: center;
-        }
-        
-        .logo {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-        }
-        
-        .login-container h1 {
-            color: #333;
-            margin-bottom: 0.5rem;
-            font-size: 2rem;
-        }
-        
-        .login-container p {
-            color: #666;
-            margin-bottom: 2rem;
-        }
-        
-        .form-group {
-            margin-bottom: 1.5rem;
-            text-align: left;
-        }
-        
-        .form-group label {
-            display: block;
-            margin-bottom: 0.5rem;
-            color: #333;
-            font-weight: 500;
-        }
-        
-        .form-group input {
-            width: 100%;
-            padding: 1rem;
-            border: 2px solid #e1e5e9;
-            border-radius: 8px;
-            font-size: 1rem;
-            transition: border-color 0.3s;
-        }
-        
-        .form-group input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        
-        .btn {
-            width: 100%;
-            padding: 1rem;
-            margin-bottom: 1rem;
-            border: none;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-        
-        .btn-secondary {
-            background: #f8f9fa;
-            color: #667eea;
-            border: 2px solid #667eea;
-        }
-        
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-        }
-        
-        .btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-        }
-        
-        .message {
-            margin-top: 1rem;
-            padding: 1rem;
-            border-radius: 8px;
-            font-weight: 500;
-            display: none;
-        }
-        
-        .message.success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        
-        .message.error {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-        
-        .divider {
-            margin: 1.5rem 0;
-            color: #999;
-            position: relative;
-        }
-        
-        .divider::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 0;
-            right: 0;
-            height: 1px;
-            background: #e1e5e9;
-        }
-        
-        .divider span {
-            background: white;
-            padding: 0 1rem;
-        }
-        
-        .loading {
-            display: none;
-            color: #667eea;
-            font-weight: 500;
-        }
-    </style>
-  <meta charset="utf-8"/>
-  <title>Task Manager — Home</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login — Task Manager</title>
   <style>
-    body{font-family:system-ui,Segoe UI,Arial;margin:0}
-    .page{max-width:1000px;margin:20px auto;padding:0 16px}
-    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
-    .card{border:1px solid #ddd;border-radius:10px;padding:14px}
-    a.btn{display:inline-block;padding:8px 12px;border:1px solid #888;border-radius:8px;text-decoration:none}
+    * {
+      box-sizing: border-box
+    }
+
+    body {
+      font-family: system-ui, Segoe UI, Arial;
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, #667eea, #764ba2)
+    }
+
+    .card {
+      background: #fff;
+      width: min(440px, 92%);
+      padding: 24px;
+      border-radius: 14px;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, .12)
+    }
+
+    h1 {
+      margin: 0 0 4px
+    }
+
+    p {
+      margin: 0 0 16px;
+      color: #555
+    }
+
+    .row {
+      margin: 10px 0
+    }
+
+    .row label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 600
+    }
+
+    .row input {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e1e5e9;
+      border-radius: 8px;
+      font-size: 16px
+    }
+
+    .row input:focus {
+      outline: none;
+      border-color: #667eea
+    }
+
+    .btn {
+      width: 100%;
+      padding: 12px;
+      border: 0;
+      border-radius: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 10px
+    }
+
+    .primary {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: #fff
+    }
+
+    .secondary {
+      background: #f7f7fb;
+      color: #4b57d1;
+      border: 2px solid #667eea
+    }
+
+    .muted {
+      font-size: 13px;
+      color: #666;
+      margin-top: 10px;
+      text-align: center
+    }
+
+    .msg {
+      display: none;
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 8px;
+      font-weight: 600
+    }
+
+    .msg.ok {
+      display: block;
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb
+    }
+
+    .msg.err {
+      display: block;
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb
+    }
   </style>
 </head>
-<body>
-    <div class="login-container">
-        <div class="logo">📋</div>
-        <h1>Task Manager</h1>
-        <p>Sign in to manage your tasks</p>
-        
-        <form id="loginForm">
-            <div class="form-group">
-                <label for="user_id">User ID</label>
-                <input 
-                    type="text" 
-                    id="user_id" 
-                    name="user_id" 
-                    placeholder="Enter your user ID (e.g., alice123)" 
-                    required
-                >
-            </div>
-            
-            <button type="submit" class="btn btn-primary" id="loginBtn">
-                Sign In
-            </button>
-            
-            <div class="loading" id="loading">
-                Signing in...
-            </div>
-        </form>
-        
-        <div class="divider">
-            <span>Don't have an account?</span>
-        </div>
-        
-        <button class="btn btn-secondary" onclick="goToCreateAccount()">
-            Create New Account
-        </button>
-        
-        <div class="message" id="message"></div>
-  <div id="nav"></div>
-  <div class="page">
-    <h1>Welcome</h1>
-    <div class="grid">
-      <div class="card">
-        <h3>Get Started</h3>
-        <p><a class="btn" href="login.html">Login</a></p>
-        <p><a class="btn" href="create_user.html">Create User</a></p>
-      </div>
-      <div class="card">
-        <h3>Projects</h3>
-        <p><a class="btn" href="projects.html">Projects</a></p>
-        <p><a class="btn" href="project_members.html?project_id=YOUR_PROJECT_ID">Project Members</a></p>
-      </div>
-      <div class="card">
-        <h3>Tasks</h3>
-        <p><a class="btn" href="tasks_list.html">Tasks List</a></p>
-        <p><a class="btn" href="create_task.html">Create Task</a></p>
-      </div>
-      <div class="card">
-        <h3>Labels & Comments</h3>
-        <p><a class="btn" href="labels.html">Labels</a></p>
-        <p><a class="btn" href="task_comments.html?task_id=YOUR_TASK_ID">Task Comments</a></p>
-        <p><a class="btn" href="attachments.html?task_id=YOUR_TASK_ID">Attachments</a></p>
-      </div>
-    </div>
 
-    <script>
-        const API_BASE_URL = 'http://localhost:5000';
-        
-        const form = document.getElementById('loginForm');
-        const loginBtn = document.getElementById('loginBtn');
-        const loading = document.getElementById('loading');
-        const message = document.getElementById('message');
-        
-        // Check if user is already logged in
-        window.addEventListener('load', () => {
-            const currentUser = localStorage.getItem('currentUser');
-            if (currentUser) {
-                // User already logged in, redirect to dashboard
-                window.location.href = 'homepage_html_file.html';
-            }
-        });
-        
-        // Handle login form
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const userId = document.getElementById('user_id').value.trim();
-            
-            if (!userId) {
-                showMessage('Please enter your User ID', 'error');
-                return;
-            }
-            
-            setLoading(true);
-            hideMessage();
-            
-            try {
-                // Check if user exists
-                const response = await fetch(`${API_BASE_URL}/api/users/${userId}`);
-                
-                if (response.ok) {
-                    const userData = await response.json();
-                    
-                    // Store user session (simple localStorage approach)
-                    localStorage.setItem('currentUser', JSON.stringify(userData));
-                    
-                    showMessage(`Welcome back, ${userData.name}!`, 'success');
-                    
-                    // Redirect to dashboard
-                    setTimeout(() => {
-                        window.location.href = 'dashboard.html';
-                    }, 1000);
-                    
-                } else if (response.status === 404) {
-                    showMessage('User not found. Please check your User ID or create an account.', 'error');
-                } else {
-                    const error = await response.json();
-                    showMessage(`Error: ${error.error}`, 'error');
-                }
-                
-            } catch (error) {
-                console.error('Login error:', error);
-                showMessage('Cannot connect to server. Please try again.', 'error');
-            } finally {
-                setLoading(false);
-            }
-        });
-        
-        // Go to create account page
-        function goToCreateAccount() {
-            window.location.href = 'create_user.html';
-        }
-        
-        // Helper functions
-        function setLoading(isLoading) {
-            loginBtn.disabled = isLoading;
-            loading.style.display = isLoading ? 'block' : 'none';
-            loginBtn.textContent = isLoading ? 'Signing in...' : 'Sign In';
-        }
-        
-        function showMessage(text, type) {
-            message.textContent = text;
-            message.className = `message ${type}`;
-            message.style.display = 'block';
-        }
-        
-        function hideMessage() {
-            message.style.display = 'none';
-        }
-    </script>
+<body>
+  <div class="card">
+    <h1>Task Manager</h1>
+    <p>Sign in with your email</p>
+
+    <form id="authForm">
+      <div class="row">
+        <label for="email">Email</label>
+        <input id="email" type="email" placeholder="you@example.com" required />
+      </div>
+      <div class="row">
+        <label for="password">Password</label>
+        <input id="password" type="password" placeholder="••••••••" required />
+      </div>
+      <div class="row" id="extraFields" style="display:none">
+        <label for="name">Full name (only when creating)</label>
+        <input id="name" type="text" placeholder="Jane Doe" />
+      </div>
+      <button class="btn primary" id="submitBtn" type="submit">Sign In</button>
+      <button class="btn secondary" id="toggleMode" type="button">Create an account</button>
+      <div class="muted">On first login, your profile is stored in Firestore automatically.</div>
+      <div id="msg" class="msg"></div>
+    </form>
   </div>
+
+  <div id="nav"></div>
+
+  <script type="module">
+    // Firebase web SDK via CDN
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
+
+    // Load config object from a separate file if present, else from window.firebaseConfig
+    // You must create ./firebase-config.js and set window.firebaseConfig = { ... }
+
+    async function loadConfig() {
+      // 1) Try ES module import (works on http/https servers)
+      try {
+        const mod = await import("./firebase-config.js");
+        if (window.firebaseConfig) return window.firebaseConfig;
+        if (mod && (mod.default || mod.firebaseConfig)) {
+          return mod.default || mod.firebaseConfig;
+        }
+      } catch (e) { /* ignore and fallback */ }
+      // 2) Fallback: inject classic script tag (works even on file:// in most browsers)
+      try {
+        await new Promise((resolve, reject) => {
+          const s = document.createElement("script");
+          s.src = "firebase-config.js";
+          s.onload = resolve;
+          s.onerror = reject;
+          document.head.appendChild(s);
+        });
+        if (window.firebaseConfig) return window.firebaseConfig;
+      } catch (e) { /* ignore */ }
+      return null;
+    }
+    
+
+    const cfg = await loadConfig();
+    if (!cfg) {
+      alert("Missing Firebase web config. Create firebase-config.js with window.firebaseConfig = { apiKey: '...', authDomain: '...', projectId: '...', appId: '...', etc }");
+    }
+    const app = initializeApp(cfg);
+    const auth = getAuth(app);
+
+    const form = document.getElementById("authForm");
+    const btn = document.getElementById("submitBtn");
+    const toggle = document.getElementById("toggleMode");
+    const msg = document.getElementById("msg");
+    const extra = document.getElementById("extraFields");
+    let mode = "signin"; // or "signup"
+
+    function showMsg(text, ok = false) {
+      msg.textContent = text;
+      msg.className = "msg " + (ok ? "ok" : "err");
+    }
+
+    toggle.addEventListener("click", () => {
+      mode = mode === "signin" ? "signup" : "signin";
+      btn.textContent = mode === "signin" ? "Sign In" : "Create Account";
+      toggle.textContent = mode === "signin" ? "Create an account" : "I already have an account";
+      extra.style.display = mode === "signup" ? "block" : "none";
+      msg.className = "msg"; msg.textContent = "";
+    });
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      msg.className = "msg"; msg.textContent = "";
+      btn.disabled = true;
+
+      const email = document.getElementById("email").value.trim().toLowerCase();
+      const password = document.getElementById("password").value;
+      const name = document.getElementById("name").value.trim();
+
+      try {
+        let credential;
+        if (mode === "signin") {
+          credential = await signInWithEmailAndPassword(auth, email, password);
+        } else {
+          credential = await createUserWithEmailAndPassword(auth, email, password);
+          if (name) { await updateProfile(credential.user, { displayName: name }); }
+        }
+
+        const idToken = await credential.user.getIdToken();
+        // tell our Flask backend to create/update the profile in Firestore
+        const res = await fetch("http://localhost:5000/api/auth/session", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + idToken
+          },
+          body: JSON.stringify({ name })
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: "Unknown error" }));
+          throw new Error(err.error || "Could not create session");
+        }
+        const data = await res.json();
+
+        // Save session locally for subsequent API calls
+        const session = { user_id: credential.user.uid,
+          uid: credential.user.uid,
+          email: credential.user.email,
+          name: data?.user?.name || credential.user.displayName || "",
+          idToken
+        };
+        localStorage.setItem("currentUser", JSON.stringify(session));
+
+        showMsg("Signed in successfully. Redirecting…", true);
+        setTimeout(() => { window.location.href = "dashboard.html"; }, 700);
+      } catch (err) {
+        console.error(err);
+        showMsg(err.message || "Authentication failed");
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    onAuthStateChanged(auth, (user) => {
+      // Optionally auto-redirect if already signed in
+    });
+  </script>
   <script src="common.js"></script>
 </body>
-</html>
+
 </html>

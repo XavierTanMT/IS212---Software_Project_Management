@@ -9,6 +9,7 @@ from api import (
     users_bp, tasks_bp, dashboard_bp,
     projects_bp, comments_bp, labels_bp, memberships_bp, attachments_bp
 )
+from api.auth import auth_bp
 
 def init_firebase():
     cred_path = os.getenv("FIREBASE_CREDENTIALS_JSON") or os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
@@ -21,7 +22,7 @@ def init_firebase():
 def create_app():
     init_firebase()
     app = Flask(__name__)
-    CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
+    CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True, allow_headers=["Content-Type","Authorization"])
 
     @app.get("/")
     def health():
@@ -36,6 +37,8 @@ def create_app():
     app.register_blueprint(labels_bp)
     app.register_blueprint(memberships_bp)
     app.register_blueprint(attachments_bp)
+    
+    app.register_blueprint(auth_bp)
     return app
 
 if __name__ == "__main__":

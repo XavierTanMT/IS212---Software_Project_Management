@@ -121,6 +121,28 @@
     q("#refresh").addEventListener("click", load);
     load();
   </script>
-</body>
 
-</html>
+<script>
+// --- PATCH: generic empty-state guard --- //
+(function(){
+  if (window.__genericEmptyPatchApplied) return; window.__genericEmptyPatchApplied = true;
+  function afterLoad(){
+    document.querySelectorAll('.loading,.spinner').forEach(el=>el.remove());
+    const empties = [
+      ['#labelsList,.labels-list', 'No labels yet.'],
+      ['#attachmentsList,.attachments-list', 'No attachments yet.'],
+      ['#commentsList,.comments-list', 'No comments yet.'],
+      ['#membersList,.members-list', 'No members yet.'],
+    ];
+    for (const [sel, text] of empties){
+      const host = document.querySelector(sel);
+      if (host && (host.children.length === 0 || host.innerHTML.trim() === '')){
+        host.innerHTML = `<div style="padding:12px;color:#666">${text}</div>`;
+      }
+    }
+  }
+  window.addEventListener('load', ()=> setTimeout(afterLoad, 200));
+})();
+</script>
+
+</body></html>
