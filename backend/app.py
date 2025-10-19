@@ -22,7 +22,7 @@ def init_firebase():
 def create_app():
     init_firebase()
     app = Flask(__name__)
-    CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True, allow_headers=["Content-Type","Authorization"])
+    CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=False, allow_headers=["Content-Type","Authorization","X-User-Id"], methods=["GET","POST","PUT","PATCH","DELETE","OPTIONS"])
 
     @app.get("/")
     def health():

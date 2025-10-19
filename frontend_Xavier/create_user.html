@@ -256,7 +256,7 @@
 
         <form id="createUserForm" novalidate>
             <div class="form-group">
-                <label for="user_id">User ID <span class="required">*</span></label>
+                <label for="user_id">Public User ID <span class="required">*</span></label>
                 <input type="text" id="user_id" name="user_id" placeholder="e.g., alice123 or john_doe" required
                     pattern="^[a-zA-Z0-9_]{3,20}$" title="3-20 characters: letters, numbers, and underscores only"
                     autocomplete="username">
@@ -364,7 +364,7 @@
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ' + idToken
         },
-        body: JSON.stringify({ name: payload.name })
+        body: JSON.stringify({ name: payload.name, handle: payload.user_id })
       });
       if(!res.ok){
         const err = await res.json().catch(()=>({error:'Unknown error'}));
@@ -385,7 +385,7 @@
       // Optional: If you still need to create a classic /api/users record keyed by Firebase UID:
       // await fetch(`${API_BASE_URL}/api/users`, { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+idToken,'X-User-Id':cred.user.uid}, body: JSON.stringify({ user_id: cred.user.uid, email: session.email, name: session.name }) });
 
-      showMessage(`🎉 Welcome, ${session.name}! Your account has been created.`, 'success');
+      showMessage(`🎉 Welcome, ${session.name}! Your account has been created. Your public ID is saved.`, 'success');
       setTimeout(()=>{ window.location.href = 'dashboard.html'; }, 900);
     }catch(err){
       console.error(err);

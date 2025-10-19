@@ -56,9 +56,7 @@ async function createProject(e){
   const form = document.getElementById("createForm");
   const btn = form.querySelector('button[type="submit"]');
   const ownerInput = document.getElementById("owner_id");
-  if (ownerInput && (!ownerInput.value || ownerInput.dataset.autofill === "true")){
-    ownerInput.value = current.user_id;
-  }
+  // owner_id can be a UID, email, or public handle; no forced autofill
   const payload = {
     name: document.getElementById("name").value.trim(),
     key: document.getElementById("key").value.trim(),
@@ -85,15 +83,8 @@ async function createProject(e){
     form.reset();
     
 // Autofill owner if needed
-(function(){
-  const ownerInput = document.getElementById("owner_id");
-  const current = getCurrentUser();
-  if (ownerInput && ownerInput.dataset.autofill === "true" && current){
-    ownerInput.value = current.user_id;
-  }
-})();
 load();
-  }catch(err){
+}catch(err){
     console.error(err);
     alert("Create project failed: " + (err.message || err));
   }finally{
@@ -114,15 +105,8 @@ function chooseProject(p){
     alert("Project deleted");
     
 // Autofill owner if needed
-(function(){
-  const ownerInput = document.getElementById("owner_id");
-  const current = getCurrentUser();
-  if (ownerInput && ownerInput.dataset.autofill === "true" && current){
-    ownerInput.value = current.user_id;
-  }
-})();
 load();
-  }
+}
 
   async function load(){
     const res = await fetch(API_BASE + "/api/projects");
@@ -158,15 +142,8 @@ load();
   document.getElementById("refresh").addEventListener("click", load);
   
 // Autofill owner if needed
-(function(){
-  const ownerInput = document.getElementById("owner_id");
-  const current = getCurrentUser();
-  if (ownerInput && ownerInput.dataset.autofill === "true" && current){
-    ownerInput.value = current.user_id;
-  }
-})();
 load();
-  </script>
+</script>
 
 <script>
 // --- PATCH: projects empty state --- //
