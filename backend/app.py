@@ -38,7 +38,11 @@ def create_app():
     app.register_blueprint(attachments_bp)
     return app
 
-if __name__ == "__main__":
+def main():
+    """Main entry point for running the application."""
     app = create_app()
     port = int(os.getenv("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+
+if __name__ == "__main__":  # pragma: no cover
+    main()
