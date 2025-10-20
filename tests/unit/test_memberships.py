@@ -11,24 +11,7 @@ from backend.api import memberships_bp
 from backend.api import memberships as memberships_module
 
 
-@pytest.fixture
-def app():
-    """Create a Flask app for testing."""
-    app = Flask('test_memberships_app')
-    app.config['TESTING'] = True
-    # Use try-except to handle blueprint already registered
-    try:
-        app.register_blueprint(memberships_bp)
-    except AssertionError:
-        # Blueprint already registered, that's okay
-        pass
-    return app
-
-
-@pytest.fixture
-def client(app):
-    """Create a test client."""
-    return app.test_client()
+# app and client fixtures provided by conftest.py
 
 
 class TestNowIso:

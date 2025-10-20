@@ -34,24 +34,7 @@ def mock_firestore_array_ops():
         delattr(labels.firestore, "ArrayRemove")
 
 
-@pytest.fixture
-def app():
-    """Create a Flask app for testing."""
-    app = Flask('test_labels_app')
-    app.config['TESTING'] = True
-    # Use try-except to handle blueprint already registered
-    try:
-        app.register_blueprint(labels_bp)
-    except AssertionError:
-        # Blueprint already registered, that's okay
-        pass
-    return app
-
-
-@pytest.fixture
-def client(app):
-    """Create a test client."""
-    return app.test_client()
+# app and client fixtures provided by conftest.py
 
 
 class TestCreateLabel:

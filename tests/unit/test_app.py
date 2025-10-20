@@ -385,6 +385,93 @@ def test_main_module_execution(monkeypatch, tmp_path):
     mock_run.assert_called_once_with(host="0.0.0.0", port=7777, debug=True)
 
 
+def test_dev_mode_enabled(monkeypatch, capsys):
+    """Test init_firebase in DEV_MODE"""
+    # Directly patch the DEV_MODE variable in app module
+    monkeypatch.setattr(app_module, "DEV_MODE", True)
+    
+    result = app_module.init_firebase()
+    
+    assert result is False
+    # Check that the print statement was executed
+    captured = capsys.readouterr()
+    assert "Running in DEV_MODE" in captured.out
+
+
+def test_init_firebase_exception_during_init(monkeypatch, tmp_path):
+    """Test Firebase initialization handles exceptions gracefully"""
+    cred_file = tmp_path / "test_creds.json"
+    cred_file.write_text('{"type": "service_account"}')
+    
+    monkeypatch.setenv("FIREBASE_CREDENTIALS_JSON", str(cred_file))
+    monkeypatch.setenv("DEV_MODE", "false")
+    
+    # Mock firebase_admin._apps to be empty
+    fake_firebase._apps = []
+    
+    # Mock credentials.Certificate to raise an exception
+    monkeypatch.setattr(fake_credentials, "Certificate", Mock(side_effect=Exception("Init failed")))
+    
+    result = app_module.init_firebase()
+    
+    assert result is False
+
+
+def test_error_handler_500(monkeypatch):
+    """Test 500 error handler"""
+    from flask import abort
+    
+    monkeypatch.setattr(app_module, "init_firebase", lambda: True)
+    app = app_module.create_app()
+    client = app.test_client()
+    
+    # Create a route that explicitly triggers 500
+    @app.route("/trigger-500")
+    def trigger_500():
+        abort(500, description="Test 500 error")
+    
+    response = client.get("/trigger-500")
+    
+    assert response.status_code == 500
+    data = response.get_json()
+    assert "error" in data
+
+
+def test_generic_exception_handler(monkeypatch):
+    """Test generic exception handler"""
+    monkeypatch.setattr(app_module, "init_firebase", lambda: True)
+    app = app_module.create_app()
+    client = app.test_client()
+    
+    # Create a route that raises a generic exception
+    @app.route("/trigger-exception")
+    def trigger_exception():
+        raise RuntimeError("Test exception")
+    
+    response = client.get("/trigger-exception")
+    
+    assert response.status_code == 500
+    data = response.get_json()
+    assert "error" in data
+    assert "message" in data
+    assert "type" in data
+    assert data["type"] == "RuntimeError"
+
+
+def test_options_handler(monkeypatch):
+    """Test OPTIONS handler for CORS preflight"""
+    monkeypatch.setattr(app_module, "init_firebase", lambda: True)
+    app = app_module.create_app()
+    client = app.test_client()
+    
+    response = client.options("/api/any/path")
+    
+    assert response.status_code == 200
+    assert "Access-Control-Allow-Origin" in response.headers
+    assert "Access-Control-Allow-Methods" in response.headers
+    assert "Access-Control-Allow-Headers" in response.headers
+
+
 def test_name_main_guard(monkeypatch, tmp_path):
     """Test the if __name__ == '__main__' guard by simulating module execution."""
     import importlib

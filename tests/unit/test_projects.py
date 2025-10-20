@@ -11,24 +11,7 @@ from backend.api import projects_bp
 from backend.api import projects as projects_module
 
 
-@pytest.fixture
-def app():
-    """Create a Flask app for testing."""
-    app = Flask('test_projects_app')
-    app.config['TESTING'] = True
-    # Use try-except to handle blueprint already registered
-    try:
-        app.register_blueprint(projects_bp)
-    except AssertionError:
-        # Blueprint already registered, that's okay
-        pass
-    return app
-
-
-@pytest.fixture
-def client(app):
-    """Create a test client."""
-    return app.test_client()
+# app and client fixtures provided by conftest.py
 
 
 class TestNowIso:
@@ -266,6 +249,143 @@ class TestCreateProject:
         assert membership_data["project_id"] == "proj123"
         assert membership_data["user_id"] == "user123"
         assert membership_data["role"] == "owner"
+
+    def test_create_project_owner_by_handle(self, client, mock_db, monkeypatch):
+        """Test creating project with owner specified by handle"""
+        mock_proj_ref = Mock()
+        mock_proj_ref.id = "proj789"
+        mock_mem_ref = Mock()
+        
+        # Mock user lookup by handle
+        mock_user_doc = Mock()
+        mock_user_doc.exists = False  # Direct ID lookup fails
+        
+        mock_handle_result = Mock()
+        mock_handle_result.id = "user_actual_id"
+        
+        def mock_collection(name):
+            if name == "users":
+                users_col = Mock()
+                users_col.document.return_value.get.return_value = mock_user_doc
+                # Mock handle query
+                mock_where = Mock()
+                mock_where.limit.return_value.stream.return_value = [mock_handle_result]
+                users_col.where.return_value = mock_where
+                return users_col
+            elif name == "projects":
+                proj_col = Mock()
+                proj_col.document.return_value = mock_proj_ref
+                return proj_col
+            elif name == "memberships":
+                mem_col = Mock()
+                mem_col.document.return_value = mock_mem_ref
+                return mem_col
+            return Mock()
+        
+        mock_db.collection = mock_collection
+        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
+        
+        payload = {
+            "name": "Test Project",
+            "owner_id": "john_handle"  # Using handle instead of UID
+        }
+        response = client.post("/api/projects", json=payload)
+        
+        assert response.status_code == 201
+        data = response.get_json()
+        assert data["owner_id"] == "user_actual_id"
+
+    def test_create_project_owner_by_email(self, client, mock_db, monkeypatch):
+        """Test creating project with owner specified by email"""
+        mock_proj_ref = Mock()
+        mock_proj_ref.id = "proj790"
+        mock_mem_ref = Mock()
+        
+        # Mock user lookup by email
+        mock_user_doc = Mock()
+        mock_user_doc.exists = False  # Direct ID lookup fails
+        
+        mock_email_result = Mock()
+        mock_email_result.id = "user_from_email"
+        
+        def mock_collection(name):
+            if name == "users":
+                users_col = Mock()
+                users_col.document.return_value.get.return_value = mock_user_doc
+                # Mock handle query (returns empty)
+                mock_where_handle = Mock()
+                mock_where_handle.limit.return_value.stream.return_value = []
+                # Mock email query
+                mock_where_email = Mock()
+                mock_where_email.limit.return_value.stream.return_value = [mock_email_result]
+                
+                def mock_where(field, op, value):
+                    if field == "handle":
+                        return mock_where_handle
+                    elif field == "email":
+                        return mock_where_email
+                    return Mock()
+                
+                users_col.where = mock_where
+                return users_col
+            elif name == "projects":
+                proj_col = Mock()
+                proj_col.document.return_value = mock_proj_ref
+                return proj_col
+            elif name == "memberships":
+                mem_col = Mock()
+                mem_col.document.return_value = mock_mem_ref
+                return mem_col
+            return Mock()
+        
+        mock_db.collection = mock_collection
+        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
+        
+        payload = {
+            "name": "Email Project",
+            "owner_id": "john@example.com"  # Using email
+        }
+        response = client.post("/api/projects", json=payload)
+        
+        assert response.status_code == 201
+        data = response.get_json()
+        assert data["owner_id"] == "user_from_email"
+
+    def test_create_project_owner_resolution_exception(self, client, mock_db, monkeypatch):
+        """Test that owner resolution exceptions are handled gracefully"""
+        mock_proj_ref = Mock()
+        mock_proj_ref.id = "proj791"
+        mock_mem_ref = Mock()
+        
+        def mock_collection(name):
+            if name == "users":
+                # Simulate exception during lookup
+                users_col = Mock()
+                users_col.document.return_value.get.side_effect = Exception("DB error")
+                return users_col
+            elif name == "projects":
+                proj_col = Mock()
+                proj_col.document.return_value = mock_proj_ref
+                return proj_col
+            elif name == "memberships":
+                mem_col = Mock()
+                mem_col.document.return_value = mock_mem_ref
+                return mem_col
+            return Mock()
+        
+        mock_db.collection = mock_collection
+        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
+        
+        payload = {
+            "name": "Exception Project",
+            "owner_id": "user123"
+        }
+        response = client.post("/api/projects", json=payload)
+        
+        # Should still succeed with original owner_id
+        assert response.status_code == 201
+        data = response.get_json()
+        assert data["owner_id"] == "user123"
 
 
 class TestListProjects:

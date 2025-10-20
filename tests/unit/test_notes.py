@@ -12,27 +12,7 @@ from backend.api import notes_bp
 from backend.api import notes as notes_module
 
 
-@pytest.fixture
-def app():
-    """Create a Flask app for testing."""
-    app = Flask('test_notes_app')
-    app.config['TESTING'] = True
-    # Use try-except to handle blueprint already registered
-    try:
-        app.register_blueprint(notes_bp)
-    except AssertionError:
-        # Blueprint already registered, that's okay
-        pass
-    return app
-
-
-@pytest.fixture
-def client(app):
-    """Create a test client."""
-    return app.test_client()
-
-
-# Remove the mock_db fixture since it's now in conftest.py
+# app, client, and mock_db fixtures provided by conftest.py
 
 
 class TestNowIso:
