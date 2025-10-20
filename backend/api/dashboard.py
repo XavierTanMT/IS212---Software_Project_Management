@@ -21,7 +21,11 @@ def _safe_iso_to_dt(s):
     try:
         if not s:
             return None
-        return datetime.fromisoformat(s.replace("Z", "+00:00"))
+        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+        # Ensure the datetime is timezone-aware
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
     except Exception:
         return None
 

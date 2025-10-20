@@ -6,7 +6,7 @@
 - **projects** (`name`, `key`, `owner_id`, `description`, `archived`, `created_at`)
 - **memberships** (`project_id`, `user_id`, `role`, `added_at`) — doc id `{project_id}_{user_id}`
 - **tasks** (`title`, `description`, `status`, `priority`, `due_date`, `created_at`, `created_by`, `assigned_to`, `project_id`, `labels`[array])
-- **comments** (`task_id`, `author_id`, `body`, `created_at`, `edited_at`)
+- **comments** (`task_id`, `author_id`, `body`, `mentions`[array], `created_at`, `edited_at`)
 - **attachments** (`task_id`, `file_name`, `file_path`, `uploaded_by`, `upload_date`)
 - **labels** (`name`, `color`)
 - **task_labels** (`task_id`, `label_id`) — for filtering/indexing
@@ -28,8 +28,10 @@
   - `GET /api/memberships/by-project/:project_id` — list members
 
 - **Comments**
-  - `POST /api/comments` — add comment to task
+  - `POST /api/comments` — add comment to task (supports @mentions)
   - `GET /api/comments/by-task/:task_id` — list task comments
+  - `PATCH /api/comments/:comment_id` — update comment (author only)
+  - `DELETE /api/comments/:comment_id` — delete comment (author only)
 
 - **Labels**
   - `POST /api/labels` — create label
