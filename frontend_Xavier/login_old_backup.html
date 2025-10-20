@@ -1,5 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
+<!doctype html>
+<html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -97,133 +99,150 @@
         
         .btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
         }
         
         .btn:disabled {
             opacity: 0.6;
             cursor: not-allowed;
-        }
-        
-        .loading {
-            display: none;
-            color: #667eea;
-            margin: 1rem 0;
+            transform: none;
         }
         
         .message {
-            display: none;
+            margin-top: 1rem;
             padding: 1rem;
             border-radius: 8px;
-            margin-top: 1rem;
+            font-weight: 500;
+            display: none;
         }
         
         .message.success {
             background-color: #d4edda;
             color: #155724;
+            border: 1px solid #c3e6cb;
         }
         
         .message.error {
             background-color: #f8d7da;
             color: #721c24;
+            border: 1px solid #f5c6cb;
         }
         
         .divider {
             margin: 1.5rem 0;
-            text-align: center;
             color: #999;
+            position: relative;
+        }
+        
+        .divider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: #e1e5e9;
+        }
+        
+        .divider span {
+            background: white;
+            padding: 0 1rem;
+        }
+        
+        .loading {
+            display: none;
+            color: #667eea;
+            font-weight: 500;
         }
     </style>
+  <meta charset="utf-8"/>
+  <title>Task Manager — Home</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <style>
+    body{font-family:system-ui,Segoe UI,Arial;margin:0}
+    .page{max-width:1000px;margin:20px auto;padding:0 16px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+    .card{border:1px solid #ddd;border-radius:10px;padding:14px}
+    a.btn{display:inline-block;padding:8px 12px;border:1px solid #888;border-radius:8px;text-decoration:none}
+  </style>
 </head>
-
 <body>
     <div class="login-container">
-        <div class="logo">🔐</div>
-        <h1>Welcome Back</h1>
-        <p>Sign in to your account</p>
-
+        <div class="logo">📋</div>
+        <h1>Task Manager</h1>
+        <p>Sign in to manage your tasks</p>
+        
         <form id="loginForm">
             <div class="form-group">
-                <label for="email">Email Address</label>
-                <input type="email" id="email" name="email" placeholder="Enter your email" required autocomplete="email">
+                <label for="user_id">User ID</label>
+                <input 
+                    type="text" 
+                    id="user_id" 
+                    name="user_id" 
+                    placeholder="Enter your user ID (e.g., alice123)" 
+                    required
+                >
             </div>
-
-            <div class="form-group">
-                <label for="password">Password</label>
-                <input type="password" id="password" name="password" placeholder="Enter your password" required autocomplete="current-password">
-            </div>
-
-            <button type="submit" class="btn btn-primary" id="loginBtn">Sign In</button>
             
-            <div class="loading" id="loading">🔄 Signing in...</div>
-            <div class="message" id="message"></div>
+            <button type="submit" class="btn btn-primary" id="loginBtn">
+                Sign In
+            </button>
+            
+            <div class="loading" id="loading">
+                Signing in...
+            </div>
         </form>
-
+        
         <div class="divider">
             <span>Don't have an account?</span>
         </div>
-
+        
         <button class="btn btn-secondary" onclick="goToCreateAccount()">
             Create New Account
         </button>
+        
+        <div class="message" id="message"></div>
+  <div id="nav"></div>
+  <div class="page">
+    <h1>Welcome</h1>
+    <div class="grid">
+      <div class="card">
+        <h3>Get Started</h3>
+        <p><a class="btn" href="login.html">Login</a></p>
+        <p><a class="btn" href="create_user.html">Create User</a></p>
+      </div>
+      <div class="card">
+        <h3>Projects</h3>
+        <p><a class="btn" href="projects.html">Projects</a></p>
+        <p><a class="btn" href="project_members.html?project_id=YOUR_PROJECT_ID">Project Members</a></p>
+      </div>
+      <div class="card">
+        <h3>Tasks</h3>
+        <p><a class="btn" href="tasks_list.html">Tasks List</a></p>
+        <p><a class="btn" href="create_task.html">Create Task</a></p>
+      </div>
+      <div class="card">
+        <h3>Labels & Comments</h3>
+        <p><a class="btn" href="labels.html">Labels</a></p>
+        <p><a class="btn" href="task_comments.html?task_id=YOUR_TASK_ID">Task Comments</a></p>
+        <p><a class="btn" href="attachments.html?task_id=YOUR_TASK_ID">Attachments</a></p>
+      </div>
     </div>
 
-    <!-- Firebase SDK (OPTIONAL - Backend handles auth) -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    
-    <!-- Firebase Configuration (OPTIONAL - Not currently used) -->
     <script>
-        // Backend-only mode: Firebase client SDK is NOT required
-        // The backend handles all Firebase Auth operations
-        // This configuration is here for future client-side features (optional)
-        const FIREBASE_ENABLED = false;
+        const API_BASE_URL = 'http://localhost:5000';
         
-        const firebaseConfig = {
-            apiKey: "AIzaSyDummy_Replace_With_Your_Config",
-            authDomain: "your-project.firebaseapp.com",
-            projectId: "your-project-id"
-        };
-        
-        // Only initialize if you want to use client-side features (not needed for login)
-        if (FIREBASE_ENABLED && typeof firebase !== 'undefined') {
-            try {
-                firebase.initializeApp(firebaseConfig);
-                console.log("Firebase client SDK initialized");
-            } catch (e) {
-                console.warn("Firebase initialization skipped:", e.message);
-            }
-        } else {
-            console.log("Using backend-only Firebase Auth (no client SDK needed)");
-        }
-    </script>
-    
-    <!-- Firebase Auth Helper -->
-    <script src="firebase-auth.js"></script>
-
-    <script>
         const form = document.getElementById('loginForm');
         const loginBtn = document.getElementById('loginBtn');
         const loading = document.getElementById('loading');
         const message = document.getElementById('message');
-        const emailInput = document.getElementById('email');
-        const passwordInput = document.getElementById('password');
         
         // Check if user is already logged in
-        window.addEventListener('load', async () => {
-            const currentUser = getCurrentUser();
-            const token = getFirebaseToken();
-            
-            if (currentUser && token) {
-                // Verify session is still valid
-                const isValid = await verifySession();
-                if (isValid) {
-                    // User already logged in, redirect to dashboard
-                    window.location.href = 'dashboard.html';
-                } else {
-                    // Session expired, clear it
-                    clearCurrentUser();
-                }
+        window.addEventListener('load', () => {
+            const currentUser = localStorage.getItem('currentUser');
+            if (currentUser) {
+                // User already logged in, redirect to dashboard
+                window.location.href = 'dashboard.html';
             }
         });
         
@@ -231,11 +250,10 @@
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            const email = emailInput.value.trim();
-            const password = passwordInput.value;
+            const userId = document.getElementById('user_id').value.trim();
             
-            if (!email || !password) {
-                showMessage('Please enter both email and password', 'error');
+            if (!userId) {
+                showMessage('Please enter your User ID', 'error');
                 return;
             }
             
@@ -243,19 +261,32 @@
             hideMessage();
             
             try {
-                // Try Firebase authentication
-                const result = await loginWithFirebase(email, password);
+                // Check if user exists
+                const response = await fetch(`${API_BASE_URL}/api/users/${userId}`);
                 
-                showMessage(`✅ Welcome back, ${result.user.name}!`, 'success');
-                
-                // Redirect to dashboard
-                setTimeout(() => {
-                    window.location.href = 'dashboard.html';
-                }, 1000);
+                if (response.ok) {
+                    const userData = await response.json();
+                    
+                    // Store user session (simple localStorage approach)
+                    localStorage.setItem('currentUser', JSON.stringify(userData));
+                    
+                    showMessage(`Welcome back, ${userData.name}!`, 'success');
+                    
+                    // Redirect to dashboard
+                    setTimeout(() => {
+                        window.location.href = 'dashboard.html';
+                    }, 1000);
+                    
+                } else if (response.status === 404) {
+                    showMessage('User not found. Please check your User ID or create an account.', 'error');
+                } else {
+                    const error = await response.json();
+                    showMessage(`Error: ${error.error}`, 'error');
+                }
                 
             } catch (error) {
                 console.error('Login error:', error);
-                showMessage(`❌ ${error.message}`, 'error');
+                showMessage('Cannot connect to server. Please try again.', 'error');
             } finally {
                 setLoading(false);
             }
@@ -269,8 +300,6 @@
         // Helper functions
         function setLoading(isLoading) {
             loginBtn.disabled = isLoading;
-            emailInput.disabled = isLoading;
-            passwordInput.disabled = isLoading;
             loading.style.display = isLoading ? 'block' : 'none';
             loginBtn.textContent = isLoading ? 'Signing in...' : 'Sign In';
         }
@@ -285,5 +314,8 @@
             message.style.display = 'none';
         }
     </script>
+  </div>
+  <script src="common.js"></script>
 </body>
+</html>
 </html>

@@ -145,6 +145,20 @@ class TestSafeIsoToDt:
         """Test that malformed ISO string returns None."""
         result = dashboard_module._safe_iso_to_dt("2025-13-45T99:99:99")
         assert result is None
+    
+    def test_safe_iso_to_dt_naive_datetime_becomes_aware(self):
+        """Test that naive datetime (without timezone) becomes timezone-aware with UTC."""
+        # ISO string without timezone info
+        iso_string = "2025-10-19T12:30:00"
+        result = dashboard_module._safe_iso_to_dt(iso_string)
+        
+        assert isinstance(result, datetime)
+        assert result.tzinfo is not None  # Should be timezone-aware
+        assert result.tzinfo == timezone.utc  # Should be UTC
+        # Verify it can be compared with timezone-aware datetime
+        now = datetime.now(timezone.utc)
+        # This should not raise TypeError
+        _ = result < now  # noqa
 
 
 class TestUserDashboard:

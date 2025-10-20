@@ -1,27 +1,19 @@
 // common.js — shared helpers + global sticky navbar + auth-aware fetch
 const API_BASE = "http://localhost:5000";
 
-function normalizeUser(u){
-  if (!u) return null;
-  if (!u.user_id && u.uid) u.user_id = u.uid;
-  if (!u.name && u.displayName) u.name = u.displayName;
-  if (u.email){ try{ u.email = String(u.email).toLowerCase(); }catch(e){} }
-  return u;
+// Firebase Auth - Use sessionStorage for better security
+function getCurrentUser(){ try { return JSON.parse(sessionStorage.getItem("currentUser") || "null"); } catch(e){ return null; } }
+function setCurrentUser(u){ sessionStorage.setItem("currentUser", JSON.stringify(u)); }
+function clearCurrentUser(){ 
+  sessionStorage.removeItem("currentUser"); 
+  sessionStorage.removeItem("firebaseToken");
 }
-function getCurrentUser(){
-  try{
-    const raw = localStorage.getItem("currentUser");
-    if(!raw) return null;
-    const u = normalizeUser(JSON.parse(raw));
-    if (u) localStorage.setItem("currentUser", JSON.stringify(u)); // write-back
-    return u;
-  }catch(e){ return null; }
-}
-function setCurrentUser(u){ localStorage.setItem("currentUser", JSON.stringify(normalizeUser(u))); }
-function clearCurrentUser(){ localStorage.removeItem("currentUser"); }
 
-function getCurrentProject(){ try { return JSON.parse(localStorage.getItem("currentProject") || "null"); } catch(e){ return null; } }
-function setCurrentProject(p){ localStorage.setItem("currentProject", JSON.stringify(p)); }
+function getFirebaseToken(){ return sessionStorage.getItem("firebaseToken"); }
+function setFirebaseToken(token){ sessionStorage.setItem("firebaseToken", token); }
+
+function getCurrentProject(){ try { return JSON.parse(sessionStorage.getItem("currentProject") || "null"); } catch(e){ return null; } }
+function setCurrentProject(p){ sessionStorage.setItem("currentProject", JSON.stringify(p)); }
 
 function requireAuth(){
   const u = getCurrentUser();

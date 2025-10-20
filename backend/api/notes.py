@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from flask import request, jsonify
-from . import comments_bp
+from . import notes_bp
 from firebase_admin import firestore
 import re
 
@@ -13,7 +13,7 @@ def _get_viewer_id():
     return viewer_id
 
 def _extract_mentions(body):
-    """Extract @mentions from comment body. Returns list of unique user IDs."""
+    """Extract @mentions from note body. Returns list of unique user IDs."""
     if not body:
         return []
     # Match @username pattern (alphanumeric, underscore, hyphen)
@@ -21,8 +21,9 @@ def _extract_mentions(body):
     # Return unique mentions
     return list(set(mentions))
 
-@comments_bp.post("")
-def add_comment():
+@notes_bp.post("")
+def add_note():
+    """Add a note to a task with @mention support."""
     db = firestore.client()
     payload = request.get_json(force=True) or {}
     task_id = (payload.get("task_id") or "").strip()
@@ -34,7 +35,7 @@ def add_comment():
     # Extract mentions from body
     mentions = _extract_mentions(body)
     
-    ref = db.collection("comments").document()
+    ref = db.collection("notes").document()
     doc = {
         "task_id": task_id,
         "author_id": author_id,
@@ -44,36 +45,37 @@ def add_comment():
         "edited_at": None,
     }
     ref.set(doc)
-    return jsonify({"comment_id": ref.id, **doc}), 201
+    return jsonify({"note_id": ref.id, **doc}), 201
 
-@comments_bp.get("/by-task/<task_id>")
-def list_comments(task_id):
+@notes_bp.get("/by-task/<task_id>")
+def list_notes(task_id):
+    """List all notes for a task."""
     db = firestore.client()
-    q = db.collection("comments").where("task_id","==",task_id).order_by("created_at").limit(100).stream()
-    res = [{"comment_id": d.id, **d.to_dict()} for d in q]
+    q = db.collection("notes").where("task_id","==",task_id).order_by("created_at").limit(100).stream()
+    res = [{"note_id": d.id, **d.to_dict()} for d in q]
     return jsonify(res), 200
 
-@comments_bp.patch("/<comment_id>")
-def update_comment(comment_id):
-    """Update a comment. Only the author can update their own comments."""
+@notes_bp.patch("/<note_id>")
+def update_note(note_id):
+    """Update a note. Only the author can update their own notes."""
     db = firestore.client()
     viewer_id = _get_viewer_id()
     
     if not viewer_id:
         return jsonify({"error": "Authentication required"}), 401
     
-    # Get the comment
-    comment_ref = db.collection("comments").document(comment_id)
-    comment_doc = comment_ref.get()
+    # Get the note
+    note_ref = db.collection("notes").document(note_id)
+    note_doc = note_ref.get()
     
-    if not comment_doc.exists:
-        return jsonify({"error": "Comment not found"}), 404
+    if not note_doc.exists:
+        return jsonify({"error": "Note not found"}), 404
     
-    comment_data = comment_doc.to_dict()
+    note_data = note_doc.to_dict()
     
     # Check authorization - only author can edit
-    if comment_data.get("author_id") != viewer_id:
-        return jsonify({"error": "You can only edit your own comments"}), 403
+    if note_data.get("author_id") != viewer_id:
+        return jsonify({"error": "You can only edit your own notes"}), 403
     
     payload = request.get_json(force=True) or {}
     body = (payload.get("body") or "").strip()
@@ -84,41 +86,41 @@ def update_comment(comment_id):
     # Extract mentions from updated body
     mentions = _extract_mentions(body)
     
-    # Update the comment
+    # Update the note
     update_data = {
         "body": body,
         "mentions": mentions,
         "edited_at": now_iso()
     }
-    comment_ref.update(update_data)
+    note_ref.update(update_data)
     
     # Get updated document
-    updated_doc = comment_ref.get()
-    return jsonify({"comment_id": comment_id, **updated_doc.to_dict()}), 200
+    updated_doc = note_ref.get()
+    return jsonify({"note_id": note_id, **updated_doc.to_dict()}), 200
 
-@comments_bp.delete("/<comment_id>")
-def delete_comment(comment_id):
-    """Delete a comment. Only the author can delete their own comments."""
+@notes_bp.delete("/<note_id>")
+def delete_note(note_id):
+    """Delete a note. Only the author can delete their own notes."""
     db = firestore.client()
     viewer_id = _get_viewer_id()
     
     if not viewer_id:
         return jsonify({"error": "Authentication required"}), 401
     
-    # Get the comment
-    comment_ref = db.collection("comments").document(comment_id)
-    comment_doc = comment_ref.get()
+    # Get the note
+    note_ref = db.collection("notes").document(note_id)
+    note_doc = note_ref.get()
     
-    if not comment_doc.exists:
-        return jsonify({"error": "Comment not found"}), 404
+    if not note_doc.exists:
+        return jsonify({"error": "Note not found"}), 404
     
-    comment_data = comment_doc.to_dict()
+    note_data = note_doc.to_dict()
     
     # Check authorization - only author can delete
-    if comment_data.get("author_id") != viewer_id:
-        return jsonify({"error": "You can only delete your own comments"}), 403
+    if note_data.get("author_id") != viewer_id:
+        return jsonify({"error": "You can only delete your own notes"}), 403
     
-    # Delete the comment
-    comment_ref.delete()
+    # Delete the note
+    note_ref.delete()
     
-    return jsonify({"message": "Comment deleted successfully"}), 200
+    return jsonify({"message": "Note deleted successfully"}), 200
