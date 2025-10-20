@@ -710,25 +710,30 @@ function setCurrentUser(u){ localStorage.setItem("currentUser", JSON.stringify(u
             document.title = `Dashboard - ${currentUser.name}`;
         }
 
-        async function loadDashboardData() {
-            try {
-                // Load dashboard data from API
-                const response = await fetch(`${API_BASE_URL}/api/users/${currentUser.user_id}/dashboard`);
-
-                if (!response.ok) {
-                    throw new Error('Failed to load dashboard data');
-                }
-
-                const dashboardData = await response.json();
-                renderDashboard(dashboardData);
-
-            } catch (error) {
-                console.error('Error loading dashboard:', error);
-                showError('Failed to load dashboard data. Please refresh the page.');
-            }
+        
+async function loadDashboardData() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/users/${currentUser.user_id}/dashboard`);
+        let dashboardData = null;
+        try { dashboardData = await response.json(); } catch(e){ dashboardData = null; }
+        if (!response.ok || !dashboardData) {
+            renderDashboard({
+                statistics: { total_created: 0, total_assigned: 0, status_breakdown: {}, priority_breakdown: {}, overdue_count: 0 },
+                recent_created_tasks: [], recent_assigned_tasks: []
+            });
+            return;
         }
+        renderDashboard(dashboardData);
+    } catch (error) {
+        console.error('Dashboard load failed:', error);
+        renderDashboard({
+            statistics: { total_created: 0, total_assigned: 0, status_breakdown: {}, priority_breakdown: {}, overdue_count: 0 },
+            recent_created_tasks: [], recent_assigned_tasks: []
+        });
+    }
+}
 
-        function renderDashboard(data) {
+    function renderDashboard(data) {
             // Update statistics
             document.getElementById('createdCount').textContent = data.statistics.total_created;
             document.getElementById('assignedCount').textContent = data.statistics.total_assigned;
@@ -1086,6 +1091,71 @@ function setCurrentUser(u){ localStorage.setItem("currentUser", JSON.stringify(u
             load();
         })();
     </script>
-</body>
 
-</html>
+<script>
+// --- PATCH: empty states + correct dashboard fetch --- //
+(function(){
+  if (window.__dashboardPatchApplied) return; window.__dashboardPatchApplied = true;
+  const u = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
+  const userId = u && (u.user_id || u.uid);
+  const api = (typeof API_BASE !== 'undefined') ? API_BASE : '';
+
+  async function loadDashboard(){
+    if (!userId){ showEmptyState('#dashboardRoot, .dashboard-root', 'You are not signed in.'); return; }
+    try{
+      const res = await fetch(`${api}/api/users/${userId}/dashboard`);
+      if (!res.ok){
+        if (res.status === 404){
+          // Treat as empty state
+          render({
+            statistics: { total_created: 0, total_assigned: 0, status_breakdown: {}, priority_breakdown: {}, overdue_count: 0 },
+            recent_created_tasks: [], recent_assigned_tasks: []
+          });
+          return;
+        }
+        const err = await res.json().catch(()=>({error:`HTTP ${res.status}`}));
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      render(data);
+    }catch(e){
+      console.error('Dashboard load failed:', e);
+      render({
+        statistics: { total_created: 0, total_assigned: 0, status_breakdown: {}, priority_breakdown: {}, overdue_count: 0 },
+        recent_created_tasks: [], recent_assigned_tasks: []
+      });
+    }
+  }
+
+  function render(d){
+    const root = document.querySelector('#dashboardRoot, .dashboard-root, main, body');
+    if (!root) return;
+    const stats = d.statistics || {};
+    const created = d.recent_created_tasks || [];
+    const assigned = d.recent_assigned_tasks || [];
+    const list = (items, title)=>{
+      if (!items.length) return `<div style="padding:12px;color:#666">No ${title} yet.</div>`;
+      return '<ul>' + items.map(t=>`<li>${t.title || '(untitled)'} — <em>${t.status||'To Do'}</em></li>`).join('') + '</ul>';
+    };
+    root.querySelectorAll('.loading, .spinner').forEach(el=>el.remove());
+    const panel = document.createElement('div');
+    panel.innerHTML = `
+      <section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:12px 0">
+        <div style="padding:12px;border:1px solid #eee;border-radius:10px"><div>Total created</div><h2>${stats.total_created||0}</h2></div>
+        <div style="padding:12px;border:1px solid #eee;border-radius:10px"><div>Total assigned</div><h2>${stats.total_assigned||0}</h2></div>
+        <div style="padding:12px;border:1px solid #eee;border-radius:10px"><div>Overdue</div><h2>${stats.overdue_count||0}</h2></div>
+      </section>
+      <section style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
+        <div><h3>Recent you created</h3>${list(created, 'created tasks')}</div>
+        <div><h3>Recent assigned to you</h3>${list(assigned, 'assigned tasks')}</div>
+      </section>
+    `;
+    const host = root.querySelector('#dashboardPanel') || root;
+    host.appendChild(panel);
+  }
+
+  document.addEventListener('DOMContentLoaded', loadDashboard);
+})();
+</script>
+
+</body></html>

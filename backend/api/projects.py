@@ -1,4 +1,3 @@
-
 from datetime import datetime, timezone
 from flask import request, jsonify
 from . import projects_bp
@@ -15,8 +14,34 @@ def create_project():
     key = (payload.get("key") or "").strip()  # short code, e.g. TMS
     owner_id = (payload.get("owner_id") or "").strip()
     description = (payload.get("description") or "").strip()
+    
     if not name or not owner_id:
-        return jsonify({"error":"name and owner_id are required"}), 400
+        return jsonify({"error": "name and owner_id are required"}), 400
+
+    # Resolve owner_id: accept uid directly, or a custom handle, or an email
+    resolve_id = owner_id
+    try:
+        # 1) If a users/{uid} doc exists, use it
+        user_ref = db.collection("users").document(owner_id).get()
+        if not user_ref.exists:
+            # 2) Try by handle
+            q = db.collection("users").where("handle", "==", owner_id).limit(1).stream()
+            resolved = None
+            for d in q:
+                resolved = d.id
+                break
+            if not resolved and "@" in owner_id:
+                # 3) Try by email
+                q2 = db.collection("users").where("email", "==", owner_id.lower()).limit(1).stream()
+                for d in q2:
+                    resolved = d.id
+                    break
+            if resolved:
+                resolve_id = resolved
+    except Exception:
+        pass
+
+    owner_id = resolve_id
 
     # Create project
     proj_ref = db.collection("projects").document()
@@ -46,7 +71,9 @@ def create_project():
 @projects_bp.get("")
 def list_projects():
     db = firestore.client()
-    q = db.collection("projects").order_by("created_at", direction=firestore.Query.DESCENDING).limit(50).stream()
+    q = db.collection("projects") \
+          .order_by("created_at", direction=firestore.Query.DESCENDING) \
+          .stream()
     res = [{"project_id": d.id, **d.to_dict()} for d in q]
     return jsonify(res), 200
 
@@ -65,9 +92,9 @@ def patch_project(project_id):
     ref = db.collection("projects").document(project_id)
     if not ref.get().exists:
         return jsonify({"error": "Project not found"}), 404
-    updates = {k: v for k, v in payload.items() if k in {"name","key","description","archived"}}
+    updates = {k: v for k, v in payload.items() if k in {"name", "key", "description", "archived"}}
     if not updates:
-        return jsonify({"error":"No fields to update"}), 400
+        return jsonify({"error": "No fields to update"}), 400
     updates["updated_at"] = now_iso()
     ref.update(updates)
     return jsonify({"project_id": project_id, **ref.get().to_dict()}), 200
@@ -80,7 +107,7 @@ def delete_project(project_id):
         return jsonify({"error": "Project not found"}), 404
 
     # Cleanup memberships for this project
-    mems = db.collection("memberships").where("project_id","==",project_id).stream()
+    mems = db.collection("memberships").where("project_id", "==", project_id).stream()
     for m in mems:
         db.collection("memberships").document(m.id).delete()
 

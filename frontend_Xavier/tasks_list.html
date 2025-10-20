@@ -137,5 +137,21 @@
     await load();
   });
   </script>
-</body>
-</html>
+
+<script>
+// --- PATCH: tasks empty state --- //
+(function(){
+  if (window.__tasksPatchApplied) return; window.__tasksPatchApplied = true;
+  function afterLoad(){
+    const listHost = document.querySelector('#tasksList, .tasks-list, #taskList');
+    if (!listHost) return;
+    if (listHost.children.length === 0 || listHost.innerHTML.trim() === ''){
+      listHost.innerHTML = '<div style="padding:12px;color:#666">No tasks yet. Create your first task.</div>';
+    }
+    document.querySelectorAll('.loading, .spinner').forEach(el=>el.remove());
+  }
+  window.addEventListener('load', ()=> setTimeout(afterLoad, 200));
+})();
+</script>
+
+</body></html>
