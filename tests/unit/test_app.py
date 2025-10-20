@@ -62,7 +62,7 @@ def test_health_endpoint(monkeypatch):
 
 
 def test_init_firebase_missing_credentials(monkeypatch):
-    """Test init_firebase raises error when credentials are missing."""
+    """Test init_firebase returns False when credentials are missing."""
     # Mock environment variables to return None
     monkeypatch.setenv("FIREBASE_CREDENTIALS_JSON", "")
     monkeypatch.delenv("FIREBASE_CREDENTIALS_JSON", raising=False)
@@ -71,19 +71,19 @@ def test_init_firebase_missing_credentials(monkeypatch):
     # Mock os.getenv to return None
     monkeypatch.setattr(os, "getenv", lambda key, default=None: None if key in ["FIREBASE_CREDENTIALS_JSON", "GOOGLE_APPLICATION_CREDENTIALS"] else default)
     
-    with pytest.raises(RuntimeError, match="Missing Firebase credentials"):
-        app_module.init_firebase()
+    result = app_module.init_firebase()
+    assert result is False
 
 
 def test_init_firebase_invalid_file_path(monkeypatch, tmp_path):
-    """Test init_firebase raises error when credential file doesn't exist."""
+    """Test init_firebase returns False when credential file doesn't exist."""
     fake_path = str(tmp_path / "nonexistent.json")
     
     # Mock os.getenv to return a non-existent path
     monkeypatch.setattr(os, "getenv", lambda key, default=None: fake_path if key == "FIREBASE_CREDENTIALS_JSON" else None)
     
-    with pytest.raises(RuntimeError, match="Missing Firebase credentials"):
-        app_module.init_firebase()
+    result = app_module.init_firebase()
+    assert result is False
 
 
 def test_init_firebase_success(monkeypatch, tmp_path):
@@ -148,7 +148,7 @@ def test_create_app_registers_blueprints(monkeypatch):
     
     expected_blueprints = [
         'users', 'tasks', 'dashboard', 'projects', 
-        'comments', 'labels', 'memberships', 'attachments'
+        'notes', 'labels', 'memberships', 'attachments'
     ]
     
     for bp_name in expected_blueprints:

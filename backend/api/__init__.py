@@ -24,9 +24,6 @@ from . import labels  # noqa
 from . import memberships  # noqa
 from . import attachments  # noqa
 
-# Auth/session blueprint (implemented in api/auth.py)
-from .auth import auth_bp  # noqa
-
 __all__ = [
     "users_bp",
     "tasks_bp",
@@ -36,5 +33,4 @@ __all__ = [
     "labels_bp",
     "memberships_bp",
     "attachments_bp",
-    "auth_bp",
 ]

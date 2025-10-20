@@ -28,6 +28,16 @@ fake_credentials.Certificate = _dummy_certificate
 fake_firebase.credentials = fake_credentials
 fake_firebase.initialize_app = lambda cred: None
 
+# Create fake_auth module for Firebase Auth
+fake_auth = types.ModuleType("firebase_admin.auth")
+fake_auth.create_user = Mock(return_value=Mock(uid="mock_uid"))
+fake_auth.get_user = Mock()
+fake_auth.get_user_by_email = Mock()
+fake_auth.update_user = Mock()
+fake_auth.delete_user = Mock()
+fake_auth.verify_id_token = Mock(return_value={"uid": "mock_uid"})
+fake_firebase.auth = fake_auth
+
 # Create fake_firestore with __getattr__ to dynamically provide missing attributes
 fake_firestore = types.ModuleType("firebase_admin.firestore")
 fake_firestore.client = Mock()
@@ -54,6 +64,7 @@ fake_firebase.firestore = fake_firestore
 
 sys.modules["firebase_admin"] = fake_firebase
 sys.modules["firebase_admin.credentials"] = fake_credentials
+sys.modules["firebase_admin.auth"] = fake_auth
 sys.modules["firebase_admin.firestore"] = fake_firestore
 
 

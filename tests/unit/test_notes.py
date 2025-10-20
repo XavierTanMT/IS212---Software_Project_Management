@@ -8,18 +8,18 @@ from datetime import datetime, timezone
 fake_firestore = sys.modules.get("firebase_admin.firestore")
 
 from flask import Flask
-from backend.api import comments_bp
-from backend.api import comments as comments_module
+from backend.api import notes_bp
+from backend.api import notes as notes_module
 
 
 @pytest.fixture
 def app():
     """Create a Flask app for testing."""
-    app = Flask('test_comments_app')
+    app = Flask('test_notes_app')
     app.config['TESTING'] = True
     # Use try-except to handle blueprint already registered
     try:
-        app.register_blueprint(comments_bp)
+        app.register_blueprint(notes_bp)
     except AssertionError:
         # Blueprint already registered, that's okay
         pass
@@ -40,7 +40,7 @@ class TestNowIso:
     
     def test_now_iso_returns_iso_format(self):
         """Test that now_iso returns a valid ISO format string."""
-        result = comments_module.now_iso()
+        result = notes_module.now_iso()
         
         # Verify it's a string
         assert isinstance(result, str)
@@ -51,14 +51,14 @@ class TestNowIso:
     
     def test_now_iso_includes_timezone(self):
         """Test that now_iso includes timezone information."""
-        result = comments_module.now_iso()
+        result = notes_module.now_iso()
         
         # ISO format with timezone should contain '+' or 'Z'
         assert '+' in result or 'Z' in result.upper()
     
     def test_now_iso_uses_utc(self):
         """Test that now_iso uses UTC timezone."""
-        result = comments_module.now_iso()
+        result = notes_module.now_iso()
         
         # Parse and verify timezone
         parsed = datetime.fromisoformat(result.replace('Z', '+00:00'))
@@ -89,7 +89,7 @@ class TestAddComment:
         }
         
         response = client.post(
-            "/api/comments",
+            "/api/notes",
             json=payload,
             content_type="application/json"
         )
@@ -97,7 +97,7 @@ class TestAddComment:
         # Verify response
         assert response.status_code == 201
         data = response.get_json()
-        assert data["comment_id"] == "comment123"
+        assert data["note_id"] == "comment123"
         assert data["task_id"] == "task1"
         assert data["author_id"] == "user1"
         assert data["body"] == "This is a test comment"
@@ -105,7 +105,7 @@ class TestAddComment:
         assert data["edited_at"] is None
         
         # Verify Firestore was called correctly
-        mock_db.collection.assert_called_once_with("comments")
+        mock_db.collection.assert_called_once_with("notes")
         mock_collection.document.assert_called_once()
         mock_doc_ref.set.assert_called_once()
         
@@ -126,7 +126,7 @@ class TestAddComment:
             "body": "This is a test comment"
         }
         
-        response = client.post("/api/comments", json=payload)
+        response = client.post("/api/notes", json=payload)
         
         assert response.status_code == 400
         data = response.get_json()
@@ -142,7 +142,7 @@ class TestAddComment:
             "body": "This is a test comment"
         }
         
-        response = client.post("/api/comments", json=payload)
+        response = client.post("/api/notes", json=payload)
         
         assert response.status_code == 400
         data = response.get_json()
@@ -158,7 +158,7 @@ class TestAddComment:
             "author_id": "user1"
         }
         
-        response = client.post("/api/comments", json=payload)
+        response = client.post("/api/notes", json=payload)
         
         assert response.status_code == 400
         data = response.get_json()
@@ -175,7 +175,7 @@ class TestAddComment:
             "body": "This is a test comment"
         }
         
-        response = client.post("/api/comments", json=payload)
+        response = client.post("/api/notes", json=payload)
         
         assert response.status_code == 400
         data = response.get_json()
@@ -191,7 +191,7 @@ class TestAddComment:
             "body": "   "
         }
         
-        response = client.post("/api/comments", json=payload)
+        response = client.post("/api/notes", json=payload)
         
         assert response.status_code == 400
         data = response.get_json()
@@ -201,7 +201,7 @@ class TestAddComment:
         """Test adding comment with no JSON payload."""
         monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
         
-        response = client.post("/api/comments")
+        response = client.post("/api/notes")
         
         assert response.status_code == 400
         data = response.get_json()
@@ -226,7 +226,7 @@ class TestAddComment:
             "body": "  This is a test comment  "
         }
         
-        response = client.post("/api/comments", json=payload)
+        response = client.post("/api/notes", json=payload)
         
         assert response.status_code == 201
         data = response.get_json()
@@ -253,7 +253,7 @@ class TestAddComment:
             "body": "New comment"
         }
         
-        response = client.post("/api/comments", json=payload)
+        response = client.post("/api/notes", json=payload)
         
         assert response.status_code == 201
         data = response.get_json()
@@ -302,20 +302,20 @@ class TestListComments:
         mock_db.collection = Mock(return_value=mock_collection)
         monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
         
-        response = client.get("/api/comments/by-task/task1")
+        response = client.get("/api/notes/by-task/task1")
         
         assert response.status_code == 200
         data = response.get_json()
         
         # Verify response
         assert len(data) == 2
-        assert data[0]["comment_id"] == "comment1"
+        assert data[0]["note_id"] == "comment1"
         assert data[0]["body"] == "First comment"
-        assert data[1]["comment_id"] == "comment2"
+        assert data[1]["note_id"] == "comment2"
         assert data[1]["body"] == "Second comment"
         
         # Verify Firestore query
-        mock_db.collection.assert_called_once_with("comments")
+        mock_db.collection.assert_called_once_with("notes")
         mock_collection.where.assert_called_once_with("task_id", "==", "task1")
         mock_where.order_by.assert_called_once_with("created_at")
         mock_order_by.limit.assert_called_once_with(100)
@@ -338,7 +338,7 @@ class TestListComments:
         mock_db.collection = Mock(return_value=mock_collection)
         monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
         
-        response = client.get("/api/comments/by-task/task999")
+        response = client.get("/api/notes/by-task/task999")
         
         assert response.status_code == 200
         data = response.get_json()
@@ -371,12 +371,12 @@ class TestListComments:
         mock_db.collection = Mock(return_value=mock_collection)
         monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
         
-        response = client.get("/api/comments/by-task/task1")
+        response = client.get("/api/notes/by-task/task1")
         
         assert response.status_code == 200
         data = response.get_json()
         assert len(data) == 1
-        assert data[0]["comment_id"] == "comment_only"
+        assert data[0]["note_id"] == "comment_only"
         assert data[0]["body"] == "Only comment"
     
     def test_list_comments_ordered_by_created_at(self, client, mock_db, monkeypatch):
@@ -396,7 +396,7 @@ class TestListComments:
         mock_db.collection = Mock(return_value=mock_collection)
         monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
         
-        client.get("/api/comments/by-task/task1")
+        client.get("/api/notes/by-task/task1")
         
         # Verify order_by was called with created_at
         mock_where.order_by.assert_called_once_with("created_at")
@@ -418,7 +418,7 @@ class TestListComments:
         mock_db.collection = Mock(return_value=mock_collection)
         monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
         
-        client.get("/api/comments/by-task/task1")
+        client.get("/api/notes/by-task/task1")
         
         # Verify limit was called with 100
         mock_order_by.limit.assert_called_once_with(100)
@@ -450,7 +450,7 @@ class TestListComments:
         mock_db.collection = Mock(return_value=mock_collection)
         monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
         
-        response = client.get("/api/comments/by-task/task1")
+        response = client.get("/api/notes/by-task/task1")
         
         assert response.status_code == 200
         data = response.get_json()
@@ -463,11 +463,11 @@ class TestBlueprintRegistration:
     
     def test_blueprint_url_prefix(self):
         """Test that the blueprint has the correct URL prefix."""
-        assert comments_bp.url_prefix == "/api/comments"
+        assert notes_bp.url_prefix == "/api/notes"
     
     def test_blueprint_name(self):
         """Test that the blueprint has the correct name."""
-        assert comments_bp.name == "comments"
+        assert notes_bp.name == "notes"
 
 
 class TestEdgeCases:
@@ -491,7 +491,7 @@ class TestEdgeCases:
             "body": long_body
         }
         
-        response = client.post("/api/comments", json=payload)
+        response = client.post("/api/notes", json=payload)
         
         assert response.status_code == 201
         data = response.get_json()
@@ -515,7 +515,7 @@ class TestEdgeCases:
             "body": special_body
         }
         
-        response = client.post("/api/comments", json=payload)
+        response = client.post("/api/notes", json=payload)
         
         assert response.status_code == 201
         data = response.get_json()
@@ -539,7 +539,7 @@ class TestEdgeCases:
             "body": multiline_body
         }
         
-        response = client.post("/api/comments", json=payload)
+        response = client.post("/api/notes", json=payload)
         
         assert response.status_code == 201
         data = response.get_json()
@@ -563,7 +563,7 @@ class TestEdgeCases:
         monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
         
         special_task_id = "task-123_abc"
-        response = client.get(f"/api/comments/by-task/{special_task_id}")
+        response = client.get(f"/api/notes/by-task/{special_task_id}")
         
         assert response.status_code == 200
         # Verify the task_id was passed correctly to the query
@@ -586,13 +586,13 @@ class TestEdgeCases:
             "body": "Complete comment"
         }
         
-        response = client.post("/api/comments", json=payload)
+        response = client.post("/api/notes", json=payload)
         
         assert response.status_code == 201
         data = response.get_json()
         
         # Verify all expected fields are present
-        expected_fields = ["comment_id", "task_id", "author_id", "body", "created_at", "edited_at", "mentions"]
+        expected_fields = ["note_id", "task_id", "author_id", "body", "created_at", "edited_at", "mentions"]
         for field in expected_fields:
             assert field in data, f"Field '{field}' missing from response"
 
@@ -603,42 +603,42 @@ class TestExtractMentions:
     def test_extract_single_mention(self):
         """Test extracting a single @mention."""
         body = "Hey @john, can you review this?"
-        mentions = comments_module._extract_mentions(body)
+        mentions = notes_module._extract_mentions(body)
         assert mentions == ["john"]
     
     def test_extract_multiple_mentions(self):
         """Test extracting multiple @mentions."""
         body = "CC @alice @bob and @charlie"
-        mentions = comments_module._extract_mentions(body)
+        mentions = notes_module._extract_mentions(body)
         # Result should be sorted for consistent comparison
         assert sorted(mentions) == ["alice", "bob", "charlie"]
     
     def test_extract_mentions_with_underscores_and_hyphens(self):
         """Test @mentions with underscores and hyphens."""
         body = "Notify @user_name and @test-user"
-        mentions = comments_module._extract_mentions(body)
+        mentions = notes_module._extract_mentions(body)
         assert sorted(mentions) == ["test-user", "user_name"]
     
     def test_extract_duplicate_mentions(self):
         """Test that duplicate @mentions are deduplicated."""
         body = "Hey @john, @john can you help?"
-        mentions = comments_module._extract_mentions(body)
+        mentions = notes_module._extract_mentions(body)
         assert mentions == ["john"]
     
     def test_extract_no_mentions(self):
         """Test extracting from text without @mentions."""
         body = "This is a regular comment"
-        mentions = comments_module._extract_mentions(body)
+        mentions = notes_module._extract_mentions(body)
         assert mentions == []
     
     def test_extract_empty_body(self):
         """Test extracting from empty body."""
-        mentions = comments_module._extract_mentions("")
+        mentions = notes_module._extract_mentions("")
         assert mentions == []
     
     def test_extract_none_body(self):
         """Test extracting from None body."""
-        mentions = comments_module._extract_mentions(None)
+        mentions = notes_module._extract_mentions(None)
         assert mentions == []
 
 
@@ -648,13 +648,13 @@ class TestGetViewerId:
     def test_get_viewer_from_header(self, app):
         """Test getting viewer ID from X-User-Id header."""
         with app.test_request_context(headers={"X-User-Id": "user123"}):
-            viewer = comments_module._get_viewer_id()
+            viewer = notes_module._get_viewer_id()
             assert viewer == "user123"
     
     def test_get_viewer_from_query_param(self, app):
         """Test getting viewer ID from query parameter."""
         with app.test_request_context("/?viewer_id=user456"):
-            viewer = comments_module._get_viewer_id()
+            viewer = notes_module._get_viewer_id()
             assert viewer == "user456"
     
     def test_header_takes_precedence(self, app):
@@ -663,19 +663,19 @@ class TestGetViewerId:
             "/?viewer_id=query_user",
             headers={"X-User-Id": "header_user"}
         ):
-            viewer = comments_module._get_viewer_id()
+            viewer = notes_module._get_viewer_id()
             assert viewer == "header_user"
     
     def test_no_viewer_returns_empty(self, app):
         """Test that missing viewer ID returns empty string."""
         with app.test_request_context():
-            viewer = comments_module._get_viewer_id()
+            viewer = notes_module._get_viewer_id()
             assert viewer == ""
     
     def test_strips_whitespace(self, app):
         """Test that viewer ID is stripped of whitespace."""
         with app.test_request_context(headers={"X-User-Id": "  user789  "}):
-            viewer = comments_module._get_viewer_id()
+            viewer = notes_module._get_viewer_id()
             assert viewer == "user789"
 
 
@@ -722,7 +722,7 @@ class TestUpdateComment:
         payload = {"body": "Updated comment with @alice"}
         
         response = client.patch(
-            "/api/comments/comment123",
+            "/api/notes/comment123",
             json=payload,
             headers={"X-User-Id": "user1"}
         )
@@ -730,13 +730,13 @@ class TestUpdateComment:
         # Verify response
         assert response.status_code == 200
         data = response.get_json()
-        assert data["comment_id"] == "comment123"
+        assert data["note_id"] == "comment123"
         assert data["body"] == "Updated comment with @alice"
         assert "alice" in data["mentions"]
         assert data["edited_at"] is not None
         
         # Verify Firestore was called correctly
-        mock_db.collection.assert_called_with("comments")
+        mock_db.collection.assert_called_with("notes")
         mock_collection.document.assert_called_with("comment123")
         mock_doc_ref.update.assert_called_once()
     
@@ -757,7 +757,7 @@ class TestUpdateComment:
         payload = {"body": "Updated comment"}
         
         response = client.patch(
-            "/api/comments/nonexistent",
+            "/api/notes/nonexistent",
             json=payload,
             headers={"X-User-Id": "user1"}
         )
@@ -792,7 +792,7 @@ class TestUpdateComment:
         payload = {"body": "Trying to update"}
         
         response = client.patch(
-            "/api/comments/comment123",
+            "/api/notes/comment123",
             json=payload,
             headers={"X-User-Id": "user2"}  # Different user
         )
@@ -800,7 +800,7 @@ class TestUpdateComment:
         assert response.status_code == 403
         data = response.get_json()
         assert "error" in data
-        assert "own comments" in data["error"].lower()
+        assert "own notes" in data["error"].lower()
     
     def test_update_comment_no_auth(self, client, mock_db, monkeypatch):
         """Test updating comment without authentication."""
@@ -808,7 +808,7 @@ class TestUpdateComment:
         
         payload = {"body": "Updated comment"}
         
-        response = client.patch("/api/comments/comment123", json=payload)
+        response = client.patch("/api/notes/comment123", json=payload)
         
         assert response.status_code == 401
         data = response.get_json()
@@ -834,7 +834,7 @@ class TestUpdateComment:
         monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
         
         response = client.patch(
-            "/api/comments/comment123",
+            "/api/notes/comment123",
             json={},
             headers={"X-User-Id": "user1"}
         )
@@ -863,7 +863,7 @@ class TestUpdateComment:
         monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
         
         response = client.patch(
-            "/api/comments/comment123",
+            "/api/notes/comment123",
             json={"body": "   "},
             headers={"X-User-Id": "user1"}
         )
@@ -899,7 +899,7 @@ class TestDeleteComment:
         monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
         
         response = client.delete(
-            "/api/comments/comment123",
+            "/api/notes/comment123",
             headers={"X-User-Id": "user1"}
         )
         
@@ -926,7 +926,7 @@ class TestDeleteComment:
         monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
         
         response = client.delete(
-            "/api/comments/nonexistent",
+            "/api/notes/nonexistent",
             headers={"X-User-Id": "user1"}
         )
         
@@ -956,20 +956,20 @@ class TestDeleteComment:
         monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
         
         response = client.delete(
-            "/api/comments/comment123",
+            "/api/notes/comment123",
             headers={"X-User-Id": "user2"}  # Different user
         )
         
         assert response.status_code == 403
         data = response.get_json()
         assert "error" in data
-        assert "own comments" in data["error"].lower()
+        assert "own notes" in data["error"].lower()
     
     def test_delete_comment_no_auth(self, client, mock_db, monkeypatch):
         """Test deleting comment without authentication."""
         monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
         
-        response = client.delete("/api/comments/comment123")
+        response = client.delete("/api/notes/comment123")
         
         assert response.status_code == 401
         data = response.get_json()
@@ -997,7 +997,7 @@ class TestAddCommentWithMentions:
             "body": "Hey @john, can you review this?"
         }
         
-        response = client.post("/api/comments", json=payload)
+        response = client.post("/api/notes", json=payload)
         
         assert response.status_code == 201
         data = response.get_json()
@@ -1021,7 +1021,7 @@ class TestAddCommentWithMentions:
             "body": "CC @alice @bob and @charlie on this"
         }
         
-        response = client.post("/api/comments", json=payload)
+        response = client.post("/api/notes", json=payload)
         
         assert response.status_code == 201
         data = response.get_json()
@@ -1047,7 +1047,7 @@ class TestAddCommentWithMentions:
             "body": "Regular comment without mentions"
         }
         
-        response = client.post("/api/comments", json=payload)
+        response = client.post("/api/notes", json=payload)
         
         assert response.status_code == 201
         data = response.get_json()

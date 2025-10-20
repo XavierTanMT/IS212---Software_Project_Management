@@ -292,9 +292,8 @@ class TestListProjects:
         }
         
         # Mock the query chain
-        mock_query = Mock()
-        mock_query.limit.return_value.stream.return_value = [mock_doc1, mock_doc2]
-        mock_db.collection.return_value.order_by.return_value = mock_query
+        mock_stream = [mock_doc1, mock_doc2]
+        mock_db.collection.return_value.order_by.return_value.stream.return_value = mock_stream
         
         monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
         
@@ -314,9 +313,7 @@ class TestListProjects:
         
     def test_list_projects_empty_result(self, client, mock_db, monkeypatch):
         """Test listing projects when there are none"""
-        mock_query = Mock()
-        mock_query.limit.return_value.stream.return_value = []
-        mock_db.collection.return_value.order_by.return_value = mock_query
+        mock_db.collection.return_value.order_by.return_value.stream.return_value = []
         
         monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
         fake_firestore.Query = Mock()
@@ -666,9 +663,7 @@ class TestBlueprintRegistration:
         assert response.status_code == 400  # validation error, not 404
         
         # Test GET list endpoint
-        mock_query = Mock()
-        mock_query.limit.return_value.stream.return_value = []
-        mock_db.collection.return_value.order_by.return_value = mock_query
+        mock_db.collection.return_value.order_by.return_value.stream.return_value = []
         fake_firestore.Query = Mock()
         fake_firestore.Query.DESCENDING = "DESCENDING"
         
