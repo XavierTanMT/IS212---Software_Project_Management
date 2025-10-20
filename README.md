@@ -77,7 +77,7 @@ IS212---Software_Project_Management/
 │   ├── task.py                     # Task model and database operations
 │   ├── task_manager.db             # SQLite database file
 │   └── __pycache__/               # Python compiled files
-├── frontend_Xavier/                # Frontend web pages
+├── frontend/                       # Frontend web pages
 │   ├── login.html                  # User authentication page
 │   ├── create_user.html           # User registration page
 │   ├── dashboard.html             # Main dashboard interface
@@ -124,8 +124,8 @@ IS212---Software_Project_Management/
    Server will start on `http://localhost:5000`
 
 5. ** Start the HTML Server**
-    # In frontend_Xavier directory
-    cd frontend_Xavier
+    # In frontend directory
+    cd frontend
     python -m http.server 5000
 
     # Access at http://localhost:5000

@@ -1,0 +1,68 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Task Manager — Home</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <style>
+    body{font-family:system-ui,Segoe UI,Arial;margin:0}
+    .page{max-width:1000px;margin:20px auto;padding:0 16px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+    .card{border:1px solid #ddd;border-radius:10px;padding:14px}
+    a.btn{display:inline-block;padding:8px 12px;border:1px solid #888;border-radius:8px;text-decoration:none}
+  </style>
+</head>
+<body>
+  <div id="nav"></div>
+  <div class="page">
+    <h1>Welcome</h1>
+    <div class="grid">
+      <div class="card">
+        <h3>Get Started</h3>
+        <p><a class="btn" href="login.html">Login</a></p>
+        <p><a class="btn" href="create_user.html">Create User</a></p>
+      </div>
+      <div class="card">
+        <h3>Projects</h3>
+        <p><a class="btn" href="projects.html">Projects</a></p>
+        <p><a class="btn" href="project_members.html?project_id=YOUR_PROJECT_ID">Project Members</a></p>
+      </div>
+      <div class="card">
+        <h3>Tasks</h3>
+        <p><a class="btn" href="tasks_list.html">Tasks List</a></p>
+        <p><a class="btn" href="create_task.html">Create Task</a></p>
+      </div>
+      <div class="card">
+        <h3>Labels & Notes</h3>
+        <p><a class="btn" href="labels.html">Labels</a></p>
+        <p><a class="btn" href="task_notes.html?task_id=YOUR_TASK_ID">Task Notes</a></p>
+        <p><a class="btn" href="attachments.html?task_id=YOUR_TASK_ID">Attachments</a></p>
+      </div>
+    </div>
+  </div>
+  <script src="common.js"></script>
+
+<script>
+// --- PATCH: generic empty-state guard --- //
+(function(){
+  if (window.__genericEmptyPatchApplied) return; window.__genericEmptyPatchApplied = true;
+  function afterLoad(){
+    document.querySelectorAll('.loading,.spinner').forEach(el=>el.remove());
+    const empties = [
+      ['#labelsList,.labels-list', 'No labels yet.'],
+      ['#attachmentsList,.attachments-list', 'No attachments yet.'],
+      ['#commentsList,.comments-list', 'No comments yet.'],
+      ['#membersList,.members-list', 'No members yet.'],
+    ];
+    for (const [sel, text] of empties){
+      const host = document.querySelector(sel);
+      if (host && (host.children.length === 0 || host.innerHTML.trim() === '')){
+        host.innerHTML = `<div style="padding:12px;color:#666">${text}</div>`;
+      }
+    }
+  }
+  window.addEventListener('load', ()=> setTimeout(afterLoad, 200));
+})();
+</script>
+
+</body></html>
