@@ -337,6 +337,38 @@ class TestRegisterUser:
         
         assert response.status_code == 500
         assert "Registration failed" in response.get_json()["error"]
+    
+    def test_register_exception_before_firebase_user_created(self, client, mock_db, monkeypatch):
+        """Test exception cleanup when firebase_user is not created yet"""
+        # Mock Firestore - initial check succeeds but stream() fails
+        mock_doc = Mock()
+        mock_doc.exists = False
+        
+        mock_doc_ref = Mock()
+        mock_doc_ref.get.return_value = mock_doc
+        
+        # Make stream() raise an exception (before firebase_user is created)
+        mock_db.collection.return_value.document.return_value = mock_doc_ref
+        mock_db.collection.return_value.where.return_value.limit.return_value.stream.side_effect = Exception("Database error")
+        
+        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
+        # delete_user should not be called since firebase_user was never created
+        mock_delete = Mock()
+        monkeypatch.setattr(fake_auth, "delete_user", mock_delete)
+        
+        payload = {
+            "user_id": "test_user",
+            "name": "Test User",
+            "email": "test@example.com",
+            "password": "password123"
+        }
+        
+        response = client.post("/api/users/auth/register", json=payload)
+        
+        assert response.status_code == 500
+        assert "Registration failed" in response.get_json()["error"]
+        # Verify delete_user was NOT called (firebase_user never created)
+        mock_delete.assert_not_called()
 
 
 class TestLoginUser:

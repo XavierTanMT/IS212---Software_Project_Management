@@ -386,6 +386,60 @@ class TestCreateProject:
         assert response.status_code == 201
         data = response.get_json()
         assert data["owner_id"] == "user123"
+    
+    def test_create_project_owner_resolution_fails_both(self, client, mock_db, monkeypatch):
+        """Test when both handle and email resolution fail"""
+        mock_proj_ref = Mock()
+        mock_proj_ref.id = "proj792"
+        mock_mem_ref = Mock()
+        
+        # Mock user lookup - neither handle nor email found
+        mock_user_doc = Mock()
+        mock_user_doc.exists = False  # Direct ID lookup fails
+        
+        def mock_collection(name):
+            if name == "users":
+                users_col = Mock()
+                users_col.document.return_value.get.return_value = mock_user_doc
+                # Mock handle query (returns empty)
+                mock_where_handle = Mock()
+                mock_where_handle.limit.return_value.stream.return_value = []
+                # Mock email query (returns empty)
+                mock_where_email = Mock()
+                mock_where_email.limit.return_value.stream.return_value = []
+                
+                def mock_where(field, op, value):
+                    if field == "handle":
+                        return mock_where_handle
+                    elif field == "email":
+                        return mock_where_email
+                    return Mock()
+                
+                users_col.where = mock_where
+                return users_col
+            elif name == "projects":
+                proj_col = Mock()
+                proj_col.document.return_value = mock_proj_ref
+                return proj_col
+            elif name == "memberships":
+                mem_col = Mock()
+                mem_col.document.return_value = mock_mem_ref
+                return mem_col
+            return Mock()
+        
+        mock_db.collection = mock_collection
+        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
+        
+        payload = {
+            "name": "Unresolved Project",
+            "owner_id": "unknown@example.com"  # Email format but not found
+        }
+        response = client.post("/api/projects", json=payload)
+        
+        # Should still succeed with original owner_id (no resolution)
+        assert response.status_code == 201
+        data = response.get_json()
+        assert data["owner_id"] == "unknown@example.com"
 
 
 class TestListProjects:
