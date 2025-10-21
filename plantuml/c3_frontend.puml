@@ -1,0 +1,18 @@
+@startuml c3_frontend
+!include <C4/C4_Component>
+
+title C3 - Component (Frontend)
+
+Container_Boundary(frontend, "Frontend") {
+    Component(webapp, "Normal webpage", "HTML/CSS/JavaScript", "Main user interface for task management")
+}
+
+Container(backend, "Backend", "Application Server", "Business logic and API")
+ContainerDb(db, "DB", "Database", "Stores task data and user information")
+
+Rel(webapp, backend, "API calls")
+Rel(backend, webapp, "API responses")
+Rel(backend, db, "Reads/Writes")
+Rel(db, backend, "Returns data")
+
+@enduml

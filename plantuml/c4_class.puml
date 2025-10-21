@@ -1,0 +1,127 @@
+@startuml c4_class
+!include <C4/C4_Context>
+
+title C4 - Code
+
+class Employee {
+  - id: int
+  - name: string
+  - username: string
+  - email: string
+  - password: string
+  - manager: Manager
+  + changePassword(): Bool
+  + createTask(): void
+  + deleteTask(Task): void
+  + updateTask(Task): void
+  + viewTask(Task): void
+  + generateReport(Project): Report
+}
+
+class Admin {
+  - attribute: type
+  + method(): Type
+}
+
+class Manager {
+  - teamMembers: List<Employee>
+  - projects: List<Project>
+  + assignTask(Task, List<Employee>): Bool
+  + createProject(): Project
+}
+
+enum Priority {
+    Low
+    Medium
+    High
+}
+
+enum Status {
+    ToDo
+    InProgress
+    Completed
+    Blocked
+}
+
+class Task {
+  - title: String
+  - description: String
+  - attachments: List<Attachment>
+  - subTasks: List<Task>
+  - priority: Priority
+  - dueDate: Date
+  - assignedTo: List<Employee>
+  - tags: List<String>
+  - status: Status
+  - isArchived: Bool
+  - archived_at: DateTime
+  - archived_by_id: String
+  + setTitle(title: String): Void
+  + setDescription(description: String): void
+  + setPriority(priority: Priority): void
+  + setDueDate(dueDate: Date): void
+  + setStatus(status: Status): void
+  + setTags(tags: List<String>): void
+}
+
+class Project {
+  - id: int
+  - name: String
+  - description: String
+  - tasks: List<Task>
+  - members: List<Employee>
+}
+
+class Attachment {
+  -fileName: String
+  -filePath: String
+  -uploadedBy: Employee
+  -uploadDate: DateTime
+}
+
+class Report {
+  - id: int
+  - project: Project
+  - generatedBy: Employee
+  - generatedOn: DateTime
+  - projectedTasks: List<Task>
+  - completedTasks: List<Task>
+  - inProgressTasks: List<Task>
+  - tasksUnderReview: List<Task>
+}
+
+class Notification {
+  - id: int
+  - recipient: Employee
+  - type: NotificationType
+  - title: String
+  - message: String
+  - relatedTask: Task
+  - relatedProject: Project
+  - relatedComment: Comment
+}
+
+enum NotificationType {
+    APPROACHING_DEADLINE
+    NEW_COMMENT
+    TASK_UPDATES
+    MENTIONS
+}
+
+class Comment {
+  - id: int
+  - content: String
+  - author: Employee
+  - createdOn: DateTime
+  - relatedTask: Task
+}
+
+Task "1" *-- "*" Attachment : has
+Employee "1" o-- "*" Attachment : uploads
+
+Admin --|> Employee : extends
+Manager --|> Employee : extends
+
+Employee --> Task : creates/manages
+
+@enduml

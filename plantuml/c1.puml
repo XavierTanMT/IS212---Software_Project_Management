@@ -1,0 +1,17 @@
+@startuml c1
+!define RECTANGLE class
+
+title C1 - Context
+
+actor "Employee/staff member" as Employee
+actor "Manager/Director - Employee with managerial rights" as Manager
+actor "Admin - HR and Senior Leadership" as Admin
+
+cloud "Task System" as TaskSystem {
+}
+
+Employee --> TaskSystem
+Manager --> TaskSystem
+Admin --> TaskSystem
+
+@enduml
