@@ -121,19 +121,19 @@ IS212---Software_Project_Management/
    python app.py
    ```
    The database will be automatically created on first run.
-   Server will start on `http://localhost:5000`
+   Server will start on `http://localhost:5500`
 
 5. ** Start the HTML Server**
     # In frontend directory
     cd frontend
-    python -m http.server 5000
+    python -m http.server 5500
 
-    # Access at http://localhost:5000
+    # Access at http://localhost:5500
     # But you'll need CORS for API calls to Flask at port 5000
 
 5. **Start the HTML Server**
    Open your browser and navigate to:
-   - Login: `http://localhost:5000/login.html`
+   - Login: `http://localhost:5500/login.html`
 
 ## 🎯 Usage
 
