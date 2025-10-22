@@ -524,7 +524,7 @@
         // Check authentication and load task
         window.addEventListener('load', async () => {
             // Check if user is logged in
-            const userData = localStorage.getItem('currentUser');
+            const userData = sessionStorage.getItem('currentUser');
             if (!userData) {
                 window.location.href = 'login.html';
                 return;
