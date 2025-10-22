@@ -48,3 +48,13 @@ def get_user(user_id):
     if not doc.exists:
         return jsonify({"error": "User not found"}), 404
     return jsonify(doc.to_dict()), 200
+
+@users_bp.get("/<user_id>/role")
+def get_user_role(user_id):
+    db = firestore.client()
+    doc = db.collection("users").document(user_id).get()
+    if not doc.exists:
+        return jsonify({"error": "User not found"}), 404
+    data = doc.to_dict() or {}
+    role = data.get("role", "staff")
+    return jsonify({"user_id": user_id, "role": role}), 200

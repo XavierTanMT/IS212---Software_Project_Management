@@ -67,6 +67,22 @@
             background: rgba(255, 255, 255, 0.3);
         }
 
+        /* Role chip */
+        .role-chip {
+            display: inline-block;
+            margin-left: 8px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            background: #e2e8f0;
+            color: #475569;
+            vertical-align: middle;
+        }
+        .role-chip.manager {
+            background: #e9d8fd;
+            color: #553c9a;
+        }
+
         /* Main Container */
         .container {
             max-width: 1400px;
@@ -161,11 +177,82 @@
             align-items: center;
         }
 
+        .filter-controls {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .filter-controls label {
+            font-size: 0.9rem;
+            color: #666;
+            margin-right: 0.25rem;
+        }
+
         select {
             padding: 0.5rem;
             border: 1px solid #ddd;
             border-radius: 5px;
             background: white;
+        }
+
+        /* Visual Status Indicators */
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+        }
+
+        .status-critical-overdue {
+            background: #dc3545;
+            color: white;
+        }
+
+        .status-overdue {
+            background: #fd7e14;
+            color: white;
+        }
+
+        .status-upcoming {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .status-on-track {
+            background: #28a745;
+            color: white;
+        }
+
+        .status-no-due-date {
+            background: #6c757d;
+            color: white;
+        }
+
+        .priority-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+        }
+
+        .priority-high {
+            background: #dc3545;
+        }
+
+        .priority-medium {
+            background: #ffc107;
+        }
+
+        .priority-low {
+            background: #28a745;
         }
 
         /* Task Grid */
@@ -422,6 +509,98 @@
             100% { transform: rotate(360deg); }
         }
 
+        /* Timeline View Styles */
+        .timeline-section {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+        }
+
+        .timeline-header {
+            padding: 1rem 1.5rem;
+            font-weight: 600;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .timeline-header.overdue {
+            background: #fee;
+            color: #dc3545;
+            border-left: 4px solid #dc3545;
+        }
+
+        .timeline-header.today {
+            background: #fff3cd;
+            color: #856404;
+            border-left: 4px solid #ffc107;
+        }
+
+        .timeline-header.this_week {
+            background: #d1ecf1;
+            color: #0c5460;
+            border-left: 4px solid #17a2b8;
+        }
+
+        .timeline-header.future {
+            background: #d4edda;
+            color: #155724;
+            border-left: 4px solid #28a745;
+        }
+
+        .timeline-header.no_due_date {
+            background: #f8f9fa;
+            color: #6c757d;
+            border-left: 4px solid #6c757d;
+        }
+
+        .timeline-tasks {
+            padding: 1rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+
+        .timeline-task-card {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .timeline-task-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .conflicts-section {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .conflicts-title {
+            color: #721c24;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .conflict-item {
+            background: white;
+            border-radius: 4px;
+            padding: 0.5rem;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .container {
@@ -442,6 +621,10 @@
             }
 
             .task-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .timeline-tasks {
                 grid-template-columns: 1fr;
             }
         }
@@ -484,6 +667,7 @@
                 <button class="tab-btn active" data-tab="by-member">By Team Member</button>
                 <button class="tab-btn" data-tab="by-project">By Project</button>
                 <button class="tab-btn" data-tab="by-status">By Status</button>
+                <button class="tab-btn" data-tab="timeline">Timeline View</button>
             </div>
             
             <div class="sort-controls">
@@ -492,12 +676,30 @@
                     <option value="due_date">Due Date</option>
                     <option value="priority">Priority</option>
                     <option value="project">Project</option>
+                    <option value="member">Team Member</option>
                 </select>
                 <select id="sortOrder">
                     <option value="asc">Ascending</option>
                     <option value="desc">Descending</option>
                 </select>
                 <button class="btn btn-primary" onclick="loadTeamTasks()">Refresh</button>
+            </div>
+            
+            <div class="filter-controls">
+                <label for="filterTeamMember">Filter by Member:</label>
+                <select id="filterTeamMember">
+                    <option value="">All Members</option>
+                </select>
+                <label for="filterProject">Filter by Project:</label>
+                <select id="filterProject">
+                    <option value="">All Projects</option>
+                </select>
+                <label for="filterStatus">Filter by Status:</label>
+                <select id="filterStatus">
+                    <option value="">All Statuses</option>
+                </select>
+                <button class="btn btn-secondary" onclick="applyFilters()">Apply Filters</button>
+                <button class="btn btn-outline" onclick="clearFilters()">Clear</button>
             </div>
         </div>
 
@@ -526,7 +728,7 @@
         </div>
     </div>
 
-    <script src="common.js"></script>
+    <script src="firebase-auth.js"></script>
     <script>
         let currentUser = null;
         let teamData = null;
@@ -542,6 +744,9 @@
 
             // Check if user is manager
             checkManagerRole();
+
+            // Show role chip and toggle manager-only UI decorations
+            showRoleIndicators(currentUser).catch(()=>{});
 
             // Setup tab switching
             setupTabButtons();
@@ -589,14 +794,16 @@
         function loadTeamTasks() {
             const sortBy = document.getElementById('sortBy').value;
             const sortOrder = document.getElementById('sortOrder').value;
+            const viewMode = currentTab === 'timeline' ? 'timeline' : 'grid';
             
-            fetch(`${API_BASE}/api/manager/team-tasks?sort_by=${sortBy}&sort_order=${sortOrder}`, {
+            fetch(`${API_BASE}/api/manager/team-tasks?sort_by=${sortBy}&sort_order=${sortOrder}&view_mode=${viewMode}`, {
                 headers: { 'X-User-Id': currentUser.user_id }
             })
             .then(res => res.json())
             .then(data => {
                 teamData = data;
                 updateStatistics();
+                populateFilterOptions();
                 renderTasks();
             })
             .catch(err => {
@@ -624,6 +831,76 @@
                 taskGrid.innerHTML = '<div class="loading">No team tasks found</div>';
                 return;
             }
+
+            if (currentTab === 'timeline') {
+                renderTimelineView();
+            } else {
+                renderGridView();
+            }
+        }
+
+        function renderTimelineView() {
+            const taskGrid = document.getElementById('taskGrid');
+            const timeline = teamData.timeline || {};
+            const conflicts = teamData.conflicts || [];
+            
+            let html = '';
+            
+            // Render conflicts if any
+            if (conflicts.length > 0) {
+                html += '<div class="conflicts-section">';
+                html += '<div class="conflicts-title">⚠️ Schedule Conflicts</div>';
+                conflicts.forEach(conflict => {
+                    html += `<div class="conflict-item">`;
+                    html += `<strong>${conflict.date}</strong>: ${conflict.count} tasks scheduled`;
+                    html += '<ul>';
+                    conflict.tasks.forEach(task => {
+                        html += `<li>${escapeHtml(task.title)} - ${task.assigned_to ? escapeHtml(task.assigned_to.name) : 'Unassigned'}</li>`;
+                    });
+                    html += '</ul></div>';
+                });
+                html += '</div>';
+            }
+            
+            // Render timeline sections
+            const sections = [
+                { key: 'overdue', title: '🚨 Overdue Tasks', icon: '🚨' },
+                { key: 'today', title: '📅 Today', icon: '📅' },
+                { key: 'this_week', title: '📆 This Week', icon: '📆' },
+                { key: 'future', title: '🔮 Future', icon: '🔮' },
+                { key: 'no_due_date', title: '📝 No Due Date', icon: '📝' }
+            ];
+            
+            sections.forEach(section => {
+                const tasks = timeline[section.key] || [];
+                const count = tasks.length;
+                
+                html += `<div class="timeline-section" data-period="${section.key}">`;
+                html += `<div class="timeline-header ${section.key}">`;
+                html += `<span>${section.icon}</span>`;
+                html += `<span>${section.title}</span>`;
+                html += `<span>(${count})</span>`;
+                html += '</div>';
+                
+                if (tasks.length === 0) {
+                    html += '<div style="padding: 1rem; color: #666; text-align: center;">No tasks</div>';
+                } else {
+                    html += '<div class="timeline-tasks">';
+                    tasks.forEach(task => {
+                        html += renderTimelineTaskCard(task);
+                    });
+                    html += '</div>';
+                }
+                
+                html += '</div>';
+            });
+            
+            taskGrid.innerHTML = html;
+        }
+
+        function renderGridView() {
+            const taskGrid = document.getElementById('taskGrid');
+            const tasks = teamData.team_tasks;
 
             let groupedTasks = {};
             
@@ -672,32 +949,18 @@
             taskGrid.innerHTML = html;
         }
 
-        function getGroupTitle(groupKey) {
-            if (currentTab === 'by-member') {
-                const member = teamData.team_members.find(m => m.user_id === groupKey);
-                return member ? member.name : 'Unknown Member';
-            } else if (currentTab === 'by-project') {
-                if (groupKey === 'no-project') return 'No Project';
-                const project = teamData.projects.find(p => p.project_id === groupKey);
-                return project ? project.name : 'Unknown Project';
-            } else if (currentTab === 'by-status') {
-                return groupKey;
-            }
-            return groupKey;
-        }
-
-        function renderTaskCard(task) {
+        function renderTimelineTaskCard(task) {
             const statusClass = getTaskStatusClass(task);
-            const priorityColor = getPriorityColor(task.priority);
+            const priorityClass = getPriorityClass(task.priority);
+            const visualStatusClass = getVisualStatusClass(task);
             const dueDateText = formatDueDate(task.due_date, task.is_overdue, task.is_upcoming);
             
             return `
-                <div class="task-card ${statusClass}" onclick="showTaskDetails('${task.task_id}')">
-                    <div class="task-header">
-                        <div class="task-title">${escapeHtml(task.title)}</div>
-                        <div class="priority-badge" style="background-color: ${priorityColor}">
-                            ${task.priority}/10
-                        </div>
+                <div class="timeline-task-card" onclick="showTaskDetails('${task.task_id}')">
+                    <div class="task-title">
+                        <span class="priority-indicator ${priorityClass}"></span>
+                        ${escapeHtml(task.title)}
+                        <span class="status-badge ${visualStatusClass}">${getVisualStatusText(task)}</span>
                     </div>
                     <div class="task-description">${escapeHtml(task.description.substring(0, 100))}${task.description.length > 100 ? '...' : ''}</div>
                     <div class="task-meta">
@@ -717,6 +980,62 @@
                             <span class="meta-label">Due:</span>
                             <span class="due-date ${task.is_overdue ? 'overdue' : task.is_upcoming ? 'upcoming' : 'on-track'}">${dueDateText}</span>
                         </div>
+                        ${task.days_overdue > 0 ? `<div class="meta-item"><span class="meta-label">Days Overdue:</span><span class="meta-value">${task.days_overdue}</span></div>` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        function getGroupTitle(groupKey) {
+            if (currentTab === 'by-member') {
+                const member = teamData.team_members.find(m => m.user_id === groupKey);
+                return member ? member.name : 'Unknown Member';
+            } else if (currentTab === 'by-project') {
+                if (groupKey === 'no-project') return 'No Project';
+                const project = teamData.projects.find(p => p.project_id === groupKey);
+                return project ? project.name : 'Unknown Project';
+            } else if (currentTab === 'by-status') {
+                return groupKey;
+            } else if (currentTab === 'timeline') {
+                return groupKey; // This shouldn't be called for timeline view
+            }
+            return groupKey;
+        }
+
+        function renderTaskCard(task) {
+            const statusClass = getTaskStatusClass(task);
+            const priorityClass = getPriorityClass(task.priority);
+            const visualStatusClass = getVisualStatusClass(task);
+            const dueDateText = formatDueDate(task.due_date, task.is_overdue, task.is_upcoming);
+            
+            return `
+                <div class="task-card ${statusClass}" onclick="showTaskDetails('${task.task_id}')">
+                    <div class="task-header">
+                        <div class="task-title">
+                            <span class="priority-indicator ${priorityClass}"></span>
+                            ${escapeHtml(task.title)}
+                            <span class="status-badge ${visualStatusClass}">${getVisualStatusText(task)}</span>
+                        </div>
+                    </div>
+                    <div class="task-description">${escapeHtml(task.description.substring(0, 100))}${task.description.length > 100 ? '...' : ''}</div>
+                    <div class="task-meta">
+                        <div class="meta-item">
+                            <span class="meta-label">Assigned to:</span>
+                            <span class="meta-value member-name">${task.assigned_to ? escapeHtml(task.assigned_to.name) : 'Unassigned'}</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Project:</span>
+                            <span class="meta-value project-name">${task.project_id ? getProjectName(task.project_id) : 'No Project'}</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Status:</span>
+                            <span class="status-badge status-${task.status.toLowerCase().replace(' ', '-')}">${task.status}</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Due:</span>
+                            <span class="due-date ${task.is_overdue ? 'overdue' : task.is_upcoming ? 'upcoming' : 'on-track'}">${dueDateText}</span>
+                        </div>
+                        ${task.days_overdue > 0 ? `<div class="meta-item"><span class="meta-label">Days Overdue:</span><span class="meta-value">${task.days_overdue}</span></div>` : ''}
                     </div>
                 </div>
             `;
@@ -727,6 +1046,36 @@
             if (task.is_upcoming) return 'upcoming';
             if (task.due_date) return 'on-track';
             return 'no-due-date';
+        }
+
+        function getPriorityClass(priority) {
+            const p = parseInt(priority) || 5;
+            if (p >= 8) return 'priority-high';
+            if (p <= 3) return 'priority-low';
+            return 'priority-medium';
+        }
+
+        function getVisualStatusClass(task) {
+            const visualStatus = task.visual_status || 'no-due-date';
+            return `status-${visualStatus.replace('_', '-')}`;
+        }
+
+        function getVisualStatusText(task) {
+            const visualStatus = task.visual_status || 'no-due-date';
+            switch (visualStatus) {
+                case 'critical_overdue':
+                    return `Critical (${task.days_overdue}d)`;
+                case 'overdue':
+                    return `Overdue (${task.days_overdue}d)`;
+                case 'upcoming':
+                    return `Due Soon (${task.days_until_due}d)`;
+                case 'on_track':
+                    return 'On Track';
+                case 'no_due_date':
+                    return 'No Due Date';
+                default:
+                    return visualStatus.replace('_', ' ');
+            }
         }
 
         function getPriorityColor(priority) {
@@ -782,42 +1131,60 @@
                 <div class="modal-field">
                     <label>Priority:</label>
                     <div class="value">
-                        <span class="priority-badge" style="background-color: ${getPriorityColor(task.priority)}">
-                            ${task.priority}/10
-                        </span>
+                        <span class="priority-indicator ${getPriorityClass(task.priority)}"></span>
+                        ${task.priority}/10
                     </div>
                 </div>
                 <div class="modal-field">
                     <label>Status:</label>
                     <div class="value">
                         <span class="status-badge status-${task.status.toLowerCase().replace(' ', '-')}">${task.status}</span>
+                        <span class="status-badge ${getVisualStatusClass(task)}">${getVisualStatusText(task)}</span>
                     </div>
                 </div>
                 <div class="modal-field">
                     <label>Assigned to:</label>
-                    <div class="value">${task.assigned_to ? escapeHtml(task.assigned_to.name) : 'Unassigned'}</div>
+                    <div class="value member-name">${task.assigned_to ? escapeHtml(task.assigned_to.name) : 'Unassigned'}</div>
                 </div>
                 <div class="modal-field">
                     <label>Project:</label>
-                    <div class="value">${task.project_id ? getProjectName(task.project_id) : 'No Project'}</div>
+                    <div class="value project-name">${task.project_id ? getProjectName(task.project_id) : 'No Project'}</div>
                 </div>
                 <div class="modal-field">
                     <label>Due Date:</label>
                     <div class="value">${formatDueDate(task.due_date, task.is_overdue, task.is_upcoming)}</div>
                 </div>
+                ${task.days_overdue > 0 ? `
+                <div class="modal-field">
+                    <label>Days Overdue:</label>
+                    <div class="value" style="color: #dc3545; font-weight: bold;">${task.days_overdue} days</div>
+                </div>
+                ` : ''}
                 <div class="modal-field">
                     <label>Created:</label>
                     <div class="value">${new Date(task.created_at).toLocaleString()}</div>
                 </div>
+                ${task.labels && task.labels.length > 0 ? `
+                <div class="modal-field">
+                    <label>Labels:</label>
+                    <div class="value">${task.labels.map(label => `<span class="label-badge">${escapeHtml(label)}</span>`).join(' ')}</div>
+                </div>
+                ` : ''}
             `;
 
             const modalActions = document.getElementById('modalActions');
             modalActions.innerHTML = `
                 <button class="btn btn-secondary" onclick="closeModal()">Close</button>
-                <button class="btn btn-primary" onclick="reassignTask('${task.task_id}')">Reassign Task</button>
+                <button class="btn btn-primary" onclick="editTask('${task.task_id}')">Edit Task</button>
+                <button class="btn btn-warning" onclick="reassignTask('${task.task_id}')">Reassign Task</button>
             `;
 
             document.getElementById('taskModal').style.display = 'block';
+        }
+
+        function editTask(taskId) {
+            closeModal();
+            window.location.href = `edit_task.html?id=${taskId}`;
         }
 
         function reassignTask(taskId) {
@@ -911,9 +1278,43 @@
 
         function logout() {
             if (confirm('Are you sure you want to logout?')) {
-                localStorage.removeItem('currentUser');
-                window.location.href = 'login.html';
+                // Delegate to shared signOut() which clears session storage and redirects
+                if (typeof signOut === 'function') {
+                    signOut();
+                } else {
+                    // Fallback
+                    sessionStorage.removeItem('currentUser');
+                    sessionStorage.removeItem('firebaseToken');
+                    window.location.href = 'login.html';
+                }
             }
+        }
+
+        // Role indicators
+        async function showRoleIndicators(user){
+            try{
+                const res = await fetch(`${API_BASE}/api/users/${user.user_id}/role`, {
+                    headers: { 'X-User-Id': user.user_id }
+                });
+                const data = await res.json();
+                const role = (data && data.role) || 'staff';
+                const isManager = ['manager','director','hr'].includes(role);
+
+                // Add role chip near user name
+                const nameEl = document.getElementById('userName');
+                if (nameEl && !document.getElementById('roleChip')){
+                    const chip = document.createElement('span');
+                    chip.id = 'roleChip';
+                    chip.className = 'role-chip' + (isManager ? ' manager' : '');
+                    chip.textContent = role.charAt(0).toUpperCase() + role.slice(1);
+                    nameEl.after(chip);
+                }
+
+                // Toggle manager-only UI
+                document.querySelectorAll('.manager-only').forEach(el => {
+                    el.style.display = isManager ? '' : 'none';
+                });
+            }catch(e){ /* noop */ }
         }
 
         // Close modal when clicking outside
@@ -922,6 +1323,205 @@
             if (event.target === modal) {
                 closeModal();
             }
+        }
+
+        // Filtering functions
+        function populateFilterOptions() {
+            if (!teamData) return;
+            
+            // Populate member filter
+            const memberSelect = document.getElementById('filterTeamMember');
+            memberSelect.innerHTML = '<option value="">All Members</option>';
+            teamData.team_members.forEach(member => {
+                memberSelect.innerHTML += `<option value="${member.user_id}">${member.name}</option>`;
+            });
+            
+            // Populate project filter
+            const projectSelect = document.getElementById('filterProject');
+            projectSelect.innerHTML = '<option value="">All Projects</option>';
+            teamData.projects.forEach(project => {
+                projectSelect.innerHTML += `<option value="${project.project_id}">${project.name}</option>`;
+            });
+            
+            // Populate status filter
+            const statusSelect = document.getElementById('filterStatus');
+            statusSelect.innerHTML = '<option value="">All Statuses</option>';
+            const statuses = [...new Set(teamData.team_tasks.map(task => task.status))];
+            statuses.forEach(status => {
+                statusSelect.innerHTML += `<option value="${status}">${status}</option>`;
+            });
+        }
+
+        function applyFilters() {
+            const memberFilter = document.getElementById('filterTeamMember').value;
+            const projectFilter = document.getElementById('filterProject').value;
+            const statusFilter = document.getElementById('filterStatus').value;
+            
+            let filteredTasks = teamData.team_tasks;
+            
+            if (memberFilter) {
+                filteredTasks = filteredTasks.filter(task => 
+                    task.assigned_to && task.assigned_to.user_id === memberFilter
+                );
+            }
+            
+            if (projectFilter) {
+                filteredTasks = filteredTasks.filter(task => 
+                    task.project_id === projectFilter
+                );
+            }
+            
+            if (statusFilter) {
+                filteredTasks = filteredTasks.filter(task => 
+                    task.status === statusFilter
+                );
+            }
+            
+            renderFilteredTasks(filteredTasks);
+        }
+
+        function renderFilteredTasks(tasks) {
+            const taskGrid = document.getElementById('taskGrid');
+            
+            if (tasks.length === 0) {
+                taskGrid.innerHTML = '<div class="no-tasks">No tasks match the current filters.</div>';
+                return;
+            }
+            
+            if (currentTab === 'timeline') {
+                // For timeline view, create a temporary timeline data structure
+                const tempTeamData = {
+                    ...teamData,
+                    team_tasks: tasks
+                };
+                
+                // Group filtered tasks by timeline periods
+                const timeline = groupTasksByTimeline(tasks);
+                const conflicts = detectConflicts(tasks);
+                
+                tempTeamData.timeline = timeline;
+                tempTeamData.conflicts = conflicts;
+                
+                // Temporarily replace teamData and render timeline
+                const originalTeamData = teamData;
+                teamData = tempTeamData;
+                renderTimelineView();
+                teamData = originalTeamData;
+            } else {
+                // Group tasks by current tab
+                let groupedTasks = {};
+                
+                if (currentTab === 'by-member') {
+                    tasks.forEach(task => {
+                        const memberId = task.member_id;
+                        if (!groupedTasks[memberId]) {
+                            groupedTasks[memberId] = [];
+                        }
+                        groupedTasks[memberId].push(task);
+                    });
+                } else if (currentTab === 'by-project') {
+                    tasks.forEach(task => {
+                        const projectId = task.project_id || 'no-project';
+                        if (!groupedTasks[projectId]) {
+                            groupedTasks[projectId] = [];
+                        }
+                        groupedTasks[projectId].push(task);
+                    });
+                } else if (currentTab === 'by-status') {
+                    tasks.forEach(task => {
+                        const status = task.status;
+                        if (!groupedTasks[status]) {
+                            groupedTasks[status] = [];
+                        }
+                        groupedTasks[status].push(task);
+                    });
+                }
+                
+                let html = '';
+                for (const [groupKey, groupTasks] of Object.entries(groupedTasks)) {
+                    html += `<div class="task-group">
+                        <h3 class="group-title">${getGroupTitle(groupKey)}</h3>
+                        <div class="group-tasks">`;
+                    
+                    groupTasks.forEach(task => {
+                        html += renderTaskCard(task);
+                    });
+                    
+                    html += `</div></div>`;
+                }
+                
+                taskGrid.innerHTML = html;
+            }
+        }
+
+        function groupTasksByTimeline(tasks) {
+            const timeline = {
+                "overdue": [],
+                "today": [],
+                "this_week": [],
+                "future": [],
+                "no_due_date": []
+            };
+            
+            tasks.forEach(task => {
+                const due_date = task.due_date;
+                if (!due_date) {
+                    timeline["no_due_date"].push(task);
+                    return;
+                }
+                
+                const due_dt = new Date(due_date);
+                const now = new Date();
+                const days_until_due = Math.ceil((due_dt - now) / (1000 * 60 * 60 * 24));
+                
+                if (days_until_due < 0) {
+                    timeline["overdue"].push(task);
+                } else if (days_until_due === 0) {
+                    timeline["today"].push(task);
+                } else if (days_until_due <= 7) {
+                    timeline["this_week"].push(task);
+                } else {
+                    timeline["future"].push(task);
+                }
+            });
+            
+            return timeline;
+        }
+
+        function detectConflicts(tasks) {
+            const dateMap = {};
+            const conflicts = [];
+            
+            tasks.forEach(task => {
+                const due_date = task.due_date;
+                if (due_date) {
+                    const date_str = due_date.split('T')[0];
+                    if (!(date_str in dateMap)) {
+                        dateMap[date_str] = [];
+                    }
+                    dateMap[date_str].push(task);
+                }
+            });
+            
+            // Find dates with multiple tasks
+            for (const [date_str, tasks_on_date] of Object.entries(dateMap)) {
+                if (tasks_on_date.length > 1) {
+                    conflicts.push({
+                        date: date_str,
+                        tasks: tasks_on_date,
+                        count: tasks_on_date.length
+                    });
+                }
+            }
+            
+            return conflicts;
+        }
+
+        function clearFilters() {
+            document.getElementById('filterTeamMember').value = '';
+            document.getElementById('filterProject').value = '';
+            document.getElementById('filterStatus').value = '';
+            renderTasks(); // Render all tasks
         }
     </script>
 </body>

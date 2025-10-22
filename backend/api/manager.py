@@ -30,23 +30,67 @@ def _is_manager_role(role):
     return role in manager_roles
 
 def _get_task_status_flags(due_date_str):
-    """Calculate overdue/upcoming status for a task."""
+    """Calculate overdue/upcoming status for a task with visual categorization."""
     if not due_date_str:
-        return {"is_overdue": False, "is_upcoming": False, "status": "no_due_date"}
+        return {
+            "is_overdue": False, 
+            "is_upcoming": False, 
+            "status": "no_due_date",
+            "visual_status": "no_due_date",
+            "days_overdue": 0,
+            "days_until_due": None
+        }
     
     due_dt = _safe_iso_to_dt(due_date_str)
     if not due_dt:
-        return {"is_overdue": False, "is_upcoming": False, "status": "invalid_date"}
+        return {
+            "is_overdue": False, 
+            "is_upcoming": False, 
+            "status": "invalid_date",
+            "visual_status": "invalid_date",
+            "days_overdue": 0,
+            "days_until_due": None
+        }
     
     now = datetime.now(timezone.utc)
     days_until_due = (due_dt - now).days
     
-    if days_until_due < 0:
-        return {"is_overdue": True, "is_upcoming": False, "status": "overdue"}
+    if days_until_due < -7:
+        return {
+            "is_overdue": True, 
+            "is_upcoming": False, 
+            "status": "critical_overdue",
+            "visual_status": "critical_overdue",
+            "days_overdue": abs(days_until_due),
+            "days_until_due": days_until_due
+        }
+    elif days_until_due < 0:
+        return {
+            "is_overdue": True, 
+            "is_upcoming": False, 
+            "status": "overdue",
+            "visual_status": "overdue",
+            "days_overdue": abs(days_until_due),
+            "days_until_due": days_until_due
+        }
     elif days_until_due <= 3:
-        return {"is_upcoming": True, "is_overdue": False, "status": "upcoming"}
+        return {
+            "is_upcoming": True, 
+            "is_overdue": False, 
+            "status": "upcoming",
+            "visual_status": "upcoming",
+            "days_overdue": 0,
+            "days_until_due": days_until_due
+        }
     else:
-        return {"is_overdue": False, "is_upcoming": False, "status": "on_track"}
+        return {
+            "is_overdue": False, 
+            "is_upcoming": False, 
+            "status": "on_track",
+            "visual_status": "on_track",
+            "days_overdue": 0,
+            "days_until_due": days_until_due
+        }
 
 def _enrich_task_with_status(task_data, task_id):
     """Enrich task data with status flags and member info."""
@@ -71,6 +115,65 @@ def _enrich_task_with_status(task_data, task_id):
     
     return enriched
 
+def _group_tasks_by_timeline(tasks):
+    """Group tasks by timeline periods (reused from dashboard.py logic)."""
+    timeline = {
+        "overdue": [],
+        "today": [],
+        "this_week": [],
+        "future": [],
+        "no_due_date": []
+    }
+    
+    for task in tasks:
+        due_date = task.get("due_date")
+        if not due_date:
+            timeline["no_due_date"].append(task)
+            continue
+        
+        due_dt = _safe_iso_to_dt(due_date)
+        if not due_dt:
+            timeline["no_due_date"].append(task)
+            continue
+        
+        now = datetime.now(timezone.utc)
+        days_until_due = (due_dt - now).days
+        
+        if days_until_due < 0:
+            timeline["overdue"].append(task)
+        elif days_until_due == 0:
+            timeline["today"].append(task)
+        elif days_until_due <= 7:
+            timeline["this_week"].append(task)
+        else:
+            timeline["future"].append(task)
+    
+    return timeline
+
+def _detect_conflicts(tasks):
+    """Detect tasks with overlapping due dates (reused from dashboard.py logic)."""
+    date_map = {}
+    conflicts = []
+    
+    for task in tasks:
+        due_date = task.get("due_date")
+        if due_date:
+            date_str = due_date.split('T')[0]  # Extract just the date part
+            if date_str not in date_map:
+                date_map[date_str] = []
+            date_map[date_str].append(task)
+    
+    # Find dates with multiple tasks
+    for date_str, tasks_on_date in date_map.items():
+        if len(tasks_on_date) > 1:
+            conflicts.append({
+                "date": date_str,
+                "tasks": tasks_on_date,
+                "count": len(tasks_on_date)
+            })
+    
+    return conflicts
+
 @manager_bp.get("/team-tasks")
 def get_team_tasks():
     """Get all team members' tasks for a manager."""
@@ -94,6 +197,9 @@ def get_team_tasks():
     # Get query parameters
     sort_by = request.args.get("sort_by", "due_date")
     sort_order = request.args.get("sort_order", "asc")
+    filter_by = request.args.get("filter_by", "")
+    filter_value = request.args.get("filter_value", "")
+    view_mode = request.args.get("view_mode", "grid")
     
     # Find all projects where manager is a member
     manager_memberships = db.collection("memberships").where("user_id", "==", manager_id).stream()
@@ -159,6 +265,17 @@ def get_team_tasks():
             seen_tasks.add(task_key)
             unique_tasks.append(task)
     
+    # Apply filtering if specified
+    if filter_by and filter_value:
+        if filter_by == "member":
+            unique_tasks = [t for t in unique_tasks if t.get("member_id") == filter_value]
+        elif filter_by == "project":
+            unique_tasks = [t for t in unique_tasks if t.get("project_id") == filter_value]
+        elif filter_by == "status":
+            unique_tasks = [t for t in unique_tasks if t.get("status") == filter_value]
+        elif filter_by == "visual_status":
+            unique_tasks = [t for t in unique_tasks if t.get("visual_status") == filter_value]
+    
     # Sort tasks
     if sort_by == "due_date":
         unique_tasks.sort(key=lambda t: _safe_iso_to_dt(t.get("due_date")) or datetime.max.replace(tzinfo=timezone.utc), reverse=(sort_order == "desc"))
@@ -196,16 +313,20 @@ def get_team_tasks():
     # Calculate statistics
     overdue_count = sum(1 for t in unique_tasks if t.get("is_overdue"))
     upcoming_count = sum(1 for t in unique_tasks if t.get("is_upcoming"))
+    critical_overdue_count = sum(1 for t in unique_tasks if t.get("visual_status") == "critical_overdue")
     
     status_breakdown = {}
     priority_breakdown = {}
+    visual_status_breakdown = {}
     for task in unique_tasks:
         status = task.get("status", "To Do")
         priority = task.get("priority", 5)
+        visual_status = task.get("visual_status", "no_due_date")
         status_breakdown[status] = status_breakdown.get(status, 0) + 1
         priority_breakdown[f"Priority {priority}"] = priority_breakdown.get(f"Priority {priority}", 0) + 1
+        visual_status_breakdown[visual_status] = visual_status_breakdown.get(visual_status, 0) + 1
     
-    return jsonify({
+    response_data = {
         "team_tasks": unique_tasks,
         "team_members": team_members,
         "projects": projects,
@@ -213,7 +334,28 @@ def get_team_tasks():
             "total_tasks": len(unique_tasks),
             "overdue_count": overdue_count,
             "upcoming_count": upcoming_count,
+            "critical_overdue_count": critical_overdue_count,
             "by_status": status_breakdown,
-            "by_priority": priority_breakdown
+            "by_priority": priority_breakdown,
+            "by_visual_status": visual_status_breakdown
         }
-    }), 200
+    }
+    
+    # Add timeline data if requested
+    if view_mode == "timeline":
+        timeline_data = _group_tasks_by_timeline(unique_tasks)
+        conflicts = _detect_conflicts(unique_tasks)
+        
+        response_data["timeline"] = timeline_data
+        response_data["conflicts"] = conflicts
+        response_data["timeline_statistics"] = {
+            "total_tasks": len(unique_tasks),
+            "overdue_count": len(timeline_data["overdue"]),
+            "today_count": len(timeline_data["today"]),
+            "this_week_count": len(timeline_data["this_week"]),
+            "future_count": len(timeline_data["future"]),
+            "no_due_date_count": len(timeline_data["no_due_date"]),
+            "conflict_count": len(conflicts)
+        }
+    
+    return jsonify(response_data), 200

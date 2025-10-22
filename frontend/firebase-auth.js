@@ -369,6 +369,7 @@ async function buildNavbar() {
         <a href="projects.html">Projects</a>
         <a href="tasks_list.html">Tasks</a>
         <a href="create_task.html">Create Task</a>
+        <a href="manager_team_view.html">Manager View</a>
       </div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12px;color:#333">
         <span>Project: <em>${p ? (p.name || p.project_id || "selected") : "none"}</em></span>

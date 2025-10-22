@@ -10,7 +10,7 @@ import firebase_admin
 from firebase_admin import credentials
 
 from api import (
-    users_bp, tasks_bp, dashboard_bp,
+    users_bp, tasks_bp, dashboard_bp, manager_bp,
     projects_bp, notes_bp, labels_bp, memberships_bp, attachments_bp
 )
 
@@ -98,6 +98,7 @@ def create_app():
     app.register_blueprint(users_bp)
     app.register_blueprint(tasks_bp)
     app.register_blueprint(dashboard_bp)
+    app.register_blueprint(manager_bp)
     app.register_blueprint(projects_bp)
     app.register_blueprint(notes_bp)
     app.register_blueprint(labels_bp)

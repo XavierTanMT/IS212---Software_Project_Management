@@ -34,6 +34,18 @@ def _ensure_creator_or_404(task_doc):
     creator = (data.get("created_by") or {}).get("user_id")
     return bool(viewer and creator and viewer == creator)
 
+def _can_edit_task(task_doc):
+    """Check if user can edit task (creator OR assignee)"""
+    viewer = _viewer_id()
+    if not viewer:
+        return False
+    
+    data = task_doc.to_dict() or {}
+    creator = (data.get("created_by") or {}).get("user_id")
+    assignee = (data.get("assigned_to") or {}).get("user_id")
+    
+    return viewer == creator or viewer == assignee
+
 def _require_membership(db, project_id, user_id):
     if not project_id or not user_id:
         return False
@@ -163,10 +175,10 @@ def update_task(task_id):
     doc = doc_ref.get()
     if not doc.exists:
         return jsonify({"error": "Task not found"}), 404
-    if (doc.to_dict().get("created_by") or {}).get("user_id") != viewer:
+    
+    # Check if user can edit task (creator OR assignee)
+    if not _can_edit_task(doc):
         return jsonify({"error":"forbidden"}), 403
-    if not _ensure_creator_or_404(doc):
-        return jsonify({"error": "Not found"}), 404
 
     updates = {}
     for field in ["title", "description", "priority", "status", "due_date", "labels"]:
@@ -174,6 +186,17 @@ def update_task(task_id):
             updates[field] = payload[field]
     if not updates:
         return jsonify({"error": "No fields to update"}), 400
+
+    # Validate due_date if being updated
+    if "due_date" in updates and updates["due_date"]:
+        try:
+            # Parse the date - allow past dates for timeline rescheduling
+            due_dt = datetime.fromisoformat(updates["due_date"].replace("Z", "+00:00"))
+            if due_dt.tzinfo is None:
+                due_dt = due_dt.replace(tzinfo=timezone.utc)
+            # Note: Removed the "must be in future" restriction to allow drag-to-overdue
+        except Exception:
+            return jsonify({"error": "Invalid due date format"}), 400
 
     updates["updated_at"] = now_iso()
     doc_ref.update(updates)
