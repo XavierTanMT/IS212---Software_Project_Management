@@ -45,6 +45,7 @@
 <body>
   <div id="nav"></div>
   <script src="common.js"></script>
+<script>try{requireAuth();}catch(e){}</script>
 
   <h1>Attachments</h1>
   <p id="task"></p>
@@ -75,8 +76,8 @@
 
   <script>
     const API_BASE = "http://localhost:5000";
-    function getCurrentUser() { try { return JSON.parse(localStorage.getItem("currentUser") || "null"); } catch (e) { return null; } }
-    function setCurrentUser(u) { localStorage.setItem("currentUser", JSON.stringify(u)); }
+    // Using shared getCurrentUser from common.js catch (e) { return null; } }
+    // Using shared setCurrentUser from common.js
     function q(s) { return document.querySelector(s); }
     function ce(t) { return document.createElement(t); }
     function fmtDate(d) { try { return new Date(d).toLocaleString(); } catch (e) { return d; } }
