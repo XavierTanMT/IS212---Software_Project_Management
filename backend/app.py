@@ -7,7 +7,7 @@ from firebase_admin import credentials
 
 from api import (
     users_bp, tasks_bp, dashboard_bp,
-    projects_bp, notes_bp, labels_bp, memberships_bp, attachments_bp, manager_bp
+    projects_bp, notes_bp, labels_bp, memberships_bp, attachments_bp
 )
 
 # Check if running in test/development mode without Firebase
@@ -99,7 +99,6 @@ def create_app():
     app.register_blueprint(labels_bp)
     app.register_blueprint(memberships_bp)
     app.register_blueprint(attachments_bp)
-    app.register_blueprint(manager_bp)
     
     # Add OPTIONS handler for CORS preflight
     @app.route('/<path:path>', methods=['OPTIONS'])

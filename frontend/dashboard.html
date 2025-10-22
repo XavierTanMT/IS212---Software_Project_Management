@@ -301,20 +301,16 @@
             border-radius: 50%;
         }
 
-        .priority-1 .priority-dot, .priority-2 .priority-dot, .priority-3 .priority-dot {
-            background: #95a5a6;
-        }
-
-        .priority-4 .priority-dot, .priority-5 .priority-dot, .priority-6 .priority-dot {
-            background: #f39c12;
-        }
-
-        .priority-7 .priority-dot, .priority-8 .priority-dot, .priority-9 .priority-dot {
+        .priority-high .priority-dot {
             background: #e74c3c;
         }
 
-        .priority-10 .priority-dot {
-            background: #8e44ad;
+        .priority-medium .priority-dot {
+            background: #f39c12;
+        }
+
+        .priority-low .priority-dot {
+            background: #27ae60;
         }
 
         /* Loading State */
@@ -544,7 +540,6 @@
                 <div id="userName">Loading...</div>
                 <div style="font-size: 0.8rem; opacity: 0.8;" id="userEmail">loading...</div>
             </div>
-            <button class="btn btn-secondary" onclick="checkAndGoToManagerView()" id="managerViewBtn" style="display: none;">📊 Team View</button>
             <button class="logout-btn" onclick="logout()">Logout</button>
         </div>
     </div>
@@ -662,7 +657,7 @@ function setCurrentUser(u){ localStorage.setItem("currentUser", JSON.stringify(u
       if(!items || !items.length){ html += "<p>None</p>"; return; }
       html += "<ol>";
       items.forEach(t=>{
-        html += `<li><a href="edit_task.html?id=${encodeURIComponent(t.task_id)}">${t.title}</a> — ${t.status} (${t.priority}/10)</li>`;
+        html += `<li><a href="edit_task.html?id=${encodeURIComponent(t.task_id)}">${t.title}</a> — ${t.status} (${t.priority})</li>`;
       });
       html += "</ol>";
     }
@@ -713,28 +708,6 @@ function setCurrentUser(u){ localStorage.setItem("currentUser", JSON.stringify(u
             document.getElementById('userEmail').textContent = currentUser.email;
             document.getElementById('userAvatar').textContent = currentUser.name.charAt(0).toUpperCase();
             document.title = `Dashboard - ${currentUser.name}`;
-            
-            // Check if user is manager and show team view button
-            checkManagerRole();
-        }
-
-        function checkManagerRole() {
-            fetch(`${API_BASE}/api/users/${currentUser.user_id}/role`, {
-                headers: { 'X-User-Id': currentUser.user_id }
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.role && ['manager', 'director', 'hr'].includes(data.role)) {
-                    document.getElementById('managerViewBtn').style.display = 'block';
-                }
-            })
-            .catch(err => {
-                console.error('Error checking role:', err);
-            });
-        }
-
-        function checkAndGoToManagerView() {
-            window.location.href = 'manager_team_view.html';
         }
 
         
@@ -822,12 +795,10 @@ async function loadDashboardData() {
                 return;
             }
 
-            const getPriorityColor = (priority) => {
-                const priorityNum = parseInt(priority.replace('Priority ', ''));
-                if (priorityNum <= 3) return '#95a5a6';
-                if (priorityNum <= 6) return '#f39c12';
-                if (priorityNum <= 9) return '#e74c3c';
-                return '#8e44ad';
+            const priorityColors = {
+                'High': '#e74c3c',
+                'Medium': '#f39c12',
+                'Low': '#27ae60'
             };
 
             const total = Object.values(priorityData).reduce((sum, count) => sum + count, 0);
@@ -839,7 +810,7 @@ async function loadDashboardData() {
                     chartHTML += `
                         <div class="chart-item">
                             <div class="chart-label">
-                                <div class="chart-dot" style="background: ${getPriorityColor(priority)}"></div>
+                                <div class="chart-dot" style="background: ${priorityColors[priority] || '#666'}"></div>
                                 <span>${priority}</span>
                             </div>
                             <div class="chart-value">${count} (${percentage}%)</div>
@@ -868,7 +839,7 @@ async function loadDashboardData() {
             let tasksHTML = '';
             tasks.forEach(task => {
                 const statusClass = `status-${task.status.toLowerCase().replace(' ', '-')}`;
-                const priorityClass = `priority-${task.priority}`;
+                const priorityClass = `priority-${task.priority.toLowerCase()}`;
 
                 // Only show delete button for tasks created by current user
                 const showDelete = task.created_by && task.created_by.user_id === currentUser.user_id;
@@ -880,7 +851,7 @@ async function loadDashboardData() {
                             <span class="task-status ${statusClass}">${task.status}</span>
                             <span class="priority ${priorityClass}">
                                 <span class="priority-dot"></span>
-                                ${task.priority}/10
+                                ${task.priority}
                             </span>
                             ${task.due_date ? `<span>Due: ${formatDate(task.due_date)}</span>` : ''}
                         </div>
@@ -1109,7 +1080,7 @@ async function loadDashboardData() {
                     if (!items || !items.length) { html += "<p>None</p>"; return; }
                     html += "<ol>";
                     items.forEach(t => {
-                        html += `<li><a href="edit_task.html?id=${encodeURIComponent(t.task_id)}">${t.title}</a> — ${t.status} (${t.priority}/10)</li>`;
+                        html += `<li><a href="edit_task.html?id=${encodeURIComponent(t.task_id)}">${t.title}</a> — ${t.status} (${t.priority})</li>`;
                     });
                     html += "</ol>";
                 }

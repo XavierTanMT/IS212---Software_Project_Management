@@ -434,20 +434,14 @@
             
             <div class="form-row">
                 <div class="form-group">
-                    <label for="priority">Priority (1-10)</label>
+                    <label for="priority">Priority</label>
                     <select id="priority" name="priority">
-                        <option value="1">1 - Very Low</option>
-                        <option value="2">2 - Low</option>
-                        <option value="3">3 - Low</option>
-                        <option value="4">4 - Below Medium</option>
-                        <option value="5">5 - Medium</option>
-                        <option value="6">6 - Above Medium</option>
-                        <option value="7">7 - High</option>
-                        <option value="8">8 - High</option>
-                        <option value="9">9 - Very High</option>
-                        <option value="10">10 - Critical</option>
+                        <option value="Low">🟢 Low Priority</option>
+                        <option value="Medium">🟡 Medium Priority</option>
+                        <option value="High">🔴 High Priority</option>
+                        <option value="Urgent">🚨 Urgent</option>
                     </select>
-                    <div class="input-hint">How urgent is this task? (1 = least urgent, 10 = most urgent)</div>
+                    <div class="input-hint">How urgent is this task?</div>
                 </div>
                 
                 <div class="form-group">
@@ -594,7 +588,7 @@
             // Populate form fields
             document.getElementById('title').value = currentTask.title || '';
             document.getElementById('description').value = currentTask.description || '';
-            document.getElementById('priority').value = currentTask.priority || 5;
+            document.getElementById('priority').value = currentTask.priority || 'Medium';
             document.getElementById('status').value = currentTask.status || 'To Do';
             
             // Handle due date
@@ -634,7 +628,7 @@
                 ...currentTask, // Keep existing data
                 title: formData.get('title').trim(),
                 description: formData.get('description').trim(),
-                priority: parseInt(formData.get('priority')),
+                priority: formData.get('priority'),
                 status: formData.get('status'),
                 due_date: formData.get('due_date') || null
             };

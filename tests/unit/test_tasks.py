@@ -55,7 +55,7 @@ class TestTaskToJson:
         assert result["task_id"] == "task123"
         assert result["title"] == "Test Task"
         assert result["description"] == "Test Description"
-        assert result["priority"] == 7
+        assert result["priority"] == "High"
         assert result["status"] == "In Progress"
         assert result["due_date"] == "2024-12-31"
         assert result["labels"] == ["bug", "urgent"]
@@ -72,7 +72,7 @@ class TestTaskToJson:
         result = tasks_module.task_to_json(mock_doc)
         
         assert result["task_id"] == "task456"
-        assert result["priority"] == 5  # default
+        assert result["priority"] == "Medium"  # default
         assert result["status"] == "To Do"  # default
         assert result["labels"] == []  # default
 
@@ -237,7 +237,7 @@ class TestCreateTask:
         assert data["task_id"] == "task123"
         assert data["title"] == "Test Task"
         assert data["description"] == "This is a test task description"
-        assert data["priority"] == 5
+        assert data["priority"] == "Medium"
         assert data["status"] == "To Do"
         assert mock_task_ref.set.called
         
@@ -306,7 +306,7 @@ class TestCreateTask:
         assert response.status_code == 201
         data = response.get_json()
         assert data["task_id"] == "task456"
-        assert data["priority"] == 7
+        assert data["priority"] == "High"
         assert data["status"] == "In Progress"
         assert data["assigned_to"]["user_id"] == "user2"
         assert data["labels"] == ["bug", "urgent"]
@@ -558,87 +558,6 @@ class TestCreateTask:
         assert response.status_code == 201
         data = response.get_json()
         assert data["labels"] == ["bug", "urgent"]
-        
-    def test_create_task_priority_validation_valid(self, client, mock_db, monkeypatch):
-        """Test creating task with valid priority values"""
-        mock_task_ref = Mock()
-        mock_task_ref.id = "task123"
-        
-        mock_user_doc = Mock()
-        mock_user_doc.exists = True
-        mock_user_doc.to_dict.return_value = {
-            "user_id": "user1",
-            "name": "User One",
-            "email": "user1@example.com"
-        }
-        
-        mock_db.collection.return_value.document.return_value.get.return_value = mock_user_doc
-        mock_db.collection.return_value.document.return_value = mock_task_ref
-        
-        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
-        
-        # Test priority 1
-        payload = {
-            "title": "Test Task",
-            "description": "This is a test task description",
-            "priority": 1,
-            "created_by_id": "user1"
-        }
-        response = client.post("/api/tasks", json=payload)
-        assert response.status_code == 201
-        
-        # Test priority 10
-        payload["priority"] = 10
-        response = client.post("/api/tasks", json=payload)
-        assert response.status_code == 201
-        
-    def test_create_task_priority_validation_invalid_low(self, client, mock_db, monkeypatch):
-        """Test creating task with priority below 1"""
-        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
-        
-        payload = {
-            "title": "Test Task",
-            "description": "This is a test task description",
-            "priority": 0,
-            "created_by_id": "user1"
-        }
-        response = client.post("/api/tasks", json=payload)
-        
-        assert response.status_code == 400
-        data = response.get_json()
-        assert "Priority must be an integer between 1 and 10" in data["error"]
-        
-    def test_create_task_priority_validation_invalid_high(self, client, mock_db, monkeypatch):
-        """Test creating task with priority above 10"""
-        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
-        
-        payload = {
-            "title": "Test Task",
-            "description": "This is a test task description",
-            "priority": 11,
-            "created_by_id": "user1"
-        }
-        response = client.post("/api/tasks", json=payload)
-        
-        assert response.status_code == 400
-        data = response.get_json()
-        assert "Priority must be an integer between 1 and 10" in data["error"]
-        
-    def test_create_task_priority_validation_invalid_string(self, client, mock_db, monkeypatch):
-        """Test creating task with non-integer priority"""
-        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
-        
-        payload = {
-            "title": "Test Task",
-            "description": "This is a test task description",
-            "priority": "high",
-            "created_by_id": "user1"
-        }
-        response = client.post("/api/tasks", json=payload)
-        
-        assert response.status_code == 400
-        data = response.get_json()
-        assert "Priority must be an integer between 1 and 10" in data["error"]
 
 
 class TestListTasks:
@@ -1100,86 +1019,3 @@ class TestBlueprintRegistration:
         # Test GET list endpoint
         response = client.get("/api/tasks")
         assert response.status_code == 401  # auth error, not 404
-
-
-class TestReassignTask:
-    """Test the PATCH /api/tasks/<task_id>/reassign endpoint"""
-    
-    def test_reassign_task_no_viewer_id(self, client):
-        """Test reassignment without viewer_id"""
-        response = client.patch("/api/tasks/task1/reassign", json={"new_assigned_to_id": "user2"})
-        assert response.status_code == 401
-        data = response.get_json()
-        assert "error" in data
-        assert "viewer_id required" in data["error"]
-    
-    def test_reassign_task_no_new_assignee(self, client):
-        """Test reassignment without new_assigned_to_id"""
-        response = client.patch("/api/tasks/task1/reassign", 
-                              headers={"X-User-Id": "manager1"},
-                              json={})
-        assert response.status_code == 400
-        data = response.get_json()
-        assert "error" in data
-        assert "new_assigned_to_id is required" in data["error"]
-    
-    def test_reassign_task_staff_role_forbidden(self, client, mock_db, monkeypatch):
-        """Test reassignment with staff role (should be forbidden)"""
-        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
-        
-        # Mock viewer with staff role
-        mock_viewer_doc = Mock()
-        mock_viewer_doc.exists = True
-        mock_viewer_doc.to_dict.return_value = {"role": "staff"}
-        
-        def mock_collection(collection_name):
-            mock_collection_obj = Mock()
-            if collection_name == "users":
-                mock_collection_obj.document.return_value.get.return_value = mock_viewer_doc
-            return mock_collection_obj
-        
-        mock_db.collection.side_effect = mock_collection
-        
-        response = client.patch("/api/tasks/task1/reassign",
-                              headers={"X-User-Id": "staff_user"},
-                              json={"new_assigned_to_id": "user2"})
-        assert response.status_code == 403
-        data = response.get_json()
-        assert "error" in data
-        assert "Only managers and above" in data["error"]
-    
-    def test_reassign_task_same_assignee(self, client, mock_db, monkeypatch):
-        """Test reassignment to the same person"""
-        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
-        
-        # Mock manager
-        mock_manager_doc = Mock()
-        mock_manager_doc.exists = True
-        mock_manager_doc.to_dict.return_value = {"role": "manager"}
-        
-        # Mock task
-        mock_task_doc = Mock()
-        mock_task_doc.exists = True
-        mock_task_doc.to_dict.return_value = {
-            "assigned_to": {"user_id": "user2", "name": "User 2"}
-        }
-        
-        def mock_collection(collection_name):
-            mock_collection_obj = Mock()
-            if collection_name == "users":
-                mock_collection_obj.document.return_value.get.return_value = mock_manager_doc
-            elif collection_name == "tasks":
-                mock_doc_ref = Mock()
-                mock_doc_ref.get.return_value = mock_task_doc
-                mock_collection_obj.document.return_value = mock_doc_ref
-            return mock_collection_obj
-        
-        mock_db.collection.side_effect = mock_collection
-        
-        response = client.patch("/api/tasks/task1/reassign",
-                              headers={"X-User-Id": "manager1"},
-                              json={"new_assigned_to_id": "user2"})
-        assert response.status_code == 200
-        data = response.get_json()
-        assert "message" in data
-        assert "already assigned" in data["message"]

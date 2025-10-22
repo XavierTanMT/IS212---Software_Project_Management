@@ -13,7 +13,7 @@ def task_to_json(d):
         "task_id": d.id,
         "title": data.get("title"),
         "description": data.get("description"),
-        "priority": data.get("priority", 5),  # Default to 5 (Medium)
+        "priority": data.get("priority", "Medium"),
         "status": data.get("status", "To Do"),
         "due_date": data.get("due_date"),
         "created_at": data.get("created_at"),
@@ -47,7 +47,7 @@ def create_task():
 
     title = (payload.get("title") or "").strip()
     description = (payload.get("description") or "").strip()
-    priority = payload.get("priority", 5)  # Default to 5 (Medium)
+    priority = payload.get("priority", "Medium")
     status = payload.get("status", "To Do")
     due_date = payload.get("due_date")
     project_id = (payload.get("project_id") or "").strip()
@@ -61,14 +61,6 @@ def create_task():
         return jsonify({"error": "Description must be at least 10 characters"}), 400
     if not created_by_id:
         return jsonify({"error": "created_by_id is required"}), 400
-    
-    # Validate priority (must be integer 1-10)
-    try:
-        priority = int(priority)
-        if priority < 1 or priority > 10:
-            return jsonify({"error": "Priority must be an integer between 1 and 10"}), 400
-    except (ValueError, TypeError):
-        return jsonify({"error": "Priority must be an integer between 1 and 10"}), 400
 
     created_by_doc = db.collection("users").document(created_by_id).get()
     if not created_by_doc.exists:
@@ -177,20 +169,9 @@ def update_task(task_id):
         return jsonify({"error": "Not found"}), 404
 
     updates = {}
-    for field in ["title", "description", "status", "due_date", "labels"]:
+    for field in ["title", "description", "priority", "status", "due_date", "labels"]:
         if field in payload:
             updates[field] = payload[field]
-    
-    # Handle priority separately with validation
-    if "priority" in payload:
-        try:
-            priority = int(payload["priority"])
-            if priority < 1 or priority > 10:
-                return jsonify({"error": "Priority must be an integer between 1 and 10"}), 400
-            updates["priority"] = priority
-        except (ValueError, TypeError):
-            return jsonify({"error": "Priority must be an integer between 1 and 10"}), 400
-    
     if not updates:
         return jsonify({"error": "No fields to update"}), 400
 
@@ -210,85 +191,3 @@ def delete_task(task_id):
 
     doc_ref.delete()
     return jsonify({"ok": True, "task_id": task_id}), 200
-
-@tasks_bp.patch("/<task_id>/reassign")
-def reassign_task(task_id):
-    """Reassign a task to a different team member. Only managers+ can reassign."""
-    db = firestore.client()
-    viewer = _viewer_id()
-    if not viewer:
-        return jsonify({"error": "viewer_id required"}), 401
-    
-    payload = request.get_json(force=True) or {}
-    new_assigned_to_id = (payload.get("new_assigned_to_id") or "").strip()
-    
-    if not new_assigned_to_id:
-        return jsonify({"error": "new_assigned_to_id is required"}), 400
-    
-    # Get viewer's role
-    viewer_doc = db.collection("users").document(viewer).get()
-    if not viewer_doc.exists:
-        return jsonify({"error": "Viewer not found"}), 404
-    viewer_role = viewer_doc.to_dict().get("role", "staff")
-    
-    # Check if viewer has manager+ role
-    manager_roles = ["manager", "director", "hr"]
-    if viewer_role not in manager_roles:
-        return jsonify({"error": "Only managers and above can reassign tasks"}), 403
-    
-    # Get the task
-    task_ref = db.collection("tasks").document(task_id)
-    task_doc = task_ref.get()
-    if not task_doc.exists:
-        return jsonify({"error": "Task not found"}), 404
-    
-    task_data = task_doc.to_dict()
-    current_assigned_to = task_data.get("assigned_to", {}).get("user_id")
-    
-    # If reassigning to the same person, no change needed
-    if current_assigned_to == new_assigned_to_id:
-        return jsonify({"message": "Task already assigned to this user"}), 200
-    
-    # Verify new assignee exists
-    new_assignee_doc = db.collection("users").document(new_assigned_to_id).get()
-    if not new_assignee_doc.exists:
-        return jsonify({"error": "New assignee not found"}), 404
-    
-    new_assignee = new_assignee_doc.to_dict()
-    
-    # Verify viewer and new assignee share at least one project
-    viewer_projects = set()
-    assignee_projects = set()
-    
-    # Get viewer's projects
-    viewer_memberships = db.collection("memberships").where("user_id", "==", viewer).stream()
-    for mem in viewer_memberships:
-        viewer_projects.add(mem.to_dict().get("project_id"))
-    
-    # Get assignee's projects
-    assignee_memberships = db.collection("memberships").where("user_id", "==", new_assigned_to_id).stream()
-    for mem in assignee_memberships:
-        assignee_projects.add(mem.to_dict().get("project_id"))
-    
-    # Check if they share any projects
-    shared_projects = viewer_projects.intersection(assignee_projects)
-    if not shared_projects:
-        return jsonify({"error": "Can only reassign to team members who share projects with you"}), 403
-    
-    # Update the task
-    update_data = {
-        "assigned_to": {
-            "user_id": new_assignee["user_id"],
-            "name": new_assignee.get("name"),
-            "email": new_assignee.get("email"),
-        },
-        "updated_at": now_iso()
-    }
-    
-    task_ref.update(update_data)
-    
-    return jsonify({
-        "message": "Task reassigned successfully",
-        "task_id": task_id,
-        "new_assigned_to": update_data["assigned_to"]
-    }), 200
