@@ -1,6 +1,10 @@
 import os
 from flask import Flask, jsonify
 from flask_cors import CORS
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 import firebase_admin
 from firebase_admin import credentials
@@ -48,7 +52,7 @@ def create_app():
     # Allow all origins for development (restrict in production)
     CORS(app, 
          resources={r"/*": {"origins": "*"}},
-         allow_headers=["Content-Type", "X-User-Id"],
+         allow_headers=["Content-Type", "X-User-Id", "Authorization"],
          methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
          supports_credentials=True)
     
@@ -72,7 +76,7 @@ def create_app():
             "message": str(e)
         })
         response.headers.add('Access-Control-Allow-Origin', '*')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, X-User-Id')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, X-User-Id, Authorization')
         return response, 500
     
     @app.errorhandler(Exception)
@@ -87,7 +91,7 @@ def create_app():
             "type": type(e).__name__
         })
         response.headers.add('Access-Control-Allow-Origin', '*')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, X-User-Id')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, X-User-Id, Authorization')
         return response, 500
 
     # Register all blueprints
@@ -106,7 +110,7 @@ def create_app():
         response = jsonify({'status': 'ok'})
         response.headers.add('Access-Control-Allow-Origin', '*')
         response.headers.add('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, X-User-Id')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, X-User-Id, Authorization')
         return response, 200
     
     return app
