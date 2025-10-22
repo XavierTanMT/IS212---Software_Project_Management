@@ -480,7 +480,7 @@
                 </button>
                 
                 <button type="button" class="btn btn-danger" onclick="confirmDelete()" id="deleteBtn">
-                    Delete Task
+                    Archive Task
                 </button>
             </div>
         </form>
@@ -495,8 +495,8 @@
     <!-- Delete Confirmation Modal -->
     <div id="deleteModal" class="modal">
         <div class="modal-content">
-            <h3>🗑️ Delete Task</h3>
-            <p id="deleteMessage">Are you sure you want to delete this task? This action cannot be undone.</p>
+            <h3>🗑️ Archive Task</h3>
+            <p id="deleteMessage">Are you sure you want to Archive this task?</p>
             <div class="modal-actions">
                 <button class="btn btn-secondary" onclick="closeDeleteModal()">Cancel</button>
                 <button class="btn btn-danger" onclick="executeDelete()" id="confirmDeleteBtn">

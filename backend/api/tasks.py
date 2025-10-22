@@ -1,4 +1,3 @@
-
 from datetime import datetime, timezone
 from flask import request, jsonify
 from . import tasks_bp
@@ -8,7 +7,7 @@ def now_iso():
     return datetime.now(timezone.utc).isoformat()
 
 def task_to_json(d):
-    data = d.to_dict()
+    data = d.to_dict() or {}
     return {
         "task_id": d.id,
         "title": data.get("title"),
@@ -22,6 +21,10 @@ def task_to_json(d):
         "assigned_to": data.get("assigned_to"),
         "project_id": data.get("project_id"),
         "labels": data.get("labels", []),
+        # archival flags
+        "archived": data.get("archived", False),
+        "archived_at": data.get("archived_at"),
+        "archived_by": data.get("archived_by"),
     }
 
 def _viewer_id():
@@ -93,6 +96,10 @@ def create_task():
         "updated_at": None,
         "project_id": (project_id or None),
         "labels": labels,
+        # archival defaults
+        "archived": False,
+        "archived_at": None,
+        "archived_by": None,
         "created_by": {
             "user_id": created_by["user_id"],
             "name": created_by.get("name"),
@@ -112,7 +119,7 @@ def list_tasks():
     db = firestore.client()
     viewer = _viewer_id()
     if not viewer:
-        return jsonify({"error":"viewer_id required via X-User-Id header or ?viewer_id"}) ,401
+        return jsonify({"error": "viewer_id required via X-User-Id header or ?viewer_id"}), 401
 
     project_id = (request.args.get("project_id") or "").strip()
     assigned_to_id = (request.args.get("assigned_to_id") or "").strip()
@@ -123,6 +130,7 @@ def list_tasks():
         limit = 50
     limit_fetch = max(limit, 200)
 
+    # Base query: tasks created by the viewer
     query = db.collection("tasks").where("created_by.user_id", "==", viewer)
 
     if project_id:
@@ -132,11 +140,23 @@ def list_tasks():
     if label_id:
         query = query.where("labels", "array_contains", label_id)
 
+    include_archived = (request.args.get("include_archived") or "").lower() in ("1", "true", "yes")
+
     docs = list(query.limit(limit_fetch).stream())
+
+    # Post-filter archived unless explicitly included
+    if not include_archived:
+        _tmp = []
+        for d in docs:
+            data = d.to_dict() or {}
+            if not data.get("archived", False):
+                _tmp.append(d)
+        docs = _tmp
 
     def _key(d):
         v = (d.to_dict() or {}).get("created_at") or ""
         return v
+
     docs.sort(key=_key, reverse=True)
     docs = docs[:limit]
 
@@ -157,14 +177,15 @@ def update_task(task_id):
     db = firestore.client()
     viewer = _viewer_id()
     if not viewer:
-        return jsonify({"error":"viewer_id required"}), 401
+        return jsonify({"error": "viewer_id required"}), 401
+
     payload = request.get_json(force=True) or {}
     doc_ref = db.collection("tasks").document(task_id)
     doc = doc_ref.get()
     if not doc.exists:
         return jsonify({"error": "Task not found"}), 404
     if (doc.to_dict().get("created_by") or {}).get("user_id") != viewer:
-        return jsonify({"error":"forbidden"}), 403
+        return jsonify({"error": "forbidden"}), 403
     if not _ensure_creator_or_404(doc):
         return jsonify({"error": "Not found"}), 404
 
@@ -189,5 +210,11 @@ def delete_task(task_id):
     if not _ensure_creator_or_404(doc):
         return jsonify({"error": "Not found"}), 404
 
-    doc_ref.delete()
-    return jsonify({"ok": True, "task_id": task_id}), 200
+    # Soft delete → archive
+    viewer = _viewer_id() or ((doc.to_dict() or {}).get("created_by") or {}).get("user_id")
+    doc_ref.update({
+        "archived": True,
+        "archived_at": now_iso(),
+        "archived_by": viewer
+    })
+    return jsonify({"ok": True, "task_id": task_id, "archived": True}), 200
