@@ -1,11 +1,5 @@
 <!DOCTYPE html>
-<html lang=\"en\">
-<head>
-<meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
-<title>Create New User - Task Manager</title>
-<!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -205,7 +199,6 @@
                 opacity: 0;
                 transform: translateY(-10px);
             }
-
             to {
                 opacity: 1;
                 transform: translateY(0);
@@ -213,13 +206,8 @@
         }
 
         @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
-
-            100% {
-                transform: rotate(360deg);
-            }
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
         @media (max-width: 480px) {
@@ -227,15 +215,12 @@
                 padding: 1.5rem;
                 margin: 10px;
             }
-
             .header h1 {
                 font-size: 1.5rem;
             }
-
             .form-group input {
                 padding: 0.875rem;
             }
-
             .btn {
                 padding: 0.875rem;
             }
@@ -244,14 +229,11 @@
 </head>
 
 <body>
-    <div id="nav"></div>
-    <script src="common.js"></script>
-
     <div class="container">
         <div class="header">
             <div class="logo">👤</div>
             <h1>Create New Account</h1>
-            <p>Join the task management system</p>
+            <p>Join the task management system with Firebase Auth</p>
         </div>
 
         <form id="createUserForm" novalidate>
@@ -273,14 +255,14 @@
             <div class="form-group">
                 <label for="email">Email Address <span class="required">*</span></label>
                 <input type="email" id="email" name="email" placeholder="e.g., alice@email.com" required autocomplete="email">
-                <div class="input-hint">We'll use this for notifications and account recovery</div>
+                <div class="input-hint">We'll use this for authentication and notifications</div>
             </div>
 
             <div class="form-group">
                 <label for="password">Password <span class="required">*</span></label>
                 <input type="password" id="password" name="password" placeholder="Create a strong password" required 
                     minlength="6" autocomplete="new-password">
-                <div class="input-hint">Minimum 6 characters (required by Firebase)</div>
+                <div class="input-hint">Minimum 6 characters</div>
             </div>
 
             <div class="form-group">
@@ -290,7 +272,7 @@
                 <div class="input-hint">Must match your password</div>
             </div>
 
-            <button type="submit" class="btn" id="submitBtn">Create Account</button>
+            <button type="submit" class="btn" id="submitBtn">Create Account with Firebase</button>
             <div class="loading" id="loading">Creating your account</div>
             <div class="message" id="message"></div>
         </form>
@@ -301,78 +283,105 @@
         </div>
     </div>
 
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    
+    <!-- Firebase Configuration -->
     <script>
-    const API_BASE_URL = 'http://localhost:5000';
-    const form = document.getElementById('createUserForm');
-    const submitBtn = document.getElementById('submitBtn');
-    const loading = document.getElementById('loading');
-    const message = document.getElementById('message');
-    const userIdInput = document.getElementById('user_id');
-    const nameInput = document.getElementById('name');
-    const emailInput = document.getElementById('email');
-    const passwordInput = document.getElementById('password');
-    const confirmPasswordInput = document.getElementById('confirm_password');
-
-    function showMessage(text, type){ message.textContent = text; message.className = 'message ' + type; message.style.display='block'; }
-    function hideMessage(){ message.style.display='none'; }
-    function setLoading(isLoading){
-        submitBtn.disabled = isLoading;
-        loading.style.display = isLoading ? 'block' : 'none';
-        submitBtn.textContent = isLoading ? 'Creating Account...' : 'Create Account';
-        [userIdInput, nameInput, emailInput, passwordInput, confirmPasswordInput].forEach(i=>i.disabled = isLoading);
-    }
-
-    form.addEventListener('submit', async (e)=>{
-        e.preventDefault();
-        const userData = {
-            user_id: userIdInput.value.trim(),
-            name: nameInput.value.trim(),
-            email: emailInput.value.trim(),
-            password: passwordInput.value,
-            confirm_password: confirmPasswordInput.value
+        // TODO: Replace with your Firebase config from Firebase Console
+        const FIREBASE_ENABLED = false;
+        
+        const firebaseConfig = {
+            apiKey: "AIzaSyDummy_Replace_With_Your_Config",
+            authDomain: "your-project.firebaseapp.com",
+            projectId: "your-project-id"
         };
         
-        // Validation
-        if(!userData.user_id || !userData.name || !userData.email || !userData.password){
-            showMessage('❌ Please fill all required fields', 'error'); 
-            return;
+        // Initialize Firebase only if enabled
+        if (FIREBASE_ENABLED) {
+            firebase.initializeApp(firebaseConfig);
         }
-        
-        if(userData.password !== userData.confirm_password){
-            showMessage('❌ Passwords do not match', 'error'); 
-            return;
+    </script>
+    
+    <!-- Firebase Auth Helper -->
+    <script src="firebase-auth.js"></script>
+
+    <script>
+        const form = document.getElementById('createUserForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const loading = document.getElementById('loading');
+        const message = document.getElementById('message');
+        const userIdInput = document.getElementById('user_id');
+        const nameInput = document.getElementById('name');
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+        const confirmPasswordInput = document.getElementById('confirm_password');
+
+        function showMessage(text, type) {
+            message.textContent = text;
+            message.className = 'message ' + type;
+            message.style.display = 'block';
         }
-        
-        if(userData.password.length < 6){
-            showMessage('❌ Password must be at least 6 characters', 'error'); 
-            return;
+
+        function hideMessage() {
+            message.style.display = 'none';
         }
-        
-        hideMessage(); setLoading(true);
-        try {
-            // Use Firebase Auth endpoint instead of old /api/users
-            const response = await fetch(`${API_BASE_URL}/api/users/auth/register`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(userData)
-            });
-            const result = await response.json();
-            if(response.ok){
-                // Success - User created in both Firebase Auth AND Firestore
-                localStorage.setItem('currentUser', JSON.stringify(result.user));
-                showMessage(`🎉 Welcome, ${userData.name}! Your account has been created with Firebase Auth.`, 'success');
-                setTimeout(()=>{ window.location.href = 'dashboard.html'; }, 1200);
-            }else{
-                let errorMessage = result.error || 'An error occurred';
-                showMessage('❌ ' + errorMessage, 'error');
+
+        function setLoading(isLoading) {
+            submitBtn.disabled = isLoading;
+            loading.style.display = isLoading ? 'block' : 'none';
+            submitBtn.textContent = isLoading ? 'Creating Account...' : 'Create Account with Firebase';
+            [userIdInput, nameInput, emailInput, passwordInput, confirmPasswordInput].forEach(i => i.disabled = isLoading);
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const userData = {
+                user_id: userIdInput.value.trim(),
+                name: nameInput.value.trim(),
+                email: emailInput.value.trim(),
+                password: passwordInput.value,
+                confirm_password: confirmPasswordInput.value
+            };
+
+            // Validation
+            if (!userData.user_id || !userData.name || !userData.email || !userData.password) {
+                showMessage('❌ Please fill all required fields', 'error');
+                return;
             }
-        } catch(err){
-            console.error('Registration error:', err);
-            showMessage('❌ Network error. Please ensure the server is running.', 'error');
-        } finally {
-            setLoading(false);
-        }
-    });
+
+            if (userData.password !== userData.confirm_password) {
+                showMessage('❌ Passwords do not match', 'error');
+                return;
+            }
+
+            if (userData.password.length < 6) {
+                showMessage('❌ Password must be at least 6 characters', 'error');
+                return;
+            }
+
+            hideMessage();
+            setLoading(true);
+
+            try {
+                // Register with Firebase
+                const result = await registerWithFirebase(userData);
+
+                showMessage(`🎉 Welcome, ${userData.name}! Your account has been created successfully with Firebase Auth.`, 'success');
+
+                setTimeout(() => {
+                    window.location.href = 'dashboard.html';
+                }, 1500);
+
+            } catch (err) {
+                console.error('Registration error:', err);
+                showMessage('❌ ' + err.message, 'error');
+            } finally {
+                setLoading(false);
+            }
+        });
     </script>
 </body>
 </html>
