@@ -203,17 +203,27 @@
         
         // Check if user is already logged in
         window.addEventListener('load', async () => {
+            // Add a small delay to prevent rapid redirects
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
             const currentUser = getCurrentUser();
             const token = getFirebaseToken();
             
             if (currentUser && token) {
-                // Verify session is still valid
-                const isValid = await verifySession();
-                if (isValid) {
-                    // User already logged in, redirect to dashboard
-                    window.location.href = 'dashboard.html';
-                } else {
-                    // Session expired, clear it
+                try {
+                    // Verify session is still valid (with throttling)
+                    const isValid = await verifySession();
+                    if (isValid) {
+                        // User already logged in, redirect to dashboard
+                        console.log('User already authenticated, redirecting to dashboard');
+                        window.location.href = 'dashboard.html';
+                    } else {
+                        // Session expired, clear it
+                        console.log('Session expired, clearing user data');
+                        clearCurrentUser();
+                    }
+                } catch (error) {
+                    console.error('Error verifying session:', error);
                     clearCurrentUser();
                 }
             }
