@@ -75,6 +75,22 @@
             padding: 2rem;
         }
 
+        /* Role chip */
+        .role-chip {
+            display: inline-block;
+            margin-left: 8px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            background: #e2e8f0;
+            color: #475569;
+            vertical-align: middle;
+        }
+        .role-chip.manager {
+            background: #e9d8fd;
+            color: #553c9a;
+        }
+
         /* Statistics Cards */
         .stats-grid {
             display: grid;
@@ -228,6 +244,310 @@
 
         .view-all-btn:hover {
             background: #5a67d8;
+        }
+
+        /* View Toggle Styles */
+        .view-toggle {
+            display: flex;
+            justify-content: center;
+            margin: 2rem 0;
+            gap: 0.5rem;
+        }
+
+        .toggle-btn {
+            background: #f8f9fa;
+            color: #667eea;
+            border: 2px solid #667eea;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .toggle-btn.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .toggle-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        /* Timeline View Styles */
+        .view-container {
+            width: 100%;
+        }
+
+        .view-container.hidden {
+            display: none;
+        }
+
+        .timeline-section {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+        }
+
+        .timeline-header {
+            padding: 1rem 1.5rem;
+            font-weight: 600;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .timeline-header.overdue {
+            background: #fee;
+            color: #dc3545;
+            border-left: 4px solid #dc3545;
+        }
+
+        .timeline-header.today {
+            background: #fff3cd;
+            color: #856404;
+            border-left: 4px solid #ffc107;
+        }
+
+        .timeline-header.this_week {
+            background: #d1ecf1;
+            color: #0c5460;
+            border-left: 4px solid #17a2b8;
+        }
+
+        .timeline-header.future {
+            background: #d4edda;
+            color: #155724;
+            border-left: 4px solid #28a745;
+        }
+
+        .timeline-header.no_due_date {
+            background: #f8f9fa;
+            color: #6c757d;
+            border-left: 4px solid #6c757d;
+        }
+
+        .timeline-tasks {
+            padding: 1rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+
+        .timeline-task-card {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 1rem;
+            cursor: grab;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .timeline-task-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .timeline-task-card.dragging {
+            opacity: 0.5;
+            cursor: grabbing;
+        }
+
+        .timeline-task-card.locked {
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .timeline-task-card.locked::after {
+            content: "🔒";
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            font-size: 0.8rem;
+        }
+
+        .timeline-task-card.updating {
+            opacity: 0.6;
+            background: #e3f2fd;
+            border: 2px dashed #2196f3;
+        }
+
+        .timeline-section.drag-over {
+            background: rgba(102, 126, 234, 0.1);
+            border: 2px dashed #667eea;
+            transform: scale(1.02);
+        }
+
+        .task-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #333;
+        }
+
+        .task-meta {
+            font-size: 0.85rem;
+            color: #666;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .task-priority {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .priority-high {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .priority-medium {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .priority-low {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .conflict-indicator {
+            background: #dc3545;
+            color: white;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            margin-top: 0.5rem;
+        }
+
+        .conflicts-section {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .conflicts-title {
+            color: #721c24;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .conflict-item {
+            background: white;
+            border-radius: 4px;
+            padding: 0.5rem;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        /* Timeline Filter Panel */
+        .timeline-filters {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            display: none;
+        }
+
+        .timeline-filters.show {
+            display: block;
+        }
+
+        .timeline-filters-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .timeline-filters-title {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .timeline-filters-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            align-items: end;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .filter-group label {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 0.25rem;
+        }
+
+        .filter-group select {
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: white;
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 0.5rem;
+            align-items: end;
+        }
+
+        .filter-btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .filter-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .filter-btn.primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .filter-btn.primary:hover {
+            background: #5a67d8;
+        }
+
+        .toggle-filters-btn {
+            background: #f8f9fa;
+            color: #667eea;
+            border: 1px solid #667eea;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+            transition: all 0.2s;
+        }
+
+        .toggle-filters-btn:hover {
+            background: #667eea;
+            color: white;
         }
 
         .tasks-list {
@@ -526,7 +846,7 @@
 
 <body>
     <div id="nav"></div>
-    <script src="common.js"></script>
+    <script src="firebase-auth.js"></script>
 <script>try{requireAuth();}catch(e){}</script>
 
     <!-- Header -->
@@ -582,43 +902,137 @@
             </div>
         </div>
 
-        <!-- Charts Section -->
-        <div class="charts-section">
-            <div class="chart-card">
-                <div class="chart-title">📊 Status Breakdown</div>
-                <div id="statusChart">
-                    <div class="loading">Loading status data</div>
+        <!-- View Toggle -->
+        <div class="view-toggle">
+            <button class="toggle-btn active" data-view="grid" onclick="toggleView('grid')">📊 Grid View</button>
+            <button class="toggle-btn" data-view="timeline" onclick="toggleView('timeline')">📅 Timeline View</button>
+        </div>
+
+        <!-- Grid View Container -->
+        <div id="gridView" class="view-container">
+            <!-- Charts Section -->
+            <div class="charts-section">
+                <div class="chart-card">
+                    <div class="chart-title">📊 Status Breakdown</div>
+                    <div id="statusChart">
+                        <div class="loading">Loading status data</div>
+                    </div>
+                </div>
+
+                <div class="chart-card">
+                    <div class="chart-title">🎯 Priority Breakdown</div>
+                    <div id="priorityChart">
+                        <div class="loading">Loading priority data</div>
+                    </div>
                 </div>
             </div>
 
-            <div class="chart-card">
-                <div class="chart-title">🎯 Priority Breakdown</div>
-                <div id="priorityChart">
-                    <div class="loading">Loading priority data</div>
+            <!-- Tasks Section -->
+            <div class="tasks-section">
+                <div class="tasks-card">
+                    <div class="tasks-header">
+                        <div class="tasks-title">📝 Recent Created Tasks</div>
+                        <button class="view-all-btn" onclick="viewAllCreated()">View All</button>
+                    </div>
+                    <div class="tasks-list" id="createdTasksList">
+                        <div class="loading">Loading created tasks</div>
+                    </div>
+                </div>
+
+                <div class="tasks-card">
+                    <div class="tasks-header">
+                        <div class="tasks-title">📋 Recent Assigned Tasks</div>
+                        <button class="view-all-btn" onclick="viewAllAssigned()">View All</button>
+                    </div>
+                    <div class="tasks-list" id="assignedTasksList">
+                        <div class="loading">Loading assigned tasks</div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Tasks Section -->
-        <div class="tasks-section">
-            <div class="tasks-card">
-                <div class="tasks-header">
-                    <div class="tasks-title">📝 Recent Created Tasks</div>
-                    <button class="view-all-btn" onclick="viewAllCreated()">View All</button>
+        <!-- Timeline View Container -->
+        <div id="timelineView" class="view-container hidden">
+            <button class="toggle-filters-btn" onclick="toggleTimelineFilters()">🔍 Show Filters</button>
+            
+            <div id="timelineFilters" class="timeline-filters">
+                <div class="timeline-filters-header">
+                    <div class="timeline-filters-title">Filter Timeline Tasks</div>
                 </div>
-                <div class="tasks-list" id="createdTasksList">
-                    <div class="loading">Loading created tasks</div>
+                <div class="timeline-filters-content">
+                    <div class="filter-group">
+                        <label for="filterProject">Project:</label>
+                        <select id="filterProject">
+                            <option value="">All Projects</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="filterCategory">Category:</label>
+                        <select id="filterCategory">
+                            <option value="">All Categories</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="filterStatus">Status:</label>
+                        <select id="filterStatus">
+                            <option value="">All Statuses</option>
+                        </select>
+                    </div>
+                    <div class="filter-actions">
+                        <button class="filter-btn primary" onclick="applyTimelineFilters()">Apply Filters</button>
+                        <button class="filter-btn" onclick="clearTimelineFilters()">Clear</button>
+                    </div>
                 </div>
             </div>
 
-            <div class="tasks-card">
-                <div class="tasks-header">
-                    <div class="tasks-title">📋 Recent Assigned Tasks</div>
-                    <button class="view-all-btn" onclick="viewAllAssigned()">View All</button>
+            <div id="conflictsSection" class="conflicts-section" style="display: none;">
+                <div class="conflicts-title">⚠️ Schedule Conflicts</div>
+                <div id="conflictsList"></div>
+            </div>
+
+            <div class="timeline-section" data-period="overdue">
+                <div class="timeline-header overdue">
+                    <span>🚨</span>
+                    <span>Overdue Tasks</span>
+                    <span id="overdueCount">(0)</span>
                 </div>
-                <div class="tasks-list" id="assignedTasksList">
-                    <div class="loading">Loading assigned tasks</div>
+                <div class="timeline-tasks" id="overdueTasks"></div>
+            </div>
+
+            <div class="timeline-section" data-period="today">
+                <div class="timeline-header today">
+                    <span>📅</span>
+                    <span>Today</span>
+                    <span id="todayCount">(0)</span>
                 </div>
+                <div class="timeline-tasks" id="todayTasks"></div>
+            </div>
+
+            <div class="timeline-section" data-period="this_week">
+                <div class="timeline-header this_week">
+                    <span>📆</span>
+                    <span>This Week</span>
+                    <span id="thisWeekCount">(0)</span>
+                </div>
+                <div class="timeline-tasks" id="thisWeekTasks"></div>
+            </div>
+
+            <div class="timeline-section" data-period="future">
+                <div class="timeline-header future">
+                    <span>🔮</span>
+                    <span>Future</span>
+                    <span id="futureCount">(0)</span>
+                </div>
+                <div class="timeline-tasks" id="futureTasks"></div>
+            </div>
+
+            <div class="timeline-section" data-period="no_due_date">
+                <div class="timeline-header no_due_date">
+                    <span>📝</span>
+                    <span>No Due Date</span>
+                    <span id="noDueDateCount">(0)</span>
+                </div>
+                <div class="timeline-tasks" id="noDueDateTasks"></div>
             </div>
         </div>
     </div>
@@ -709,6 +1123,9 @@ const API_BASE = "http://localhost:5000";
             document.getElementById('userEmail').textContent = currentUser.email;
             document.getElementById('userAvatar').textContent = currentUser.name.charAt(0).toUpperCase();
             document.title = `Dashboard - ${currentUser.name}`;
+
+            // Fetch and show role chip, and toggle manager-only UI
+            showRoleIndicators(currentUser).catch(()=>{});
         }
 
         
@@ -898,10 +1315,44 @@ async function loadDashboardData() {
             container.insertBefore(errorDiv, container.firstChild);
         }
 
+        // Role indicators
+        async function showRoleIndicators(user){
+            try{
+                const res = await fetch(`${API_BASE_URL}/api/users/${user.user_id}/role`, {
+                    headers: { 'X-User-Id': user.user_id }
+                });
+                const data = await res.json();
+                const role = (data && data.role) || 'staff';
+                const isManager = ['manager','director','hr'].includes(role);
+
+                // Add role chip
+                const nameEl = document.getElementById('userName');
+                if (nameEl && !document.getElementById('roleChip')){
+                    const chip = document.createElement('span');
+                    chip.id = 'roleChip';
+                    chip.className = 'role-chip' + (isManager ? ' manager' : '');
+                    chip.textContent = role.charAt(0).toUpperCase() + role.slice(1);
+                    nameEl.after(chip);
+                }
+
+                // Toggle manager-only UI
+                document.querySelectorAll('.manager-only').forEach(el => {
+                    el.style.display = isManager ? '' : 'none';
+                });
+            }catch(e){ /* noop */ }
+        }
+
         // Navigation functions
         function logout() {
-            localStorage.removeItem('currentUser');
-            window.location.href = 'login.html';
+            // Delegate to shared signOut() which clears session storage and redirects
+            if (typeof signOut === 'function') {
+                signOut();
+            } else {
+                // Fallback
+                sessionStorage.removeItem('currentUser');
+                sessionStorage.removeItem('firebaseToken');
+                window.location.href = 'login.html';
+            }
         }
 
         function createNewTask() {
@@ -1157,6 +1608,540 @@ async function loadDashboardData() {
 
   document.addEventListener('DOMContentLoaded', loadDashboard);
 })();
+
+// Timeline View Functions
+let currentView = 'grid';
+let timelineData = null;
+let refreshInterval = null;
+
+async function toggleView(viewType) {
+    currentView = viewType;
+    
+    // Update toggle buttons
+    document.querySelectorAll('.toggle-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.querySelector(`[data-view="${viewType}"]`).classList.add('active');
+    
+    // Show/hide containers
+    document.getElementById('gridView').classList.toggle('hidden', viewType !== 'grid');
+    document.getElementById('timelineView').classList.toggle('hidden', viewType !== 'timeline');
+    
+    if (viewType === 'timeline') {
+        await loadTimelineView();
+        setupAutoRefresh();
+    } else {
+        clearAutoRefresh();
+    }
+}
+
+async function loadTimelineView() {
+    const u = getCurrentUser();
+    const userId = u && (u.user_id || u.uid);
+    const api = API_BASE || '';
+    
+    if (!userId) {
+        showEmptyState('#timelineView', 'You are not signed in.');
+        return;
+    }
+    
+    try {
+        const res = await fetch(`${api}/api/users/${userId}/dashboard?view_mode=timeline`);
+        if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
+        }
+        const data = await res.json();
+        timelineData = data;
+        renderTimelineView(data);
+    } catch (e) {
+        console.error('Timeline load failed:', e);
+        showEmptyState('#timelineView', 'Failed to load timeline data.');
+    }
+}
+
+function renderTimelineView(data) {
+    const timeline = data.timeline || {};
+    const conflicts = data.conflicts || [];
+    
+    // Update counts
+    document.getElementById('overdueCount').textContent = `(${timeline.overdue?.length || 0})`;
+    document.getElementById('todayCount').textContent = `(${timeline.today?.length || 0})`;
+    document.getElementById('thisWeekCount').textContent = `(${timeline.this_week?.length || 0})`;
+    document.getElementById('futureCount').textContent = `(${timeline.future?.length || 0})`;
+    document.getElementById('noDueDateCount').textContent = `(${timeline.no_due_date?.length || 0})`;
+    
+    // Render conflicts
+    renderConflicts(conflicts);
+    
+    // Render timeline sections
+    renderTimelineSection('overdue', timeline.overdue || []);
+    renderTimelineSection('today', timeline.today || []);
+    renderTimelineSection('this_week', timeline.this_week || []);
+    renderTimelineSection('future', timeline.future || []);
+    renderTimelineSection('no_due_date', timeline.no_due_date || []);
+    
+    // Initialize drag and drop
+    initializeDragDrop();
+}
+
+function renderConflicts(conflicts) {
+    const conflictsSection = document.getElementById('conflictsSection');
+    const conflictsList = document.getElementById('conflictsList');
+    
+    if (conflicts.length === 0) {
+        conflictsSection.style.display = 'none';
+        return;
+    }
+    
+    conflictsSection.style.display = 'block';
+    conflictsList.innerHTML = conflicts.map(conflict => `
+        <div class="conflict-item">
+            <strong>${conflict.date}</strong>: ${conflict.count} tasks scheduled
+            <ul>
+                ${conflict.tasks.map(task => `<li>${task.title}</li>`).join('')}
+            </ul>
+        </div>
+    `).join('');
+}
+
+function renderTimelineSection(period, tasks) {
+    const container = document.getElementById(`${period}Tasks`);
+    if (!container) return;
+    
+    if (tasks.length === 0) {
+        container.innerHTML = '<div style="padding: 1rem; color: #666; text-align: center;">No tasks</div>';
+        return;
+    }
+    
+    container.innerHTML = tasks.map(task => createTaskCard(task)).join('');
+}
+
+function createTaskCard(task) {
+    const u = getCurrentUser();
+    const userId = u && (u.user_id || u.uid);
+    const canEdit = userId === task.created_by?.user_id || userId === task.assigned_to?.user_id;
+    const priorityClass = getPriorityClass(task.priority);
+    
+    return `
+        <div class="timeline-task-card ${canEdit ? '' : 'locked'}" 
+             data-task-id="${task.task_id}" 
+             draggable="${canEdit ? 'true' : 'false'}"
+             title="${canEdit ? 'Drag to reschedule' : 'Only creator or assignee can reschedule'}">
+            <div class="task-title">${task.title}</div>
+            <div class="task-meta">
+                <div>Status: ${task.status}</div>
+                <div>Priority: <span class="task-priority ${priorityClass}">${task.priority}</span></div>
+                ${task.due_date ? `<div>Due: ${formatDate(task.due_date)}</div>` : ''}
+                ${task.project_id ? `<div>Project: ${task.project_id}</div>` : ''}
+            </div>
+        </div>
+    `;
+}
+
+function getPriorityClass(priority) {
+    const p = priority?.toLowerCase() || 'medium';
+    if (p.includes('high')) return 'priority-high';
+    if (p.includes('low')) return 'priority-low';
+    return 'priority-medium';
+}
+
+function formatDate(dateStr) {
+    try {
+        const date = new Date(dateStr);
+        return date.toLocaleDateString();
+    } catch {
+        return dateStr;
+    }
+}
+
+function initializeDragDrop() {
+    // Make timeline sections droppable
+    document.querySelectorAll('.timeline-section').forEach(section => {
+        section.addEventListener('dragover', handleDragOver);
+        section.addEventListener('dragleave', handleDragLeave);
+        section.addEventListener('drop', handleDrop);
+    });
+    
+    // Make task cards draggable
+    document.querySelectorAll('.timeline-task-card').forEach(card => {
+        card.addEventListener('dragstart', handleDragStart);
+        card.addEventListener('dragend', handleDragEnd);
+    });
+}
+
+function handleDragStart(e) {
+    e.dataTransfer.setData('text/plain', e.target.dataset.taskId);
+    e.target.classList.add('dragging');
+    
+    // Add visual feedback to all drop zones
+    document.querySelectorAll('.timeline-section').forEach(section => {
+        section.classList.add('drag-over');
+    });
+}
+
+function handleDragEnd(e) {
+    e.target.classList.remove('dragging');
+    
+    // Remove visual feedback from all drop zones
+    document.querySelectorAll('.timeline-section').forEach(section => {
+        section.classList.remove('drag-over');
+    });
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    
+    // Add visual feedback to current drop zone
+    e.currentTarget.classList.add('drag-over');
+}
+
+function handleDragLeave(e) {
+    // Remove visual feedback when leaving drop zone
+    e.currentTarget.classList.remove('drag-over');
+}
+
+function handleDrop(e) {
+    e.preventDefault();
+    e.currentTarget.classList.remove('drag-over');
+    
+    const taskId = e.dataTransfer.getData('text/plain');
+    const section = e.currentTarget;
+    const period = section.dataset.period;
+    
+    // Show loading state on the dragged task
+    const draggedTask = document.querySelector(`[data-task-id="${taskId}"]`);
+    if (draggedTask) {
+        draggedTask.classList.add('updating');
+    }
+    
+    if (period === 'no_due_date') {
+        updateTaskDueDate(taskId, null);
+    } else {
+        const newDate = calculateDateFromPeriod(period);
+        updateTaskDueDate(taskId, newDate);
+    }
+}
+
+function calculateDateFromPeriod(period) {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    switch (period) {
+        case 'overdue':
+            return new Date(today.getTime() - 24 * 60 * 60 * 1000).toISOString();
+        case 'today':
+            return today.toISOString();
+        case 'this_week':
+            return new Date(today.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString();
+        case 'future':
+            return new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString();
+        default:
+            return today.toISOString();
+    }
+}
+
+async function updateTaskDueDate(taskId, newDate) {
+    try {
+        const u = getCurrentUser();
+        const userId = u && (u.user_id || u.uid);
+        if (!userId) {
+            throw new Error('User not authenticated');
+        }
+        
+        const payload = { due_date: newDate };
+        const res = await fetch(`${API_BASE}/api/tasks/${taskId}`, {
+            method: 'PUT',
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-User-Id': userId
+            },
+            body: JSON.stringify(payload)
+        });
+        
+        if (!res.ok) {
+            const errorData = await res.json().catch(() => ({}));
+            throw new Error(errorData.error || `HTTP ${res.status}`);
+        }
+        
+        // Reload timeline view
+        await loadTimelineView();
+    } catch (e) {
+        console.error('Failed to update task:', e);
+        alert(`Failed to reschedule task: ${e.message}`);
+    } finally {
+        // Remove loading state
+        const draggedTask = document.querySelector(`[data-task-id="${taskId}"]`);
+        if (draggedTask) {
+            draggedTask.classList.remove('updating');
+        }
+    }
+}
+
+function setupAutoRefresh() {
+    clearAutoRefresh();
+    refreshInterval = setInterval(() => {
+        if (currentView === 'timeline') {
+            loadTimelineView();
+        }
+    }, 30000); // 30 seconds
+}
+
+function clearAutoRefresh() {
+    if (refreshInterval) {
+        clearInterval(refreshInterval);
+        refreshInterval = null;
+    }
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', clearAutoRefresh);
+
+// Timeline Filtering Functions
+let filteredTimelineData = null;
+
+function toggleTimelineFilters() {
+    const filtersPanel = document.getElementById('timelineFilters');
+    const toggleBtn = document.querySelector('.toggle-filters-btn');
+    
+    if (filtersPanel.classList.contains('show')) {
+        filtersPanel.classList.remove('show');
+        toggleBtn.textContent = '🔍 Show Filters';
+    } else {
+        filtersPanel.classList.add('show');
+        toggleBtn.textContent = '🔍 Hide Filters';
+        populateTimelineFilterOptions();
+    }
+}
+
+function populateTimelineFilterOptions() {
+    if (!timelineData) return;
+    
+    // Populate project filter
+    const projectSelect = document.getElementById('filterProject');
+    projectSelect.innerHTML = '<option value="">All Projects</option>';
+    const projects = [...new Set(timelineData.timeline?.overdue?.concat(
+        timelineData.timeline?.today || [],
+        timelineData.timeline?.this_week || [],
+        timelineData.timeline?.future || [],
+        timelineData.timeline?.no_due_date || []
+    ).filter(task => task.project_id).map(task => task.project_id))];
+    
+    projects.forEach(projectId => {
+        projectSelect.innerHTML += `<option value="${projectId}">${projectId}</option>`;
+    });
+    
+    // Populate category filter (using labels as categories)
+    const categorySelect = document.getElementById('filterCategory');
+    categorySelect.innerHTML = '<option value="">All Categories</option>';
+    const categories = [...new Set(timelineData.timeline?.overdue?.concat(
+        timelineData.timeline?.today || [],
+        timelineData.timeline?.this_week || [],
+        timelineData.timeline?.future || [],
+        timelineData.timeline?.no_due_date || []
+    ).flatMap(task => task.labels || []))];
+    
+    categories.forEach(category => {
+        categorySelect.innerHTML += `<option value="${category}">${category}</option>`;
+    });
+    
+    // Populate status filter
+    const statusSelect = document.getElementById('filterStatus');
+    statusSelect.innerHTML = '<option value="">All Statuses</option>';
+    const statuses = [...new Set(timelineData.timeline?.overdue?.concat(
+        timelineData.timeline?.today || [],
+        timelineData.timeline?.this_week || [],
+        timelineData.timeline?.future || [],
+        timelineData.timeline?.no_due_date || []
+    ).map(task => task.status))];
+    
+    statuses.forEach(status => {
+        statusSelect.innerHTML += `<option value="${status}">${status}</option>`;
+    });
+}
+
+function applyTimelineFilters() {
+    if (!timelineData) return;
+    
+    const projectFilter = document.getElementById('filterProject').value;
+    const categoryFilter = document.getElementById('filterCategory').value;
+    const statusFilter = document.getElementById('filterStatus').value;
+    
+    // Get all tasks from timeline
+    const allTasks = [
+        ...(timelineData.timeline?.overdue || []),
+        ...(timelineData.timeline?.today || []),
+        ...(timelineData.timeline?.this_week || []),
+        ...(timelineData.timeline?.future || []),
+        ...(timelineData.timeline?.no_due_date || [])
+    ];
+    
+    // Apply filters
+    let filteredTasks = allTasks;
+    
+    if (projectFilter) {
+        filteredTasks = filteredTasks.filter(task => task.project_id === projectFilter);
+    }
+    
+    if (categoryFilter) {
+        filteredTasks = filteredTasks.filter(task => 
+            task.labels && task.labels.includes(categoryFilter)
+        );
+    }
+    
+    if (statusFilter) {
+        filteredTasks = filteredTasks.filter(task => task.status === statusFilter);
+    }
+    
+    // Group filtered tasks by timeline periods
+    const filteredTimeline = groupTasksByTimeline(filteredTasks);
+    
+    // Update conflict detection for filtered tasks
+    const filteredConflicts = detectConflicts(filteredTasks);
+    
+    // Create filtered timeline data
+    filteredTimelineData = {
+        ...timelineData,
+        timeline: filteredTimeline,
+        conflicts: filteredConflicts,
+        timeline_statistics: {
+            total_tasks: filteredTasks.length,
+            overdue_count: filteredTimeline.overdue?.length || 0,
+            today_count: filteredTimeline.today?.length || 0,
+            this_week_count: filteredTimeline.this_week?.length || 0,
+            future_count: filteredTimeline.future?.length || 0,
+            no_due_date_count: filteredTimeline.no_due_date?.length || 0,
+            conflict_count: filteredConflicts.length
+        }
+    };
+    
+    // Render filtered timeline
+    renderTimelineView(filteredTimelineData);
+    
+    // Save filter state
+    sessionStorage.setItem('timelineFilters', JSON.stringify({
+        project: projectFilter,
+        category: categoryFilter,
+        status: statusFilter
+    }));
+}
+
+function clearTimelineFilters() {
+    document.getElementById('filterProject').value = '';
+    document.getElementById('filterCategory').value = '';
+    document.getElementById('filterStatus').value = '';
+    
+    // Clear filtered data and render original timeline
+    filteredTimelineData = null;
+    renderTimelineView(timelineData);
+    
+    // Clear saved filter state
+    sessionStorage.removeItem('timelineFilters');
+}
+
+function groupTasksByTimeline(tasks) {
+    const timeline = {
+        overdue: [],
+        today: [],
+        this_week: [],
+        future: [],
+        no_due_date: []
+    };
+    
+    tasks.forEach(task => {
+        const enrichedTask = enrichTaskWithTimelineStatus(task);
+        const status = enrichedTask.timeline_status || "no_due_date";
+        timeline[status].push(enrichedTask);
+    });
+    
+    return timeline;
+}
+
+function enrichTaskWithTimelineStatus(task) {
+    const due_date = task.due_date;
+    if (!due_date) {
+        task.timeline_status = "no_due_date";
+        task.is_overdue = false;
+        task.is_upcoming = false;
+        return task;
+    }
+    
+    const due_dt = new Date(due_date);
+    const now = new Date();
+    const days_until_due = Math.ceil((due_dt - now) / (1000 * 60 * 60 * 24));
+    
+    if (days_until_due < 0) {
+        task.timeline_status = "overdue";
+        task.is_overdue = true;
+        task.is_upcoming = false;
+    } else if (days_until_due === 0) {
+        task.timeline_status = "today";
+        task.is_overdue = false;
+        task.is_upcoming = true;
+    } else if (days_until_due <= 7) {
+        task.timeline_status = "this_week";
+        task.is_overdue = false;
+        task.is_upcoming = true;
+    } else {
+        task.timeline_status = "future";
+        task.is_overdue = false;
+        task.is_upcoming = false;
+    }
+    
+    return task;
+}
+
+function detectConflicts(tasks) {
+    const dateMap = {};
+    const conflicts = [];
+    
+    tasks.forEach(task => {
+        const due_date = task.due_date;
+        if (due_date) {
+            const date_str = due_date.split('T')[0];
+            if (!(date_str in dateMap)) {
+                dateMap[date_str] = [];
+            }
+            dateMap[date_str].push(task);
+        }
+    });
+    
+    // Find dates with multiple tasks
+    for (const [date_str, tasks_on_date] of Object.entries(dateMap)) {
+        if (tasks_on_date.length > 1) {
+            conflicts.push({
+                date: date_str,
+                tasks: tasks_on_date,
+                count: tasks_on_date.length
+            });
+        }
+    }
+    
+    return conflicts;
+}
+
+// Load saved filter state on page load
+function loadSavedTimelineFilters() {
+    const savedFilters = sessionStorage.getItem('timelineFilters');
+    if (savedFilters) {
+        const filters = JSON.parse(savedFilters);
+        document.getElementById('filterProject').value = filters.project || '';
+        document.getElementById('filterCategory').value = filters.category || '';
+        document.getElementById('filterStatus').value = filters.status || '';
+        
+        // Apply saved filters if timeline view is active
+        if (currentView === 'timeline') {
+            applyTimelineFilters();
+        }
+    }
+}
+
+// Initialize saved filters when timeline view loads
+const originalLoadTimelineView = loadTimelineView;
+loadTimelineView = async function() {
+    await originalLoadTimelineView();
+    loadSavedTimelineFilters();
+};
 </script>
 
 </body></html>

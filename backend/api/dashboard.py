@@ -1,5 +1,5 @@
-from datetime import datetime, timezone
-from flask import jsonify
+from datetime import datetime, timezone, timedelta
+from flask import jsonify, request
 from . import dashboard_bp
 from firebase_admin import firestore
 
@@ -15,7 +15,88 @@ def task_to_json(d):
         "created_at": data.get("created_at"),
         "created_by": data.get("created_by"),
         "assigned_to": data.get("assigned_to"),
+        "project_id": data.get("project_id"),
+        "labels": data.get("labels", []),
     }
+
+def enrich_task_with_timeline_status(task):
+    """Add timeline-specific status flags to task"""
+    due_date = task.get("due_date")
+    if not due_date:
+        task["timeline_status"] = "no_due_date"
+        task["is_overdue"] = False
+        task["is_upcoming"] = False
+        return task
+    
+    due_dt = _safe_iso_to_dt(due_date)
+    if not due_dt:
+        task["timeline_status"] = "invalid_date"
+        task["is_overdue"] = False
+        task["is_upcoming"] = False
+        return task
+    
+    now = datetime.now(timezone.utc)
+    days_until_due = (due_dt - now).days
+    
+    if days_until_due < 0:
+        task["timeline_status"] = "overdue"
+        task["is_overdue"] = True
+        task["is_upcoming"] = False
+    elif days_until_due == 0:
+        task["timeline_status"] = "today"
+        task["is_overdue"] = False
+        task["is_upcoming"] = True
+    elif days_until_due <= 7:
+        task["timeline_status"] = "this_week"
+        task["is_overdue"] = False
+        task["is_upcoming"] = True
+    else:
+        task["timeline_status"] = "future"
+        task["is_overdue"] = False
+        task["is_upcoming"] = False
+    
+    return task
+
+def group_tasks_by_timeline(tasks):
+    """Group tasks by timeline periods"""
+    timeline = {
+        "overdue": [],
+        "today": [],
+        "this_week": [],
+        "future": [],
+        "no_due_date": []
+    }
+    
+    for task in tasks:
+        enriched_task = enrich_task_with_timeline_status(task)
+        status = enriched_task.get("timeline_status", "no_due_date")
+        timeline[status].append(enriched_task)
+    
+    return timeline
+
+def detect_conflicts(tasks):
+    """Detect tasks with overlapping due dates"""
+    date_map = {}
+    conflicts = []
+    
+    for task in tasks:
+        due_date = task.get("due_date")
+        if due_date:
+            date_str = due_date.split('T')[0]  # Extract just the date part
+            if date_str not in date_map:
+                date_map[date_str] = []
+            date_map[date_str].append(task)
+    
+    # Find dates with multiple tasks
+    for date_str, tasks_on_date in date_map.items():
+        if len(tasks_on_date) > 1:
+            conflicts.append({
+                "date": date_str,
+                "tasks": tasks_on_date,
+                "count": len(tasks_on_date)
+            })
+    
+    return conflicts
 
 def _safe_iso_to_dt(s):
     try:
@@ -32,6 +113,7 @@ def _safe_iso_to_dt(s):
 @dashboard_bp.get("/users/<user_id>/dashboard")
 def user_dashboard(user_id):
     db = firestore.client()
+    view_mode = request.args.get("view_mode", "grid")
 
     user_doc = db.collection("users").document(user_id).get()
     if not user_doc.exists:
@@ -52,6 +134,17 @@ def user_dashboard(user_id):
         key=lambda t: (_safe_iso_to_dt(t.get("created_at")) or datetime.min.replace(tzinfo=timezone.utc)),
         reverse=True
     )
+
+    # Combine all tasks for timeline view
+    all_tasks = created_tasks + assigned_tasks
+    # Remove duplicates (task might be both created by and assigned to same person)
+    seen_tasks = set()
+    unique_tasks = []
+    for task in all_tasks:
+        task_id = task["task_id"]
+        if task_id not in seen_tasks:
+            seen_tasks.add(task_id)
+            unique_tasks.append(task)
 
     # Status + priority breakdown (based on created tasks)
     status_breakdown = {}
@@ -79,4 +172,22 @@ def user_dashboard(user_id):
         "recent_created_tasks": created_tasks[:5],
         "recent_assigned_tasks": assigned_tasks[:5],
     }
+
+    # Add timeline data if requested
+    if view_mode == "timeline":
+        timeline_data = group_tasks_by_timeline(unique_tasks)
+        conflicts = detect_conflicts(unique_tasks)
+        
+        resp["timeline"] = timeline_data
+        resp["conflicts"] = conflicts
+        resp["timeline_statistics"] = {
+            "total_tasks": len(unique_tasks),
+            "overdue_count": len(timeline_data["overdue"]),
+            "today_count": len(timeline_data["today"]),
+            "this_week_count": len(timeline_data["this_week"]),
+            "future_count": len(timeline_data["future"]),
+            "no_due_date_count": len(timeline_data["no_due_date"]),
+            "conflict_count": len(conflicts)
+        }
+
     return jsonify(resp), 200

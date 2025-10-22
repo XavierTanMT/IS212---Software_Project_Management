@@ -33,6 +33,14 @@ const API_BASE = "http://localhost:5000";
 // Session Management
 // ============================================================================
 
+// Flag to prevent multiple redirects
+let isRedirecting = false;
+
+// Throttling for verifySession to prevent API spam
+let lastVerifyTime = 0;
+let verifyPromise = null;
+const VERIFY_THROTTLE_MS = 5000; // Only verify once every 5 seconds
+
 /**
  * Get current user from session storage
  * @returns {Object|null} User object or null
@@ -72,6 +80,11 @@ function clearCurrentUser() {
     sessionStorage.removeItem("currentUser");
     sessionStorage.removeItem("firebaseToken");
     sessionStorage.removeItem("currentProject");
+    
+    // Clear verification cache
+    lastVerifyTime = 0;
+    verifyPromise = null;
+    isRedirecting = false;
 }
 
 // ============================================================================
@@ -104,7 +117,11 @@ function requireAuth() {
     const token = getFirebaseToken();
     
     if (!u || !token) {
-        window.location.href = "login.html";
+        if (!isRedirecting) {
+            isRedirecting = true;
+            console.log('Not authenticated, redirecting to login');
+            window.location.href = "login.html";
+        }
         throw new Error("Not authenticated");
     }
     
@@ -127,6 +144,7 @@ async function signOut() {
     
     // Always clear session storage
     clearCurrentUser();
+    isRedirecting = false; // Reset redirect flag
     window.location.href = "login.html";
 }
 
@@ -223,7 +241,7 @@ async function loginWithFirebase(email, password) {
 }
 
 /**
- * Verify current session is valid
+ * Verify current session is valid (with throttling to prevent API spam)
  * @returns {Promise<boolean>} True if session is valid
  */
 async function verifySession() {
@@ -233,27 +251,48 @@ async function verifySession() {
         return false;
     }
     
-    try {
-        const response = await fetch(`${API_BASE}/api/users/auth/verify`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ firebase_token: token })
-        });
-        
-        const result = await response.json();
-        
-        if (response.ok && result.valid) {
-            // Update user data if changed
-            setCurrentUser(result.user, token);
-            return true;
-        }
-        
-        return false;
-        
-    } catch (error) {
-        console.error("Session verification error:", error);
-        return false;
+    const now = Date.now();
+    
+    // If we're already verifying or recently verified, return the existing promise or cached result
+    if (verifyPromise) {
+        return verifyPromise;
     }
+    
+    if (now - lastVerifyTime < VERIFY_THROTTLE_MS) {
+        // Return cached result if recently verified
+        return true; // Assume valid if recently checked
+    }
+    
+    // Create new verification promise
+    verifyPromise = (async () => {
+        try {
+            const response = await fetch(`${API_BASE}/api/users/auth/verify`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ firebase_token: token })
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok && result.valid) {
+                // Update user data if changed
+                setCurrentUser(result.user, token);
+                lastVerifyTime = now;
+                return true;
+            }
+            
+            return false;
+            
+        } catch (error) {
+            console.error("Session verification error:", error);
+            return false;
+        } finally {
+            // Clear the promise after completion
+            verifyPromise = null;
+        }
+    })();
+    
+    return verifyPromise;
 }
 
 // ============================================================================
@@ -330,6 +369,7 @@ async function buildNavbar() {
         <a href="projects.html">Projects</a>
         <a href="tasks_list.html">Tasks</a>
         <a href="create_task.html">Create Task</a>
+        <a href="manager_team_view.html">Manager View</a>
       </div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12px;color:#333">
         <span>Project: <em>${p ? (p.name || p.project_id || "selected") : "none"}</em></span>

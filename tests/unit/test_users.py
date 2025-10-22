@@ -1,3 +1,63 @@
+import sys
+import json
+
+import pytest
+
+# conftest sets up fake Firestore in sys.modules
+fake_firestore = sys.modules.get("firebase_admin.firestore")
+
+from backend.api import users_bp
+from backend.api import users as users_module
+
+
+def test_get_user_role_404(client):
+    # Ensure no doc exists for this user
+    db = fake_firestore.client()
+    doc_ref = db.collection("users").document("missing-user")
+    if doc_ref.get().exists:
+        # Clean up if present
+        doc_ref._exists = False
+    
+    res = client.get("/api/users/missing-user/role")
+    assert res.status_code == 404
+    data = res.get_json()
+    assert data["error"] == "User not found"
+
+
+def test_get_user_role_default_staff(client):
+    db = fake_firestore.client()
+    # Create user without a role field
+    doc_ref = db.collection("users").document("u1")
+    doc_ref.set({
+        "user_id": "u1",
+        "name": "User One",
+        "email": "u1@example.com",
+    })
+
+    res = client.get("/api/users/u1/role")
+    assert res.status_code == 200
+    data = res.get_json()
+    assert data["user_id"] == "u1"
+    assert data["role"] == "staff"
+
+
+def test_get_user_role_manager(client):
+    db = fake_firestore.client()
+    # Create user with role=manager
+    doc_ref = db.collection("users").document("u2")
+    doc_ref.set({
+        "user_id": "u2",
+        "name": "Manager Two",
+        "email": "u2@example.com",
+        "role": "manager",
+    })
+
+    res = client.get("/api/users/u2/role")
+    assert res.status_code == 200
+    data = res.get_json()
+    assert data["user_id"] == "u2"
+    assert data["role"] == "manager"
+
 import pytest
 from unittest.mock import Mock, MagicMock, patch
 from datetime import datetime, timezone
