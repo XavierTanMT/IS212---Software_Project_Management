@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from flask import request, jsonify
 from . import tasks_bp
 from firebase_admin import firestore
@@ -25,6 +25,10 @@ def task_to_json(d):
         "archived": data.get("archived", False),
         "archived_at": data.get("archived_at"),
         "archived_by": data.get("archived_by"),
+        # recurring task fields
+        "is_recurring": data.get("is_recurring", False),
+        "recurrence_interval_days": data.get("recurrence_interval_days"),
+        "parent_recurring_task_id": data.get("parent_recurring_task_id"),
     }
 
 def _viewer_id():
@@ -54,6 +58,67 @@ def _require_membership(db, project_id, user_id):
         return False
     mem_id = f"{project_id}_{user_id}"
     return db.collection("memberships").document(mem_id).get().exists
+
+def _create_next_recurring_task(db, completed_task_doc):
+    """
+    Create the next occurrence of a recurring task.
+    Called when a recurring task is marked as completed.
+    
+    The new task will:
+    - Copy all fields except due_date, status, created_at, updated_at, archived fields
+    - Calculate new due_date based on the original due_date + interval
+    - Link back to original recurring task via parent_recurring_task_id
+    """
+    task_data = completed_task_doc.to_dict() or {}
+    
+    # Only create next task if this is a recurring task
+    if not task_data.get("is_recurring"):
+        return None
+    
+    interval_days = task_data.get("recurrence_interval_days")
+    if not interval_days or interval_days <= 0:
+        return None
+    
+    original_due_date = task_data.get("due_date")
+    if not original_due_date:
+        return None
+    
+    # Calculate next due date from original due date + interval
+    try:
+        due_dt = datetime.fromisoformat(original_due_date.replace("Z", "+00:00"))
+        if due_dt.tzinfo is None:
+            due_dt = due_dt.replace(tzinfo=timezone.utc)
+        
+        next_due_dt = due_dt + timedelta(days=interval_days)
+        next_due_date = next_due_dt.isoformat()
+    except Exception:
+        return None
+    
+    # Create new task with same properties
+    new_task_ref = db.collection("tasks").document()
+    new_task_data = {
+        "title": task_data.get("title"),
+        "description": task_data.get("description"),
+        "priority": task_data.get("priority", "Medium"),
+        "status": "To Do",  # Reset to To Do
+        "due_date": next_due_date,
+        "created_at": now_iso(),
+        "updated_at": None,
+        "project_id": task_data.get("project_id"),
+        "labels": task_data.get("labels", []),
+        "archived": False,
+        "archived_at": None,
+        "archived_by": None,
+        "created_by": task_data.get("created_by"),
+        "assigned_to": task_data.get("assigned_to"),
+        # Recurring fields
+        "is_recurring": True,
+        "recurrence_interval_days": interval_days,
+        "parent_recurring_task_id": completed_task_doc.id,  # Link to original task
+    }
+    
+    new_task_ref.set(new_task_data)
+    return new_task_ref.id
 
 @tasks_bp.post("")
 def create_task():
@@ -97,6 +162,17 @@ def create_task():
         labels = []
     labels = [str(x).strip() for x in labels if str(x).strip()]
 
+    # Handle recurring task fields
+    is_recurring = payload.get("is_recurring", False)
+    recurrence_interval_days = payload.get("recurrence_interval_days")
+    
+    # Validate recurring parameters
+    if is_recurring:
+        if not due_date:
+            return jsonify({"error": "Recurring tasks must have a due date"}), 400
+        if not recurrence_interval_days or recurrence_interval_days <= 0:
+            return jsonify({"error": "Recurring tasks must have a positive interval in days"}), 400
+
     task_ref = db.collection("tasks").document()
     task_doc = {
         "title": title,
@@ -122,6 +198,10 @@ def create_task():
             "name": assigned_to.get("name"),
             "email": assigned_to.get("email"),
         },
+        # recurring fields
+        "is_recurring": is_recurring,
+        "recurrence_interval_days": recurrence_interval_days if is_recurring else None,
+        "parent_recurring_task_id": None,
     }
     task_ref.set(task_doc)
     return jsonify({"task_id": task_ref.id, **task_doc}), 201
@@ -201,10 +281,29 @@ def update_task(task_id):
     if not _can_edit_task(doc):
         return jsonify({"error":"forbidden"}), 403
 
+    current_data = doc.to_dict() or {}
+    current_status = current_data.get("status")
+    
     updates = {}
     for field in ["title", "description", "priority", "status", "due_date", "labels"]:
         if field in payload:
             updates[field] = payload[field]
+    
+    # Handle recurring task fields
+    if "is_recurring" in payload:
+        updates["is_recurring"] = payload["is_recurring"]
+    if "recurrence_interval_days" in payload:
+        updates["recurrence_interval_days"] = payload["recurrence_interval_days"]
+    
+    # Validate recurring parameters if being updated
+    if updates.get("is_recurring"):
+        interval = updates.get("recurrence_interval_days", current_data.get("recurrence_interval_days"))
+        due_date = updates.get("due_date", current_data.get("due_date"))
+        if not due_date:
+            return jsonify({"error": "Recurring tasks must have a due date"}), 400
+        if not interval or interval <= 0:
+            return jsonify({"error": "Recurring tasks must have a positive interval in days"}), 400
+    
     if not updates:
         return jsonify({"error": "No fields to update"}), 400
 
@@ -221,6 +320,20 @@ def update_task(task_id):
 
     updates["updated_at"] = now_iso()
     doc_ref.update(updates)
+    
+    # Check if task was just completed and is recurring
+    new_status = updates.get("status")
+    is_recurring = current_data.get("is_recurring", False)
+    
+    if new_status == "Completed" and current_status != "Completed" and is_recurring:
+        # Task was just marked as completed - create next recurring task
+        updated_doc = doc_ref.get()
+        next_task_id = _create_next_recurring_task(db, updated_doc)
+        response_data = task_to_json(updated_doc)
+        if next_task_id:
+            response_data["next_recurring_task_id"] = next_task_id
+        return jsonify(response_data), 200
+    
     return jsonify(task_to_json(doc_ref.get())), 200
 
 @tasks_bp.delete("/<task_id>")

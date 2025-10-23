@@ -22,6 +22,15 @@ def task_to_json(d):
 def enrich_task_with_timeline_status(task):
     """Add timeline-specific status flags to task"""
     due_date = task.get("due_date")
+    status = task.get("status", "To Do")
+    
+    # Completed tasks should not appear in overdue/timeline categories
+    if status == "Completed":
+        task["timeline_status"] = "completed"
+        task["is_overdue"] = False
+        task["is_upcoming"] = False
+        return task
+    
     if not due_date:
         task["timeline_status"] = "no_due_date"
         task["is_overdue"] = False
@@ -46,7 +55,7 @@ def enrich_task_with_timeline_status(task):
         task["timeline_status"] = "today"
         task["is_overdue"] = False
         task["is_upcoming"] = True
-    elif days_until_due <= 7:
+    elif 1 <= days_until_due <= 7:
         task["timeline_status"] = "this_week"
         task["is_overdue"] = False
         task["is_upcoming"] = True
@@ -58,7 +67,7 @@ def enrich_task_with_timeline_status(task):
     return task
 
 def group_tasks_by_timeline(tasks):
-    """Group tasks by timeline periods"""
+    """Group tasks by timeline periods (excludes completed tasks)"""
     timeline = {
         "overdue": [],
         "today": [],
@@ -70,7 +79,13 @@ def group_tasks_by_timeline(tasks):
     for task in tasks:
         enriched_task = enrich_task_with_timeline_status(task)
         status = enriched_task.get("timeline_status", "no_due_date")
-        timeline[status].append(enriched_task)
+        
+        # Skip completed tasks - they shouldn't appear in timeline view
+        if status == "completed":
+            continue
+            
+        if status in timeline:
+            timeline[status].append(enriched_task)
     
     return timeline
 
