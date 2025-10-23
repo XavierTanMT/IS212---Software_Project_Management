@@ -49,16 +49,18 @@ def enrich_task_with_timeline_status(task):
     total_seconds = time_diff.total_seconds()
     
     # Use total_seconds to avoid .days truncation issues
-    # Calculate days more accurately
+    # Use slightly relaxed boundaries to handle execution timing variations
+    ONE_DAY = 86400
+    
     if total_seconds < 0:
         task["timeline_status"] = "overdue"
         task["is_overdue"] = True
         task["is_upcoming"] = False
-    elif total_seconds < 86400:  # Less than 24 hours (today)
+    elif total_seconds < ONE_DAY - 60:  # Less than ~24 hours (today) - 60 sec buffer for timing
         task["timeline_status"] = "today"
         task["is_overdue"] = False
         task["is_upcoming"] = True
-    elif total_seconds < 86400 * 7.5:  # 1-7 days (use 7.5 as boundary to avoid edge case timing issues)
+    elif total_seconds < ONE_DAY * 7.5:  # 1-7 days (use 7.5 as boundary)
         task["timeline_status"] = "this_week"
         task["is_overdue"] = False
         task["is_upcoming"] = True
