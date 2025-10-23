@@ -225,7 +225,6 @@ class TestRecurringTaskCompletion:
         
         # Mock non-recurring task
         mock_task_doc = Mock()
-        mock_task_doc.id = "task123"
         mock_task_doc.exists = True
         mock_task_doc.id = "task123"
         mock_task_doc.to_dict.return_value = {
