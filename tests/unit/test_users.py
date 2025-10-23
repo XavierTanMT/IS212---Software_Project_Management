@@ -10,13 +10,13 @@ from backend.api import users_bp
 from backend.api import users as users_module
 
 
-def test_get_user_role_404(client):
-    # Ensure no doc exists for this user
-    db = fake_firestore.client()
-    doc_ref = db.collection("users").document("missing-user")
-    if doc_ref.get().exists:
-        # Clean up if present
-        doc_ref._exists = False
+def test_get_user_role_404(client, mock_db, monkeypatch):
+    # Mock the firestore client to return our mock_db
+    monkeypatch.setattr(fake_firestore, "client", lambda: mock_db)
+    
+    # Mock document that doesn't exist
+    mock_doc = type('obj', (object,), {'exists': False, 'to_dict': lambda self: {}})()
+    mock_db.collection.return_value.document.return_value.get.return_value = mock_doc
     
     res = client.get("/api/users/missing-user/role")
     assert res.status_code == 404
@@ -24,15 +24,20 @@ def test_get_user_role_404(client):
     assert data["error"] == "User not found"
 
 
-def test_get_user_role_default_staff(client):
-    db = fake_firestore.client()
-    # Create user without a role field
-    doc_ref = db.collection("users").document("u1")
-    doc_ref.set({
-        "user_id": "u1",
-        "name": "User One",
-        "email": "u1@example.com",
-    })
+def test_get_user_role_default_staff(client, mock_db, monkeypatch):
+    # Mock the firestore client to return our mock_db
+    monkeypatch.setattr(fake_firestore, "client", lambda: mock_db)
+    
+    # Mock document that exists
+    mock_doc = type('obj', (object,), {
+        'exists': True,
+        'to_dict': lambda self: {
+            "user_id": "u1",
+            "name": "User One",
+            "email": "u1@example.com",
+        }
+    })()
+    mock_db.collection.return_value.document.return_value.get.return_value = mock_doc
 
     res = client.get("/api/users/u1/role")
     assert res.status_code == 200
@@ -41,16 +46,21 @@ def test_get_user_role_default_staff(client):
     assert data["role"] == "staff"
 
 
-def test_get_user_role_manager(client):
-    db = fake_firestore.client()
-    # Create user with role=manager
-    doc_ref = db.collection("users").document("u2")
-    doc_ref.set({
-        "user_id": "u2",
-        "name": "Manager Two",
-        "email": "u2@example.com",
-        "role": "manager",
-    })
+def test_get_user_role_manager(client, mock_db, monkeypatch):
+    # Mock the firestore client to return our mock_db
+    monkeypatch.setattr(fake_firestore, "client", lambda: mock_db)
+    
+    # Mock document that exists
+    mock_doc = type('obj', (object,), {
+        'exists': True,
+        'to_dict': lambda self: {
+            "user_id": "u2",
+            "name": "Manager Two",
+            "email": "u2@example.com",
+            "role": "manager",
+        }
+    })()
+    mock_db.collection.return_value.document.return_value.get.return_value = mock_doc
 
     res = client.get("/api/users/u2/role")
     assert res.status_code == 200

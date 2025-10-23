@@ -315,10 +315,11 @@ class TestFilterBugFix:
         assert result7["timeline_status"] == "this_week"
         
         # Test day 0 (today) - should NOT be this_week
+        # Add a small buffer to ensure it's in the future (today)
         task_day0 = {
             "task_id": "task-0",
             "status": "To Do",
-            "due_date": now.isoformat(),
+            "due_date": (now + timedelta(seconds=5)).isoformat(),
         }
         result0 = enrich_task_with_timeline_status(task_day0)
         assert result0["timeline_status"] == "today"
@@ -331,3 +332,86 @@ class TestFilterBugFix:
         }
         result8 = enrich_task_with_timeline_status(task_day8)
         assert result8["timeline_status"] == "future"
+
+
+class TestDashboardEdgeCases:
+    """Test edge cases for dashboard timeline functions"""
+    
+    def test_invalid_date_format(self):
+        """Test task with invalid date format"""
+        task = {
+            "task_id": "invalid-date",
+            "title": "Task with Bad Date",
+            "status": "To Do",
+            "due_date": "not-a-valid-date"
+        }
+        result = enrich_task_with_timeline_status(task)
+        assert result["timeline_status"] == "invalid_date"
+        assert result["is_overdue"] == False
+        assert result["is_upcoming"] == False
+    
+    def test_detect_conflicts_with_multiple_tasks_same_date(self):
+        """Test detect_conflicts function with tasks on same date"""
+        from backend.api.dashboard import detect_conflicts
+        
+        tasks = [
+            {"task_id": "1", "title": "Task 1", "due_date": "2024-10-25T10:00:00+00:00"},
+            {"task_id": "2", "title": "Task 2", "due_date": "2024-10-25T14:00:00+00:00"},
+            {"task_id": "3", "title": "Task 3", "due_date": "2024-10-25T18:00:00+00:00"},
+        ]
+        
+        conflicts = detect_conflicts(tasks)
+        assert len(conflicts) == 1
+        assert conflicts[0]["date"] == "2024-10-25"
+        assert conflicts[0]["count"] == 3
+        assert len(conflicts[0]["tasks"]) == 3
+    
+    def test_detect_conflicts_no_conflicts(self):
+        """Test detect_conflicts with no overlapping dates"""
+        from backend.api.dashboard import detect_conflicts
+        
+        tasks = [
+            {"task_id": "1", "title": "Task 1", "due_date": "2024-10-25T10:00:00+00:00"},
+            {"task_id": "2", "title": "Task 2", "due_date": "2024-10-26T10:00:00+00:00"},
+            {"task_id": "3", "title": "Task 3", "due_date": "2024-10-27T10:00:00+00:00"},
+        ]
+        
+        conflicts = detect_conflicts(tasks)
+        assert len(conflicts) == 0
+    
+    def test_detect_conflicts_with_no_due_date(self):
+        """Test detect_conflicts with tasks that have no due date"""
+        from backend.api.dashboard import detect_conflicts
+        
+        tasks = [
+            {"task_id": "1", "title": "Task 1", "due_date": None},
+            {"task_id": "2", "title": "Task 2", "due_date": "2024-10-25T10:00:00+00:00"},
+            {"task_id": "3", "title": "Task 3"},  # No due_date field
+        ]
+        
+        conflicts = detect_conflicts(tasks)
+        assert len(conflicts) == 0  # No conflicts since tasks without dates are ignored
+    
+    def test_detect_conflicts_multiple_dates_with_conflicts(self):
+        """Test detect_conflicts with multiple dates having conflicts"""
+        from backend.api.dashboard import detect_conflicts
+        
+        tasks = [
+            {"task_id": "1", "title": "Task 1", "due_date": "2024-10-25T10:00:00+00:00"},
+            {"task_id": "2", "title": "Task 2", "due_date": "2024-10-25T14:00:00+00:00"},
+            {"task_id": "3", "title": "Task 3", "due_date": "2024-10-26T10:00:00+00:00"},
+            {"task_id": "4", "title": "Task 4", "due_date": "2024-10-26T14:00:00+00:00"},
+            {"task_id": "5", "title": "Task 5", "due_date": "2024-10-27T10:00:00+00:00"},
+        ]
+        
+        conflicts = detect_conflicts(tasks)
+        assert len(conflicts) == 2  # Two dates with conflicts
+        
+        # Check first conflict date
+        conflict_dates = [c["date"] for c in conflicts]
+        assert "2024-10-25" in conflict_dates
+        assert "2024-10-26" in conflict_dates
+        
+        # Each conflict date should have 2 tasks
+        for conflict in conflicts:
+            assert conflict["count"] == 2

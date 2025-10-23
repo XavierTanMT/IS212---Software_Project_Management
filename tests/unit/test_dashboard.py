@@ -719,3 +719,133 @@ class TestEdgeCases:
         assert "status_breakdown" in stats
         assert "priority_breakdown" in stats
         assert "overdue_count" in stats
+
+
+class TestDashboardTimelineMode:
+    """Test timeline mode view to achieve 100% coverage"""
+    
+    def test_dashboard_with_timeline_mode(self, client, mock_db, monkeypatch):
+        """Test dashboard with view_mode=timeline includes timeline data"""
+        from datetime import datetime, timezone, timedelta
+        
+        now = datetime.now(timezone.utc)
+        
+        # Mock user doc
+        mock_user_doc = Mock()
+        mock_user_doc.exists = True
+        mock_user_doc.to_dict.return_value = {"user_id": "user123", "name": "Test User"}
+        
+        # Mock tasks with various due dates for timeline grouping
+        overdue_task = Mock()
+        overdue_task.id = "task1"
+        overdue_task.to_dict.return_value = {
+            "title": "Overdue Task",
+            "status": "To Do",
+            "priority": 5,
+            "due_date": (now - timedelta(days=1)).isoformat(),
+            "created_by": {"user_id": "user123", "name": "Test User"},
+            "assigned_to": None,
+            "archived": False
+        }
+        
+        today_task = Mock()
+        today_task.id = "task2"
+        today_task.to_dict.return_value = {
+            "title": "Today Task",
+            "status": "To Do",
+            "priority": 7,
+            "due_date": (now + timedelta(hours=5)).isoformat(),
+            "created_by": {"user_id": "user123", "name": "Test User"},
+            "assigned_to": None,
+            "archived": False
+        }
+        
+        future_task = Mock()
+        future_task.id = "task3"
+        future_task.to_dict.return_value = {
+            "title": "Future Task",
+            "status": "To Do",
+            "priority": 3,
+            "due_date": (now + timedelta(days=10)).isoformat(),
+            "created_by": {"user_id": "user123", "name": "Test User"},
+            "assigned_to": None,
+            "archived": False
+        }
+        
+        # Mock conflicts - two tasks on same date
+        conflict_task1 = Mock()
+        conflict_task1.id = "task4"
+        same_date = (now + timedelta(days=15)).isoformat()
+        conflict_task1.to_dict.return_value = {
+            "title": "Conflict Task 1",
+            "status": "To Do",
+            "priority": 5,
+            "due_date": same_date,
+            "created_by": {"user_id": "user123", "name": "Test User"},
+            "assigned_to": None,
+            "archived": False
+        }
+        
+        conflict_task2 = Mock()
+        conflict_task2.id = "task5"
+        conflict_task2.to_dict.return_value = {
+            "title": "Conflict Task 2",
+            "status": "To Do",
+            "priority": 6,
+            "due_date": same_date,
+            "created_by": {"user_id": "user123", "name": "Test User"},
+            "assigned_to": None,
+            "archived": False
+        }
+        
+        def collection_side_effect(col_name):
+            mock_collection = Mock()
+            if col_name == "users":
+                mock_doc_ref = Mock()
+                mock_doc_ref.get.return_value = mock_user_doc
+                mock_collection.document.return_value = mock_doc_ref
+            elif col_name == "tasks":
+                mock_query = Mock()
+                mock_query.where.return_value.stream.return_value = [
+                    overdue_task, today_task, future_task, conflict_task1, conflict_task2
+                ]
+                mock_collection.where = mock_query.where
+            return mock_collection
+        
+        mock_db.collection = Mock(side_effect=collection_side_effect)
+        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
+        
+        # Request with timeline mode
+        response = client.get("/api/users/user123/dashboard?view_mode=timeline")
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        
+        # Verify timeline data is present
+        assert "timeline" in data
+        assert "conflicts" in data
+        assert "timeline_statistics" in data
+        
+        # Verify timeline structure
+        timeline = data["timeline"]
+        assert "overdue" in timeline
+        assert "today" in timeline
+        assert "this_week" in timeline
+        assert "future" in timeline
+        assert "no_due_date" in timeline
+        
+        # Verify timeline_statistics
+        timeline_stats = data["timeline_statistics"]
+        assert "total_tasks" in timeline_stats
+        assert "overdue_count" in timeline_stats
+        assert "today_count" in timeline_stats
+        assert "this_week_count" in timeline_stats
+        assert "future_count" in timeline_stats
+        assert "no_due_date_count" in timeline_stats
+        assert "conflict_count" in timeline_stats
+        
+        # Verify conflicts detected (2 tasks on same date)
+        conflicts = data["conflicts"]
+        assert len(conflicts) >= 1  # At least one conflict
+        assert conflicts[0]["count"] == 2  # Two tasks on same date
+

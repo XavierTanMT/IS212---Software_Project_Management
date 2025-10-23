@@ -354,3 +354,80 @@ def delete_task(task_id):
         "archived_by": viewer
     })
     return jsonify({"ok": True, "task_id": task_id, "archived": True}), 200
+
+
+@tasks_bp.patch("/<task_id>/reassign")
+def reassign_task(task_id):
+    """Reassign a task to a different user (manager+ only)"""
+    db = firestore.client()
+    
+    # Get viewer ID
+    viewer_id = _viewer_id()
+    if not viewer_id:
+        return jsonify({"error": "viewer_id required via X-User-Id header or ?viewer_id"}), 401
+    
+    # Get request data
+    payload = request.get_json(force=True) or {}
+    new_assigned_to_id = (payload.get("new_assigned_to_id") or "").strip()
+    
+    if not new_assigned_to_id:
+        return jsonify({"error": "new_assigned_to_id is required"}), 400
+    
+    # Check if viewer is a manager or above
+    viewer_doc = db.collection("users").document(viewer_id).get()
+    if not viewer_doc.exists:
+        return jsonify({"error": "Viewer not found"}), 404
+    
+    viewer_data = viewer_doc.to_dict() or {}
+    viewer_role = viewer_data.get("role", "staff")
+    manager_roles = ["manager", "director", "hr"]
+    
+    if viewer_role not in manager_roles:
+        return jsonify({"error": "Only managers and above can reassign tasks"}), 403
+    
+    # Get the task
+    task_ref = db.collection("tasks").document(task_id)
+    task_doc = task_ref.get()
+    
+    if not task_doc.exists:
+        return jsonify({"error": "Task not found"}), 404
+    
+    task_data = task_doc.to_dict() or {}
+    current_assigned_to = task_data.get("assigned_to") or {}
+    current_assigned_to_id = current_assigned_to.get("user_id") if isinstance(current_assigned_to, dict) else None
+    
+    # Check if already assigned to the same person
+    if current_assigned_to_id == new_assigned_to_id:
+        return jsonify({
+            "ok": True,
+            "message": f"Task is already assigned to user {new_assigned_to_id}"
+        }), 200
+    
+    # Get new assignee details
+    new_assignee_doc = db.collection("users").document(new_assigned_to_id).get()
+    if not new_assignee_doc.exists:
+        return jsonify({"error": "New assignee user not found"}), 404
+    
+    new_assignee_data = new_assignee_doc.to_dict() or {}
+    
+    # Update the task
+    task_ref.update({
+        "assigned_to": {
+            "user_id": new_assigned_to_id,
+            "name": new_assignee_data.get("name", ""),
+            "email": new_assignee_data.get("email", "")
+        },
+        "updated_at": now_iso()
+    })
+    
+    return jsonify({
+        "ok": True,
+        "task_id": task_id,
+        "assigned_to": {
+            "user_id": new_assigned_to_id,
+            "name": new_assignee_data.get("name", ""),
+            "email": new_assignee_data.get("email", "")
+        },
+        "message": "Task reassigned successfully"
+    }), 200
+
