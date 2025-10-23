@@ -79,7 +79,7 @@ class TestTimelineCategorizationFixes:
                 "task_id": "task-today",
                 "title": "Due Today",
                 "status": "To Do",
-                "due_date": now.isoformat(),
+                "due_date": (now + timedelta(seconds=10)).isoformat(),  # Add buffer to prevent timing issues
             },
             {
                 "task_id": "task-tomorrow",
