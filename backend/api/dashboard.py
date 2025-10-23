@@ -46,21 +46,23 @@ def enrich_task_with_timeline_status(task):
     
     now = datetime.now(timezone.utc)
     time_diff = due_dt - now
-    total_hours = time_diff.total_seconds() / 3600
+    total_seconds = time_diff.total_seconds()
     
-    if total_hours < 0:
+    # Use total_seconds to avoid .days truncation issues
+    # Calculate days more accurately
+    if total_seconds < 0:
         task["timeline_status"] = "overdue"
         task["is_overdue"] = True
         task["is_upcoming"] = False
-    elif total_hours < 24:
+    elif total_seconds < 86400:  # Less than 24 hours (today)
         task["timeline_status"] = "today"
         task["is_overdue"] = False
         task["is_upcoming"] = True
-    elif total_hours < 24 * 8:  # 1-7 days = up to 192 hours
+    elif total_seconds < 86400 * 7.5:  # 1-7 days (use 7.5 as boundary to avoid edge case timing issues)
         task["timeline_status"] = "this_week"
         task["is_overdue"] = False
         task["is_upcoming"] = True
-    else:
+    else:  # 7.5+ days (effectively 8+ days)
         task["timeline_status"] = "future"
         task["is_overdue"] = False
         task["is_upcoming"] = False
