@@ -103,6 +103,7 @@
     }
     list.forEach(t=>{
       const tr = document.createElement("tr");
+      const showCompleteBtn = t.status !== 'Completed';
       tr.innerHTML = ""
         + "<td>" + (t.title || "") + "</td>"
         + "<td><span class='pill'>" + (t.status || "") + "</span></td>"
@@ -111,6 +112,7 @@
         + "<td>" + nameForProject(t.project_id) + "</td>"
         + "<td>" + ((t.assigned_to && t.assigned_to.user_id) || "") + "</td>"
         + "<td>"
+        + (showCompleteBtn ? "<button onclick='markAsDone(\"" + t.task_id + "\")' style='background:#28a745;color:white;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;margin-right:8px'>✓ Done</button>" : "")
         +   "<a href='edit_task.html?task_id=" + encodeURIComponent(t.task_id) + "'>Edit</a> · "
         +   "<a href='task_notes.html?task_id=" + encodeURIComponent(t.task_id) + "'>Notes</a> · "
         +   "<a href='attachments.html?task_id=" + encodeURIComponent(t.task_id) + "'>Files</a>"
@@ -157,6 +159,42 @@
     await fillProjects();
     await load();
   });
+
+  // Mark task as done
+  async function markAsDone(taskId) {
+    if (!confirm('Mark this task as completed?')) return;
+    
+    try {
+      const user = getCurrentUser();
+      const response = await fetch(API_BASE + "/api/tasks/" + taskId, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-Id': user.user_id
+        },
+        body: JSON.stringify({ status: 'Completed' })
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        alert('Task marked as completed!');
+        
+        // If this was a recurring task, show info about next occurrence
+        if (result.next_recurring_task_id) {
+          alert('Task completed! Next occurrence has been created.');
+        }
+        
+        // Refresh the task list
+        await load();
+      } else {
+        alert('Failed to complete task: ' + (result.error || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error marking task as done:', error);
+      alert('Network error. Please check your connection and try again.');
+    }
+  }
   </script>
 
 <script>

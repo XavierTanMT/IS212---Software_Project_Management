@@ -735,6 +735,16 @@
             transform: translateY(-1px);
         }
 
+        .btn-complete {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-complete:hover {
+            background: #218838;
+            transform: translateY(-1px);
+        }
+
         /* Delete confirmation modal */
         .modal {
             display: none;
@@ -1044,10 +1054,97 @@
         </button>
     </div>
 
-    <!-- Add the Delete Modal HERE, before closing <script>
-const API_BASE = "http://localhost:5000";
-// Using shared getCurrentUser from common.jscatch(e){ return null; } }
+<script>
+// API_BASE is already defined in firebase-auth.js
+// Using shared getCurrentUser from common.js
 // Using shared setCurrentUser from common.js
+
+// Timeline View Functions - Defined early so onclick handlers can use them
+// Make variables global so they're accessible across script blocks
+window.currentView = 'grid';
+window.timelineData = null;
+window.refreshInterval = null;
+
+window.toggleView = async function(viewType) {
+    window.currentView = viewType;
+    
+    // Update toggle buttons
+    document.querySelectorAll('.toggle-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    const targetBtn = document.querySelector(`[data-view="${viewType}"]`);
+    if (targetBtn) targetBtn.classList.add('active');
+    
+    // Show/hide containers
+    const gridView = document.getElementById('gridView');
+    const timelineView = document.getElementById('timelineView');
+    if (gridView) gridView.classList.toggle('hidden', viewType !== 'grid');
+    if (timelineView) timelineView.classList.toggle('hidden', viewType !== 'timeline');
+    
+    if (viewType === 'timeline') {
+        await window.loadTimelineView();
+        window.setupAutoRefresh();
+    } else {
+        window.clearAutoRefresh();
+    }
+};
+
+window.loadTimelineView = async function() {
+    const u = getCurrentUser();
+    const userId = u && (u.user_id || u.uid);
+    
+    if (!userId) {
+        const timelineView = document.getElementById('timelineView');
+        if (timelineView) {
+            timelineView.innerHTML = '<div style="padding: 2rem; text-align: center; color: #666;">You are not signed in.</div>';
+        }
+        return;
+    }
+    
+    try {
+        const res = await fetch(`${API_BASE}/api/users/${userId}/dashboard?view_mode=timeline`);
+        if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
+        }
+        const data = await res.json();
+        window.timelineData = data;
+        window.renderTimelineView(data);
+    } catch (e) {
+        console.error('Timeline load failed:', e);
+        const timelineView = document.getElementById('timelineView');
+        if (timelineView) {
+            timelineView.innerHTML = '<div style="padding: 2rem; text-align: center; color: #666;">Failed to load timeline data.</div>';
+        }
+    }
+};
+
+window.renderTimelineView = function(data) {
+    // This function will be fully defined later in the file
+    // For now, just a placeholder to prevent errors
+    console.log('Rendering timeline view...', data);
+};
+
+window.setupAutoRefresh = function() {
+    window.clearAutoRefresh();
+    window.refreshInterval = setInterval(() => {
+        if (window.currentView === 'timeline') {
+            window.loadTimelineView();
+        }
+    }, 30000); // 30 seconds
+};
+
+window.clearAutoRefresh = function() {
+    if (window.refreshInterval) {
+        clearInterval(window.refreshInterval);
+        window.refreshInterval = null;
+    }
+};
+
+// Make functions accessible without window. prefix for onclick handlers
+const toggleView = window.toggleView;
+const loadTimelineView = window.loadTimelineView;
+const setupAutoRefresh = window.setupAutoRefresh;
+const clearAutoRefresh = window.clearAutoRefresh;
 </script>
 <script>
 (function(){
@@ -1274,6 +1371,11 @@ async function loadDashboardData() {
                             ${task.due_date ? `<span>Due: ${formatDate(task.due_date)}</span>` : ''}
                         </div>
                         <div class="task-actions">
+                            ${task.status !== 'Completed' ? `
+                                <button class="task-btn btn-complete" onclick="markTaskAsDone('${task.task_id}')" title="Mark as Done">
+                                    ✓ Done
+                                </button>
+                            ` : ''}
                             <button class="task-btn btn-edit" onclick="viewTask('${task.task_id}')" title="Edit Task">
                                 ✏️ Edit
                             </button>
@@ -1361,6 +1463,39 @@ async function loadDashboardData() {
 
         function viewTask(taskId) {
             window.location.href = `edit_task.html?task_id=${taskId}`;
+        }
+
+        // Mark task as done
+        async function markTaskAsDone(taskId) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/tasks/${taskId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-User-Id': currentUser.user_id
+                    },
+                    body: JSON.stringify({ status: 'Completed' })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showSuccessMessage('Task marked as completed!');
+                    
+                    // If this was a recurring task, show info about next occurrence
+                    if (result.next_recurring_task_id) {
+                        showSuccessMessage(`Task completed! Next occurrence created.`);
+                    }
+                    
+                    // Refresh dashboard to show updated task
+                    await loadDashboardData();
+                } else {
+                    showErrorMessage(`Failed to complete task: ${result.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                console.error('Error marking task as done:', error);
+                showErrorMessage('Network error. Please check your connection and try again.');
+            }
         }
 
         function viewAllCreated() {
@@ -1505,8 +1640,8 @@ async function loadDashboardData() {
         setInterval(loadDashboardData, 5 * 60 * 1000);
     </script>
     <script>
-        const API_BASE = "http://localhost:5000";
-        // Using shared getCurrentUser from common.js catch (e) { return null; } }
+        // Using shared getCurrentUser from common.js
+        // Example: try { ... } catch (e) { return null; }
         // Using shared setCurrentUser from common.js
     </script>
     <script>
@@ -1609,13 +1744,10 @@ async function loadDashboardData() {
   document.addEventListener('DOMContentLoaded', loadDashboard);
 })();
 
-// Timeline View Functions
-let currentView = 'grid';
-let timelineData = null;
-let refreshInterval = null;
-
-async function toggleView(viewType) {
-    currentView = viewType;
+// Timeline View Functions (variables and main functions defined earlier, full implementation here)
+// Re-implement toggleView with full logic
+window.toggleView = async function(viewType) {
+    window.currentView = viewType;
     
     // Update toggle buttons
     document.querySelectorAll('.toggle-btn').forEach(btn => {
@@ -1628,14 +1760,15 @@ async function toggleView(viewType) {
     document.getElementById('timelineView').classList.toggle('hidden', viewType !== 'timeline');
     
     if (viewType === 'timeline') {
-        await loadTimelineView();
-        setupAutoRefresh();
+        await window.loadTimelineView();
+        window.setupAutoRefresh();
     } else {
-        clearAutoRefresh();
+        window.clearAutoRefresh();
     }
-}
+};
 
-async function loadTimelineView() {
+// Full implementation of loadTimelineView
+window.loadTimelineView = async function() {
     const u = getCurrentUser();
     const userId = u && (u.user_id || u.uid);
     const api = API_BASE || '';
@@ -1651,17 +1784,21 @@ async function loadTimelineView() {
             throw new Error(`HTTP ${res.status}`);
         }
         const data = await res.json();
-        timelineData = data;
-        renderTimelineView(data);
+        window.timelineData = data;
+        window.renderTimelineView(data);
     } catch (e) {
         console.error('Timeline load failed:', e);
         showEmptyState('#timelineView', 'Failed to load timeline data.');
     }
-}
+};
 
-function renderTimelineView(data) {
+window.renderTimelineView = function(data) {
     const timeline = data.timeline || {};
     const conflicts = data.conflicts || [];
+    
+    // Debug: Log what the backend sent
+    console.log('Timeline data from backend:', timeline);
+    console.log('This week tasks:', timeline.this_week);
     
     // Update counts
     document.getElementById('overdueCount').textContent = `(${timeline.overdue?.length || 0})`;
@@ -1682,7 +1819,24 @@ function renderTimelineView(data) {
     
     // Initialize drag and drop
     initializeDragDrop();
-}
+};
+
+// Re-implement setupAutoRefresh and clearAutoRefresh with full logic
+window.setupAutoRefresh = function() {
+    window.clearAutoRefresh();
+    window.refreshInterval = setInterval(() => {
+        if (window.currentView === 'timeline') {
+            window.loadTimelineView();
+        }
+    }, 30000); // 30 seconds
+};
+
+window.clearAutoRefresh = function() {
+    if (window.refreshInterval) {
+        clearInterval(window.refreshInterval);
+        window.refreshInterval = null;
+    }
+};
 
 function renderConflicts(conflicts) {
     const conflictsSection = document.getElementById('conflictsSection');
@@ -1705,15 +1859,25 @@ function renderConflicts(conflicts) {
 }
 
 function renderTimelineSection(period, tasks) {
-    const container = document.getElementById(`${period}Tasks`);
-    if (!container) return;
+    // Convert snake_case to camelCase for element IDs
+    // this_week -> thisWeek, no_due_date -> noDueDate
+    const elementId = period.replace(/_([a-z])/g, (match, letter) => letter.toUpperCase());
+    const container = document.getElementById(`${elementId}Tasks`);
+    console.log(`Rendering ${period}: elementId=${elementId}Tasks, container=`, container, 'tasks=', tasks);
+    
+    if (!container) {
+        console.warn(`Container not found for period: ${period} (looking for ${elementId}Tasks)`);
+        return;
+    }
     
     if (tasks.length === 0) {
         container.innerHTML = '<div style="padding: 1rem; color: #666; text-align: center;">No tasks</div>';
         return;
     }
     
-    container.innerHTML = tasks.map(task => createTaskCard(task)).join('');
+    const html = tasks.map(task => createTaskCard(task)).join('');
+    console.log(`Generated HTML for ${period}:`, html);
+    container.innerHTML = html;
 }
 
 function createTaskCard(task) {
@@ -1878,24 +2042,8 @@ async function updateTaskDueDate(taskId, newDate) {
     }
 }
 
-function setupAutoRefresh() {
-    clearAutoRefresh();
-    refreshInterval = setInterval(() => {
-        if (currentView === 'timeline') {
-            loadTimelineView();
-        }
-    }, 30000); // 30 seconds
-}
-
-function clearAutoRefresh() {
-    if (refreshInterval) {
-        clearInterval(refreshInterval);
-        refreshInterval = null;
-    }
-}
-
 // Cleanup on page unload
-window.addEventListener('beforeunload', clearAutoRefresh);
+window.addEventListener('beforeunload', window.clearAutoRefresh);
 
 // Timeline Filtering Functions
 let filteredTimelineData = null;
@@ -1915,16 +2063,16 @@ function toggleTimelineFilters() {
 }
 
 function populateTimelineFilterOptions() {
-    if (!timelineData) return;
+    if (!window.timelineData) return;
     
     // Populate project filter
     const projectSelect = document.getElementById('filterProject');
     projectSelect.innerHTML = '<option value="">All Projects</option>';
-    const projects = [...new Set(timelineData.timeline?.overdue?.concat(
-        timelineData.timeline?.today || [],
-        timelineData.timeline?.this_week || [],
-        timelineData.timeline?.future || [],
-        timelineData.timeline?.no_due_date || []
+    const projects = [...new Set(window.timelineData.timeline?.overdue?.concat(
+        window.timelineData.timeline?.today || [],
+        window.timelineData.timeline?.this_week || [],
+        window.timelineData.timeline?.future || [],
+        window.timelineData.timeline?.no_due_date || []
     ).filter(task => task.project_id).map(task => task.project_id))];
     
     projects.forEach(projectId => {
@@ -1934,11 +2082,11 @@ function populateTimelineFilterOptions() {
     // Populate category filter (using labels as categories)
     const categorySelect = document.getElementById('filterCategory');
     categorySelect.innerHTML = '<option value="">All Categories</option>';
-    const categories = [...new Set(timelineData.timeline?.overdue?.concat(
-        timelineData.timeline?.today || [],
-        timelineData.timeline?.this_week || [],
-        timelineData.timeline?.future || [],
-        timelineData.timeline?.no_due_date || []
+    const categories = [...new Set(window.timelineData.timeline?.overdue?.concat(
+        window.timelineData.timeline?.today || [],
+        window.timelineData.timeline?.this_week || [],
+        window.timelineData.timeline?.future || [],
+        window.timelineData.timeline?.no_due_date || []
     ).flatMap(task => task.labels || []))];
     
     categories.forEach(category => {
@@ -1948,11 +2096,11 @@ function populateTimelineFilterOptions() {
     // Populate status filter
     const statusSelect = document.getElementById('filterStatus');
     statusSelect.innerHTML = '<option value="">All Statuses</option>';
-    const statuses = [...new Set(timelineData.timeline?.overdue?.concat(
-        timelineData.timeline?.today || [],
-        timelineData.timeline?.this_week || [],
-        timelineData.timeline?.future || [],
-        timelineData.timeline?.no_due_date || []
+    const statuses = [...new Set(window.timelineData.timeline?.overdue?.concat(
+        window.timelineData.timeline?.today || [],
+        window.timelineData.timeline?.this_week || [],
+        window.timelineData.timeline?.future || [],
+        window.timelineData.timeline?.no_due_date || []
     ).map(task => task.status))];
     
     statuses.forEach(status => {
@@ -1961,7 +2109,7 @@ function populateTimelineFilterOptions() {
 }
 
 function applyTimelineFilters() {
-    if (!timelineData) return;
+    if (!window.timelineData) return;
     
     const projectFilter = document.getElementById('filterProject').value;
     const categoryFilter = document.getElementById('filterCategory').value;
@@ -1969,11 +2117,11 @@ function applyTimelineFilters() {
     
     // Get all tasks from timeline
     const allTasks = [
-        ...(timelineData.timeline?.overdue || []),
-        ...(timelineData.timeline?.today || []),
-        ...(timelineData.timeline?.this_week || []),
-        ...(timelineData.timeline?.future || []),
-        ...(timelineData.timeline?.no_due_date || [])
+        ...(window.timelineData.timeline?.overdue || []),
+        ...(window.timelineData.timeline?.today || []),
+        ...(window.timelineData.timeline?.this_week || []),
+        ...(window.timelineData.timeline?.future || []),
+        ...(window.timelineData.timeline?.no_due_date || [])
     ];
     
     // Apply filters
@@ -2001,7 +2149,7 @@ function applyTimelineFilters() {
     
     // Create filtered timeline data
     filteredTimelineData = {
-        ...timelineData,
+        ...window.timelineData,
         timeline: filteredTimeline,
         conflicts: filteredConflicts,
         timeline_statistics: {
@@ -2016,7 +2164,7 @@ function applyTimelineFilters() {
     };
     
     // Render filtered timeline
-    renderTimelineView(filteredTimelineData);
+    window.renderTimelineView(filteredTimelineData);
     
     // Save filter state
     sessionStorage.setItem('timelineFilters', JSON.stringify({
@@ -2033,7 +2181,7 @@ function clearTimelineFilters() {
     
     // Clear filtered data and render original timeline
     filteredTimelineData = null;
-    renderTimelineView(timelineData);
+    window.renderTimelineView(window.timelineData);
     
     // Clear saved filter state
     sessionStorage.removeItem('timelineFilters');
@@ -2051,7 +2199,15 @@ function groupTasksByTimeline(tasks) {
     tasks.forEach(task => {
         const enrichedTask = enrichTaskWithTimelineStatus(task);
         const status = enrichedTask.timeline_status || "no_due_date";
-        timeline[status].push(enrichedTask);
+        
+        // Skip completed tasks - they shouldn't appear in timeline view
+        if (status === "completed") {
+            return;
+        }
+        
+        if (status in timeline) {
+            timeline[status].push(enrichedTask);
+        }
     });
     
     return timeline;
@@ -2059,6 +2215,16 @@ function groupTasksByTimeline(tasks) {
 
 function enrichTaskWithTimelineStatus(task) {
     const due_date = task.due_date;
+    const status = task.status || "To Do";
+    
+    // Completed tasks should not appear in timeline categories
+    if (status === "Completed") {
+        task.timeline_status = "completed";
+        task.is_overdue = false;
+        task.is_upcoming = false;
+        return task;
+    }
+    
     if (!due_date) {
         task.timeline_status = "no_due_date";
         task.is_overdue = false;
@@ -2066,9 +2232,30 @@ function enrichTaskWithTimelineStatus(task) {
         return task;
     }
     
-    const due_dt = new Date(due_date);
+    // Calculate days until due more accurately
+    // Parse the due date and get just the date part (YYYY-MM-DD)
+    let dueDateStr = due_date;
+    if (due_date.includes('T')) {
+        dueDateStr = due_date.split('T')[0];
+    }
+    
+    // Get today's date as YYYY-MM-DD in LOCAL timezone
     const now = new Date();
-    const days_until_due = Math.ceil((due_dt - now) / (1000 * 60 * 60 * 24));
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const todayStr = `${year}-${month}-${day}`;
+    
+    // Parse both dates as local dates (not UTC to avoid timezone shifts)
+    const dueParts = dueDateStr.split('-');
+    const todayParts = todayStr.split('-');
+    const due_dt = new Date(parseInt(dueParts[0]), parseInt(dueParts[1]) - 1, parseInt(dueParts[2]));
+    const today_dt = new Date(parseInt(todayParts[0]), parseInt(todayParts[1]) - 1, parseInt(todayParts[2]));
+    
+    // Calculate difference in days
+    const days_until_due = Math.round((due_dt - today_dt) / (1000 * 60 * 60 * 24));
+    
+    console.log(`Task: ${task.title}, Due: ${dueDateStr}, Today: ${todayStr}, Days: ${days_until_due}`);
     
     if (days_until_due < 0) {
         task.timeline_status = "overdue";
@@ -2078,7 +2265,7 @@ function enrichTaskWithTimelineStatus(task) {
         task.timeline_status = "today";
         task.is_overdue = false;
         task.is_upcoming = true;
-    } else if (days_until_due <= 7) {
+    } else if (days_until_due >= 1 && days_until_due <= 7) {
         task.timeline_status = "this_week";
         task.is_overdue = false;
         task.is_upcoming = true;
@@ -2130,15 +2317,15 @@ function loadSavedTimelineFilters() {
         document.getElementById('filterStatus').value = filters.status || '';
         
         // Apply saved filters if timeline view is active
-        if (currentView === 'timeline') {
+        if (window.currentView === 'timeline') {
             applyTimelineFilters();
         }
     }
 }
 
 // Initialize saved filters when timeline view loads
-const originalLoadTimelineView = loadTimelineView;
-loadTimelineView = async function() {
+const originalLoadTimelineView = window.loadTimelineView;
+window.loadTimelineView = async function() {
     await originalLoadTimelineView();
     loadSavedTimelineFilters();
 };
