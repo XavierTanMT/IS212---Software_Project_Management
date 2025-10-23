@@ -20,6 +20,11 @@
     <h1>Tasks</h1>
     <div class="toolbar">
       <div>
+        <label>Archived</label><br/>
+        <label><input type="radio" name="archivedToggle" value="hide" id="hideArchived"> Hide Archived</label>
+        <label><input type="radio" name="archivedToggle" value="show" id="showArchived"> Show Archived</label>
+      </div>
+      <div>
         <label>Project</label><br/>
         <select id="project_select"><option value="">(all my tasks)</option></select>
       </div>
@@ -65,16 +70,19 @@
   // Cache project id -> name
   const projectMap = Object.create(null);
 
+  const ARCHIVE_PREF_KEY = "tasks_include_archived";
   function paramsFromUI(){
     const p = new URLSearchParams();
     const project_id = document.getElementById("project_id").value.trim();
     const assigned_to_id = document.getElementById("assigned_to_id").value.trim();
     const label_id = document.getElementById("label_id").value.trim();
     const limit = document.getElementById("limit").value.trim();
+    const includeArchived = (localStorage.getItem(ARCHIVE_PREF_KEY) === 'true');
     if(project_id) p.set("project_id", project_id);
     if(assigned_to_id) p.set("assigned_to_id", assigned_to_id);
     if(label_id) p.set("label_id", label_id);
     if(limit) p.set("limit", limit);
+    if(includeArchived) p.set("include_archived", "true");
     return p.toString();
   }
 
@@ -95,6 +103,7 @@
     }
     list.forEach(t=>{
       const tr = document.createElement("tr");
+      const showCompleteBtn = t.status !== 'Completed';
       tr.innerHTML = ""
         + "<td>" + (t.title || "") + "</td>"
         + "<td><span class='pill'>" + (t.status || "") + "</span></td>"
@@ -103,6 +112,7 @@
         + "<td>" + nameForProject(t.project_id) + "</td>"
         + "<td>" + ((t.assigned_to && t.assigned_to.user_id) || "") + "</td>"
         + "<td>"
+        + (showCompleteBtn ? "<button onclick='markAsDone(\"" + t.task_id + "\")' style='background:#28a745;color:white;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;margin-right:8px'>✓ Done</button>" : "")
         +   "<a href='edit_task.html?task_id=" + encodeURIComponent(t.task_id) + "'>Edit</a> · "
         +   "<a href='task_notes.html?task_id=" + encodeURIComponent(t.task_id) + "'>Notes</a> · "
         +   "<a href='attachments.html?task_id=" + encodeURIComponent(t.task_id) + "'>Files</a>"
@@ -112,6 +122,19 @@
   }
 
   document.getElementById("refresh").addEventListener("click", load);
+
+  // --- archived toggle init ---
+  const hideR = document.getElementById("hideArchived");
+  const showR = document.getElementById("showArchived");
+  const saved = localStorage.getItem(ARCHIVE_PREF_KEY);
+  if (saved === 'true'){ showR.checked = true; } else { hideR.checked = true; }
+  function onToggle(){
+    const on = showR.checked;
+    localStorage.setItem(ARCHIVE_PREF_KEY, on ? 'true' : 'false');
+    load();
+  }
+  hideR.addEventListener("change", onToggle);
+  showR.addEventListener("change", onToggle);
 
   async function fillProjects(){
     const res = await fetch(API_BASE + "/api/projects");
@@ -136,6 +159,42 @@
     await fillProjects();
     await load();
   });
+
+  // Mark task as done
+  async function markAsDone(taskId) {
+    if (!confirm('Mark this task as completed?')) return;
+    
+    try {
+      const user = getCurrentUser();
+      const response = await fetch(API_BASE + "/api/tasks/" + taskId, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-Id': user.user_id
+        },
+        body: JSON.stringify({ status: 'Completed' })
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        alert('Task marked as completed!');
+        
+        // If this was a recurring task, show info about next occurrence
+        if (result.next_recurring_task_id) {
+          alert('Task completed! Next occurrence has been created.');
+        }
+        
+        // Refresh the task list
+        await load();
+      } else {
+        alert('Failed to complete task: ' + (result.error || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error marking task as done:', error);
+      alert('Network error. Please check your connection and try again.');
+    }
+  }
   </script>
 
 <script>

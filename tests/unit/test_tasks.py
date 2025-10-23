@@ -951,7 +951,7 @@ class TestDeleteTask:
     """Test the delete_task DELETE endpoint"""
     
     def test_delete_task_success(self, client, mock_db, monkeypatch):
-        """Test successfully deleting a task"""
+        """Test successfully deleting a task (soft delete via archive)"""
         mock_ref = Mock()
         mock_doc = Mock()
         mock_doc.exists = True
@@ -969,7 +969,13 @@ class TestDeleteTask:
         data = response.get_json()
         assert data["ok"] == True
         assert data["task_id"] == "task123"
-        mock_ref.delete.assert_called_once()
+        assert data["archived"] == True
+        # Verify update was called (soft delete)
+        mock_ref.update.assert_called_once()
+        update_args = mock_ref.update.call_args[0][0]
+        assert update_args["archived"] == True
+        assert "archived_at" in update_args
+        assert "archived_by" in update_args
         
     def test_delete_task_not_found(self, client, mock_db, monkeypatch):
         """Test error when task doesn't exist"""
@@ -1019,3 +1025,458 @@ class TestBlueprintRegistration:
         # Test GET list endpoint
         response = client.get("/api/tasks")
         assert response.status_code == 401  # auth error, not 404
+
+
+class TestCreateNextRecurringTaskEdgeCases:
+    """Test edge cases in _create_next_recurring_task function"""
+    
+    def test_create_next_recurring_with_invalid_due_date_format(self, client, mock_db, monkeypatch):
+        """Test that invalid due date format returns None and doesn't crash"""
+        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
+        
+        # Mock task with invalid date format
+        mock_task_doc = Mock()
+        mock_task_doc.exists = True
+        mock_task_doc.id = "task123"
+        mock_task_doc.to_dict.return_value = {
+            "title": "Task",
+            "status": "To Do",
+            "due_date": "invalid-date-format",  # Invalid format
+            "is_recurring": True,
+            "recurrence_interval_days": 7,
+            "created_by": {"user_id": "user1"},
+            "archived": False
+        }
+        
+        mock_task_ref = Mock()
+        mock_task_ref.get.return_value = mock_task_doc
+        
+        mock_db.collection.return_value.document.return_value = mock_task_ref
+        
+        # Try to complete the task - should not create next task due to invalid date
+        response = client.put("/api/tasks/task123",
+                            headers={"X-User-Id": "user1"},
+                            json={"status": "Completed"})
+        
+        # Should succeed but without creating next task
+        assert response.status_code == 200
+        data = response.get_json()
+        assert "next_recurring_task_id" not in data  # No next task created
+    
+    def test_create_next_recurring_with_zero_interval(self, client, mock_db, monkeypatch):
+        """Test that zero interval doesn't create next task"""
+        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
+        
+        mock_task_doc = Mock()
+        mock_task_doc.exists = True
+        mock_task_doc.id = "task123"
+        mock_task_doc.to_dict.return_value = {
+            "title": "Task",
+            "status": "To Do",
+            "due_date": "2024-10-25T10:00:00+00:00",
+            "is_recurring": True,
+            "recurrence_interval_days": 0,  # Invalid interval
+            "created_by": {"user_id": "user1"},
+            "archived": False
+        }
+        
+        mock_task_ref = Mock()
+        mock_task_ref.get.return_value = mock_task_doc
+        
+        mock_db.collection.return_value.document.return_value = mock_task_ref
+        
+        response = client.put("/api/tasks/task123",
+                            headers={"X-User-Id": "user1"},
+                            json={"status": "Completed"})
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        assert "next_recurring_task_id" not in data
+    
+    def test_create_next_recurring_with_negative_interval(self, client, mock_db, monkeypatch):
+        """Test that negative interval doesn't create next task"""
+        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
+        
+        mock_task_doc = Mock()
+        mock_task_doc.exists = True
+        mock_task_doc.id = "task123"
+        mock_task_doc.to_dict.return_value = {
+            "title": "Task",
+            "status": "To Do",
+            "due_date": "2024-10-25T10:00:00+00:00",
+            "is_recurring": True,
+            "recurrence_interval_days": -5,  # Negative interval
+            "created_by": {"user_id": "user1"},
+            "archived": False
+        }
+        
+        mock_task_ref = Mock()
+        mock_task_ref.get.return_value = mock_task_doc
+        
+        mock_db.collection.return_value.document.return_value = mock_task_ref
+        
+        response = client.put("/api/tasks/task123",
+                            headers={"X-User-Id": "user1"},
+                            json={"status": "Completed"})
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        assert "next_recurring_task_id" not in data
+
+
+class TestCanEditTask:
+    """Test _can_edit_task helper function"""
+    
+    def test_can_edit_as_creator(self, client, mock_db, monkeypatch):
+        """Test that creator can edit task"""
+        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
+        
+        mock_task_doc = Mock()
+        mock_task_doc.exists = True
+        mock_task_doc.id = "task123"
+        mock_task_doc.to_dict.return_value = {
+            "title": "Task",
+            "description": "Description here",
+            "status": "To Do",
+            "created_by": {"user_id": "user1"},
+            "assigned_to": {"user_id": "user2"},
+            "archived": False
+        }
+        
+        mock_task_ref = Mock()
+        mock_task_ref.get.return_value = mock_task_doc
+        
+        mock_db.collection.return_value.document.return_value = mock_task_ref
+        
+        # Creator trying to edit
+        response = client.put("/api/tasks/task123",
+                            headers={"X-User-Id": "user1"},
+                            json={"title": "Updated Task"})
+        
+        assert response.status_code == 200
+    
+    def test_can_edit_as_assignee(self, client, mock_db, monkeypatch):
+        """Test that assignee can edit task"""
+        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
+        
+        mock_task_doc = Mock()
+        mock_task_doc.exists = True
+        mock_task_doc.id = "task123"
+        mock_task_doc.to_dict.return_value = {
+            "title": "Task",
+            "description": "Description here",
+            "status": "To Do",
+            "created_by": {"user_id": "user1"},
+            "assigned_to": {"user_id": "user2"},
+            "archived": False
+        }
+        
+        mock_task_ref = Mock()
+        mock_task_ref.get.return_value = mock_task_doc
+        
+        mock_db.collection.return_value.document.return_value = mock_task_ref
+        
+        # Assignee trying to edit
+        response = client.put("/api/tasks/task123",
+                            headers={"X-User-Id": "user2"},
+                            json={"status": "In Progress"})
+        
+        assert response.status_code == 200
+    
+    def test_cannot_edit_as_other_user(self, client, mock_db, monkeypatch):
+        """Test that other users cannot edit task"""
+        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
+        
+        mock_task_doc = Mock()
+        mock_task_doc.exists = True
+        mock_task_doc.id = "task123"
+        mock_task_doc.to_dict.return_value = {
+            "title": "Task",
+            "description": "Description here",
+            "status": "To Do",
+            "created_by": {"user_id": "user1"},
+            "assigned_to": {"user_id": "user2"},
+            "archived": False
+        }
+        
+        mock_task_ref = Mock()
+        mock_task_ref.get.return_value = mock_task_doc
+        
+        mock_db.collection.return_value.document.return_value = mock_task_ref
+        
+        # Random user trying to edit
+        response = client.put("/api/tasks/task123",
+                            headers={"X-User-Id": "user3"},
+                            json={"title": "Hacked"})
+        
+        assert response.status_code == 403
+        data = response.get_json()
+        assert "error" in data
+        assert "forbidden" in data["error"]
+
+
+class TestTasksEdgeCasesForCoverage:
+    """Additional tests to achieve 100% coverage"""
+    
+    def test_update_recurring_task_without_due_date_error(self, client, mock_db, monkeypatch):
+        """Test that updating to recurring without due date returns error"""
+        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
+        
+        mock_task_doc = Mock()
+        mock_task_doc.exists = True
+        mock_task_doc.id = "task123"
+        mock_task_doc.to_dict.return_value = {
+            "title": "Task",
+            "description": "Test",
+            "status": "To Do",
+            "due_date": None,  # No due date
+            "created_by": {"user_id": "user1"},
+            "archived": False
+        }
+        
+        mock_task_ref = Mock()
+        mock_task_ref.get.return_value = mock_task_doc
+        mock_db.collection.return_value.document.return_value = mock_task_ref
+        
+        # Try to enable recurring without due date
+        response = client.put("/api/tasks/task123",
+                            headers={"X-User-Id": "user1"},
+                            json={"is_recurring": True, "recurrence_interval_days": 7})
+        
+        assert response.status_code == 400
+        data = response.get_json()
+        assert "must have a due date" in data["error"]
+    
+    def test_update_recurring_task_with_zero_interval_error(self, client, mock_db, monkeypatch):
+        """Test that updating to recurring with zero interval returns error"""
+        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
+        
+        mock_task_doc = Mock()
+        mock_task_doc.exists = True
+        mock_task_doc.id = "task123"
+        mock_task_doc.to_dict.return_value = {
+            "title": "Task",
+            "description": "Test",
+            "status": "To Do",
+            "due_date": "2025-01-01T00:00:00Z",
+            "created_by": {"user_id": "user1"},
+            "archived": False
+        }
+        
+        mock_task_ref = Mock()
+        mock_task_ref.get.return_value = mock_task_doc
+        mock_db.collection.return_value.document.return_value = mock_task_ref
+        
+        # Try to enable recurring with zero interval
+        response = client.put("/api/tasks/task123",
+                            headers={"X-User-Id": "user1"},
+                            json={"is_recurring": True, "recurrence_interval_days": 0})
+        
+        assert response.status_code == 400
+        data = response.get_json()
+        assert "positive interval" in data["error"]
+    
+    def test_update_with_invalid_due_date_format(self, client, mock_db, monkeypatch):
+        """Test that invalid due date format returns error"""
+        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
+        
+        mock_task_doc = Mock()
+        mock_task_doc.exists = True
+        mock_task_doc.id = "task123"
+        mock_task_doc.to_dict.return_value = {
+            "title": "Task",
+            "description": "Test",
+            "status": "To Do",
+            "due_date": "2025-01-01T00:00:00Z",
+            "created_by": {"user_id": "user1"},
+            "archived": False
+        }
+        
+        mock_task_ref = Mock()
+        mock_task_ref.get.return_value = mock_task_doc
+        mock_db.collection.return_value.document.return_value = mock_task_ref
+        
+        # Try to update with invalid date format
+        response = client.put("/api/tasks/task123",
+                            headers={"X-User-Id": "user1"},
+                            json={"due_date": "not-a-date"})
+        
+        assert response.status_code == 400
+        data = response.get_json()
+        assert "Invalid due date" in data["error"]
+    
+    def test_reassign_task_viewer_not_found(self, client, mock_db, monkeypatch):
+        """Test reassigning task when viewer doesn't exist"""
+        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
+        
+        # Mock viewer not found
+        mock_viewer_doc = Mock()
+        mock_viewer_doc.exists = False
+        
+        # Mock task exists
+        mock_task_doc = Mock()
+        mock_task_doc.exists = True
+        mock_task_doc.id = "task123"
+        mock_task_doc.to_dict.return_value = {
+            "title": "Task",
+            "assigned_to": {"user_id": "old_user"},
+            "archived": False
+        }
+        
+        def mock_document(doc_id):
+            mock_ref = Mock()
+            if doc_id == "manager1":
+                mock_ref.get.return_value = mock_viewer_doc
+            else:
+                mock_ref.get.return_value = mock_task_doc
+            return mock_ref
+        
+        mock_db.collection.return_value.document = mock_document
+        
+        response = client.patch("/api/tasks/task123/reassign",
+                               headers={"X-User-Id": "manager1"},
+                               json={"new_assigned_to_id": "new_user"})
+        
+        assert response.status_code == 404
+        data = response.get_json()
+        assert "Viewer not found" in data["error"]
+    
+    def test_create_next_recurring_when_not_recurring(self, client, mock_db, monkeypatch):
+        """Test that completing non-recurring task doesn't create next task"""
+        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
+        
+        mock_task_doc = Mock()
+        mock_task_doc.exists = True
+        mock_task_doc.id = "task123"
+        mock_task_doc.to_dict.return_value = {
+            "title": "Non-recurring Task",
+            "description": "Test",
+            "status": "To Do",
+            "is_recurring": False,  # Not recurring
+            "created_by": {"user_id": "user1"},
+            "archived": False
+        }
+        
+        mock_task_ref = Mock()
+        mock_task_ref.get.return_value = mock_task_doc
+        mock_task_ref.update = Mock()
+        mock_db.collection.return_value.document.return_value = mock_task_ref
+        
+        # Complete the task
+        response = client.put("/api/tasks/task123",
+                            headers={"X-User-Id": "user1"},
+                            json={"status": "Done"})
+        
+        assert response.status_code == 200
+        # Verify update was called but no new task created
+        mock_task_ref.update.assert_called_once()
+    
+    def test_update_with_naive_datetime(self, client, mock_db, monkeypatch):
+        """Test updating task with naive datetime (no timezone)"""
+        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
+        
+        mock_task_doc = Mock()
+        mock_task_doc.exists = True
+        mock_task_doc.id = "task123"
+        mock_task_doc.to_dict.return_value = {
+            "title": "Task",
+            "description": "Test",
+            "status": "To Do",
+            "due_date": "2025-01-01T00:00:00Z",
+            "created_by": {"user_id": "user1"},
+            "archived": False
+        }
+        
+        mock_task_ref = Mock()
+        mock_task_ref.get.return_value = mock_task_doc
+        mock_task_ref.update = Mock()
+        mock_db.collection.return_value.document.return_value = mock_task_ref
+        
+        # Update with naive datetime (no timezone) - tests lines 315-316
+        response = client.put("/api/tasks/task123",
+                            headers={"X-User-Id": "user1"},
+                            json={"due_date": "2025-12-31T23:59:59"})  # No timezone
+        
+        assert response.status_code == 200
+        mock_task_ref.update.assert_called_once()
+
+
+class TestHelperFunctionsDirectly:
+    """Direct unit tests for helper functions to achieve 100% coverage"""
+    
+    def test_can_edit_task_with_no_viewer(self, monkeypatch):
+        """Test _can_edit_task when _viewer_id returns None - covers line 48"""
+        # Mock _viewer_id to return None
+        monkeypatch.setattr(tasks_module, "_viewer_id", lambda: None)
+        
+        mock_task_doc = Mock()
+        mock_task_doc.to_dict.return_value = {
+            "created_by": {"user_id": "user1"},
+            "assigned_to": {"user_id": "user2"}
+        }
+        
+        result = tasks_module._can_edit_task(mock_task_doc)
+        
+        # Should return False when no viewer - this covers line 48
+        assert result == False
+    
+    def test_can_edit_task_with_viewer_as_creator(self, monkeypatch):
+        """Test _can_edit_task when viewer is creator"""
+        monkeypatch.setattr(tasks_module, "_viewer_id", lambda: "user1")
+        
+        mock_task_doc = Mock()
+        mock_task_doc.to_dict.return_value = {
+            "created_by": {"user_id": "user1"},
+            "assigned_to": None
+        }
+        
+        result = tasks_module._can_edit_task(mock_task_doc)
+        assert result == True
+    
+    def test_create_next_recurring_when_not_recurring(self, mock_db, monkeypatch):
+        """Test _create_next_recurring_task returns None for non-recurring - covers line 76"""
+        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
+        
+        mock_task_doc = Mock()
+        mock_task_doc.id = "task123"
+        mock_task_doc.to_dict.return_value = {
+            "title": "Non-recurring Task",
+            "is_recurring": False,  # Not recurring
+            "due_date": "2025-01-01T00:00:00Z"
+        }
+        
+        result = tasks_module._create_next_recurring_task(mock_db, mock_task_doc)
+        
+        # Should return None when not recurring - this covers line 76
+        assert result is None
+    
+    def test_create_next_recurring_with_recurring_true(self, mock_db, monkeypatch):
+        """Test _create_next_recurring_task with valid recurring task"""
+        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
+        
+        mock_task_doc = Mock()
+        mock_task_doc.id = "task123"
+        mock_task_doc.to_dict.return_value = {
+            "title": "Recurring Task",
+            "description": "Test",
+            "priority": 5,
+            "is_recurring": True,
+            "recurrence_interval_days": 7,
+            "due_date": "2025-01-01T00:00:00Z",
+            "created_by": {"user_id": "user1"},
+            "assigned_to": None,
+            "project_id": "proj1",
+            "labels": []
+        }
+        
+        mock_new_task_ref = Mock()
+        mock_new_task_ref.id = "new_task_id"
+        mock_db.collection.return_value.document.return_value = mock_new_task_ref
+        
+        result = tasks_module._create_next_recurring_task(mock_db, mock_task_doc)
+        
+        # Should return the new task ID
+        assert result == "new_task_id"
+        mock_new_task_ref.set.assert_called_once()
+
+
