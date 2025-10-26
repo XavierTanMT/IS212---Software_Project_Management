@@ -239,3 +239,34 @@ def app():
 def client(app):
     """Create a test client."""
     return app.test_client()
+
+# =====================================================
+# Chainable Firestore mock helper for chained where().where().stream()
+# =====================================================
+from unittest.mock import Mock
+
+class _ChainableQuery:
+    """Allows Firestore-like chaining in tests."""
+    def __init__(self, results):
+        self._results = results
+
+    def where(self, *args, **kwargs):
+        # Return self to allow chaining
+        return self
+
+    def stream(self):
+        return self._results
+
+def make_tasks_collection(created_results, assigned_results):
+    """Return a mock 'tasks' collection with chainable where() for tests."""
+    tasks_collection = Mock()
+
+    def first_where(field, op, value):
+        if isinstance(field, str) and field.startswith("created_by."):
+            return _ChainableQuery(created_results)
+        if isinstance(field, str) and field.startswith("assigned_to."):
+            return _ChainableQuery(assigned_results)
+        return _ChainableQuery([])
+
+    tasks_collection.where = Mock(side_effect=first_where)
+    return tasks_collection

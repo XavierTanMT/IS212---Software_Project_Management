@@ -35,64 +35,59 @@ def enrich_task_with_timeline_status(task):
     """Add timeline-specific status flags to task"""
     due_date = task.get("due_date")
     status = task.get("status", "To Do")
-    
-    # Completed tasks should not appear in overdue/timeline categories
+
     if status == "Completed":
         task["timeline_status"] = "completed"
         task["is_overdue"] = False
         task["is_upcoming"] = False
         return task
-    
+
     if not due_date:
         task["timeline_status"] = "no_due_date"
         task["is_overdue"] = False
         task["is_upcoming"] = False
         return task
-    
-    # Handle different data types for due_date
-    if isinstance(due_date, str):
+
+    # Normalize due_date to tz-aware UTC
+    if isinstance(due_date, datetime):
+        due_dt = due_date if due_date.tzinfo else due_date.replace(tzinfo=timezone.utc)
+    elif isinstance(due_date, str):
         due_dt = _safe_iso_to_dt(due_date)
-    elif isinstance(due_date, datetime):
-        due_dt = due_date
     else:
-        # Skip non-string, non-datetime due dates
         task["timeline_status"] = "invalid_date"
         task["is_overdue"] = False
         task["is_upcoming"] = False
         return task
-    
+
     if not due_dt:
         task["timeline_status"] = "invalid_date"
         task["is_overdue"] = False
         task["is_upcoming"] = False
         return task
-    
+
     now = datetime.now(timezone.utc)
-    time_diff = due_dt - now
-    total_seconds = time_diff.total_seconds()
-    
-    # Use total_seconds to avoid .days truncation issues
-    # Use slightly relaxed boundaries to handle execution timing variations
+    total_seconds = (due_dt - now).total_seconds()
     ONE_DAY = 86400
-    
+
     if total_seconds < 0:
         task["timeline_status"] = "overdue"
         task["is_overdue"] = True
         task["is_upcoming"] = False
-    elif total_seconds < ONE_DAY - 60:  # Less than ~24 hours (today) - 60 sec buffer for timing
+    elif total_seconds < ONE_DAY - 60:
         task["timeline_status"] = "today"
         task["is_overdue"] = False
         task["is_upcoming"] = True
-    elif total_seconds < ONE_DAY * 7.5:  # 1-7 days (use 7.5 as boundary)
+    elif total_seconds < ONE_DAY * 7.5:
         task["timeline_status"] = "this_week"
         task["is_overdue"] = False
         task["is_upcoming"] = True
-    else:  # 7.5+ days (effectively 8+ days)
+    else:
         task["timeline_status"] = "future"
         task["is_overdue"] = False
         task["is_upcoming"] = False
-    
+
     return task
+
 
 def group_tasks_by_timeline(tasks):
     """Group tasks by timeline periods (excludes completed tasks)"""
