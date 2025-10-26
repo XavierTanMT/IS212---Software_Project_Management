@@ -1304,12 +1304,12 @@ const clearAutoRefresh = window.clearAutoRefresh;
     <!-- Delete Confirmation Modal -->
     <div id="deleteModal" class="modal">
         <div class="modal-content">
-            <h3>🗑️ Delete Task</h3>
-            <p id="deleteMessage">Are you sure you want to delete this task?</p>
+            <h3>🗑️ Archive Task</h3>
+            <p id="deleteMessage">Are you sure you want to archive this task?</p>
             <div class="modal-actions">
                 <button class="modal-btn cancel" onclick="closeDeleteModal()">Cancel</button>
                 <button class="modal-btn confirm" onclick="executeDelete()" id="confirmDeleteBtn">
-                    Delete Task
+                    Archive Task
                 </button>
             </div>
         </div>
@@ -1500,8 +1500,8 @@ async function loadDashboardData() {
                                 ✏️ Edit
                             </button>
                             ${showDelete ? `
-                                <button class="task-btn btn-delete" onclick="confirmDeleteTask('${task.task_id}', '${task.title.replace(/'/g, '\\\'')}')" title="Delete Task">
-                                    🗑️ Delete
+                                <button class="task-btn btn-delete" onclick="confirmDeleteTask('${task.task_id}', '${task.title.replace(/'/g, '\\\'')}')" title="Archive Task">
+                                    🗑️ Archive
                                 </button>
                             ` : ''}
                         </div>
@@ -1634,7 +1634,7 @@ async function loadDashboardData() {
         function confirmDeleteTask(taskId, taskTitle) {
             taskToDelete = { id: taskId, title: taskTitle };
             document.getElementById('deleteMessage').textContent =
-                `Are you sure you want to delete "${taskTitle}"? This action cannot be undone.`;
+                `Are you sure you want to Archive "${taskTitle}"? This action cannot be undone.`;
             document.getElementById('deleteModal').style.display = 'block';
         }
 
@@ -1653,7 +1653,7 @@ async function loadDashboardData() {
 
             try {
                 // Show loading state
-                confirmBtn.textContent = 'Deleting...';
+                confirmBtn.textContent = 'Archiving...';
                 confirmBtn.disabled = true;
 
                 // Call delete API
@@ -1665,7 +1665,7 @@ async function loadDashboardData() {
 
                 if (response.ok) {
                     // Success - show message and refresh dashboard
-                    showSuccessMessage(`Task "${taskToDelete.title}" deleted successfully!`);
+                    showSuccessMessage(`Task "${taskToDelete.title}" archived successfully!`);
                     closeDeleteModal();
 
                     // Refresh dashboard data
@@ -1673,11 +1673,11 @@ async function loadDashboardData() {
 
                 } else {
                     // Error from API
-                    showErrorMessage(`Failed to delete task: ${result.error}`);
+                    showErrorMessage(`Failed to archive task: ${result.error}`);
                 }
 
             } catch (error) {
-                console.error('Error deleting task:', error);
+                console.error('Error archiving task:', error);
                 showErrorMessage('Network error. Please check your connection and try again.');
 
             } finally {

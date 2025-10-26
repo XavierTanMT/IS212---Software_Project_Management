@@ -28,6 +28,7 @@ def task_to_json(d):
         "assigned_to": data.get("assigned_to"),
         "project_id": data.get("project_id"),
         "labels": data.get("labels", []),
+        "archived": data.get("archived", False),
     }
 
 def enrich_task_with_timeline_status(task):
@@ -171,8 +172,10 @@ def user_dashboard(user_id):
             return jsonify({"error": "User not found"}), 404
 
         # Avoid composite index by NOT using order_by on a different field than the filter.
-        created_stream = db.collection("tasks").where("created_by.user_id", "==", user_id).stream()
-        assigned_stream = db.collection("tasks").where("assigned_to.user_id", "==", user_id).stream()
+        created_stream = (db.collection("tasks").where("created_by.user_id", "==", user_id).where("archived", "in", [False, None]).stream())
+
+        assigned_stream = (db.collection("tasks").where("assigned_to.user_id", "==", user_id).where("archived", "in", [False, None]).stream())
+
         
         created_tasks_raw = list(created_stream)
         assigned_tasks_raw = list(assigned_stream)
