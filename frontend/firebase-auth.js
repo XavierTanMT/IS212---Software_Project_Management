@@ -88,6 +88,116 @@ function clearCurrentUser() {
 }
 
 // ============================================================================
+// Role-Based Access Control
+// ============================================================================
+
+/**
+ * Get user role
+ * @returns {string} User role (staff, manager, director, hr, admin)
+ */
+function getUserRole() {
+    const user = getCurrentUser();
+    return user?.role || 'staff';
+}
+
+/**
+ * Check if user has specific role
+ * @param {string} role - Role to check
+ * @returns {boolean}
+ */
+function hasRole(role) {
+    return getUserRole() === role;
+}
+
+/**
+ * Check if user is manager or above
+ * @returns {boolean}
+ */
+function isManager() {
+    const role = getUserRole();
+    return ['manager', 'director', 'hr', 'admin'].includes(role);
+}
+
+/**
+ * Check if user is admin
+ * @returns {boolean}
+ */
+function isAdmin() {
+    return getUserRole() === 'admin';
+}
+
+/**
+ * Get role-based dashboard URL
+ * @param {string} role - User role
+ * @returns {string} Dashboard URL for role
+ */
+function getRoleDashboard(role) {
+    const dashboards = {
+        'admin': 'admin_dashboard.html',
+        'manager': 'manager_dashboard.html',
+        'director': 'manager_dashboard.html',
+        'hr': 'manager_dashboard.html',
+        'staff': 'dashboard.html'
+    };
+    return dashboards[role] || 'dashboard.html';
+}
+
+/**
+ * Redirect to role-appropriate dashboard
+ */
+function redirectToRoleDashboard() {
+    const user = getCurrentUser();
+    if (!user) {
+        window.location.href = 'login.html';
+        return;
+    }
+    
+    const dashboardUrl = getRoleDashboard(user.role);
+    window.location.href = dashboardUrl;
+}
+
+/**
+ * Require specific role - redirect if user doesn't have it
+ * @param {string|string[]} allowedRoles - Role or array of roles
+ * @param {string} redirectTo - Where to redirect if not allowed (optional)
+ */
+function requireRole(allowedRoles, redirectTo = null) {
+    const user = requireAuth(); // First check if authenticated
+    
+    const roles = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];
+    const userRole = user.role || 'staff';
+    
+    if (!roles.includes(userRole)) {
+        console.warn(`Access denied. Required: ${roles.join(' or ')}, User has: ${userRole}`);
+        
+        if (redirectTo) {
+            window.location.href = redirectTo;
+        } else {
+            // Redirect to appropriate dashboard
+            redirectToRoleDashboard();
+        }
+        
+        throw new Error(`Insufficient permissions. Required: ${roles.join(' or ')}`);
+    }
+    
+    return user;
+}
+
+/**
+ * Require manager role or above
+ */
+function requireManager() {
+    return requireRole(['manager', 'director', 'hr', 'admin']);
+}
+
+/**
+ * Require admin role
+ */
+function requireAdmin() {
+    return requireRole('admin');
+}
+
+// ============================================================================
 // Project Management (unchanged)
 // ============================================================================
 
@@ -151,11 +261,11 @@ async function signOut() {
 /**
  * Register a new user with BACKEND Firebase Authentication
  * This version works WITHOUT Firebase client SDK - backend handles everything
- * @param {Object} userData - {user_id, name, email, password}
+ * @param {Object} userData - {user_id, name, email, password, role}
  * @returns {Promise<Object>} User data and token
  */
 async function registerWithFirebase(userData) {
-    const { user_id, name, email, password } = userData;
+    const { user_id, name, email, password, role = 'staff' } = userData;
     
     // Validate inputs
     if (!user_id || !name || !email || !password) {
@@ -171,7 +281,7 @@ async function registerWithFirebase(userData) {
         const response = await fetch(`${API_BASE}/api/users/auth/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_id, name, email, password })
+            body: JSON.stringify({ user_id, name, email, password, role })
         });
         
         const result = await response.json();
@@ -339,8 +449,24 @@ function el(id) {
     return document.getElementById(id);
 }
 
+/**
+ * Get role badge HTML
+ * @param {string} role - User role
+ * @returns {string} HTML for role badge
+ */
+function getRoleBadge(role) {
+    const badges = {
+        'admin': '<span style="background:#dc3545;color:white;padding:2px 8px;border-radius:12px;font-size:10px;margin-left:4px">👑 ADMIN</span>',
+        'manager': '<span style="background:#667eea;color:white;padding:2px 8px;border-radius:12px;font-size:10px;margin-left:4px">👔 MANAGER</span>',
+        'director': '<span style="background:#764ba2;color:white;padding:2px 8px;border-radius:12px;font-size:10px;margin-left:4px">💼 DIRECTOR</span>',
+        'hr': '<span style="background:#f093fb;color:white;padding:2px 8px;border-radius:12px;font-size:10px;margin-left:4px">👥 HR</span>',
+        'staff': '<span style="background:#a8edea;color:#333;padding:2px 8px;border-radius:12px;font-size:10px;margin-left:4px">👤 STAFF</span>'
+    };
+    return badges[role] || badges['staff'];
+}
+
 // ============================================================================
-// Navigation Bar
+// Navigation Bar (Updated for Role-Based Navigation)
 // ============================================================================
 
 async function buildNavbar() {
@@ -349,6 +475,7 @@ async function buildNavbar() {
     
     const u = getCurrentUser();
     const p = getCurrentProject();
+    const userRole = u?.role || 'staff';
     
     // Show login status badge
     let loginStatus = '';
@@ -361,19 +488,54 @@ async function buildNavbar() {
         }
     }
     
-    host.innerHTML = `
-    <div style="display:flex;gap:12px;align-items:center;justify-content:space-between;padding:10px;border-bottom:1px solid #eee;background:white">
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    // Build navigation links based on role
+    let navLinks = '';
+    
+    // Common links for all users
+    navLinks += `
         <a href="index.html"><strong>🔥 TaskMgr</strong></a>
-        <a href="dashboard.html">Dashboard</a>
+    `;
+    
+    // Role-specific dashboard links
+    if (userRole === 'admin') {
+        navLinks += `
+            <a href="admin_dashboard.html">Admin Dashboard</a>
+            <a href="manager_dashboard.html">Manager View</a>
+            <a href="dashboard.html">Staff View</a>
+        `;
+    } else if (['manager', 'director', 'hr'].includes(userRole)) {
+        navLinks += `
+            <a href="manager_dashboard.html">Manager Dashboard</a>
+            <a href="dashboard.html">My Dashboard</a>
+        `;
+    } else {
+        navLinks += `
+            <a href="dashboard.html">Dashboard</a>
+        `;
+    }
+    
+    // Common task/project links
+    navLinks += `
         <a href="projects.html">Projects</a>
         <a href="tasks_list.html">Tasks</a>
         <a href="create_task.html">Create Task</a>
-        <a href="manager_team_view.html">Manager View</a>
+    `;
+    
+    // Manager-only link
+    if (['manager', 'director', 'hr', 'admin'].includes(userRole)) {
+        navLinks += `
+            <a href="manager_team_view.html">Team View</a>
+        `;
+    }
+    
+    host.innerHTML = `
+    <div style="display:flex;gap:12px;align-items:center;justify-content:space-between;padding:10px;border-bottom:1px solid #eee;background:white">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        ${navLinks}
       </div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12px;color:#333">
         <span>Project: <em>${p ? (p.name || p.project_id || "selected") : "none"}</em></span>
-        <span>User: <em>${u ? (u.name || u.user_id || u.email || "signed-in") : "guest"}</em>${loginStatus}</span>
+        <span>User: <em>${u ? (u.name || u.user_id || u.email || "signed-in") : "guest"}</em>${u ? getRoleBadge(userRole) : ''}${loginStatus}</span>
         ${u ? '<button id="logoutBtn" style="cursor:pointer;padding:6px 12px;background:#dc3545;color:white;border:none;border-radius:4px">Sign out</button>' : '<a href="login.html" style="padding:6px 12px;background:#667eea;color:white;border-radius:4px;text-decoration:none">Login</a>'}
       </div>
     </div>

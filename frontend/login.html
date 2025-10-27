@@ -89,12 +89,6 @@
             color: white;
         }
         
-        .btn-secondary {
-            background: #f8f9fa;
-            color: #667eea;
-            border: 2px solid #667eea;
-        }
-        
         .btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
@@ -128,10 +122,17 @@
             color: #721c24;
         }
         
-        .divider {
-            margin: 1.5rem 0;
-            text-align: center;
-            color: #999;
+        .help-text {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .help-text strong {
+            color: #333;
         }
     </style>
 </head>
@@ -159,13 +160,10 @@
             <div class="message" id="message"></div>
         </form>
 
-        <div class="divider">
-            <span>Don't have an account?</span>
+        <div class="help-text">
+            <strong>📧 Need an account?</strong><br>
+            Contact your administrator to create an account for you.
         </div>
-
-        <button class="btn btn-secondary" onclick="goToCreateAccount()">
-            Create New Account
-        </button>
     </div>
 
     <!-- Firebase SDK -->
@@ -174,8 +172,7 @@
     
     <!-- Firebase Configuration -->
     <script>
-        // TODO: Replace with your Firebase config from Firebase Console
-        // For now, we'll work without client-side Firebase (backend handles auth)
+        // Backend-only mode - no client-side Firebase needed
         const FIREBASE_ENABLED = false;
         
         const firebaseConfig = {
@@ -214,9 +211,9 @@
                     // Verify session is still valid (with throttling)
                     const isValid = await verifySession();
                     if (isValid) {
-                        // User already logged in, redirect to dashboard
+                        // User already logged in, redirect to role-appropriate dashboard
                         console.log('User already authenticated, redirecting to dashboard');
-                        window.location.href = 'dashboard.html';
+                        redirectToRoleDashboard();
                     } else {
                         // Session expired, clear it
                         console.log('Session expired, clearing user data');
@@ -245,14 +242,14 @@
             hideMessage();
             
             try {
-                // Try Firebase authentication
+                // Login with Firebase backend
                 const result = await loginWithFirebase(email, password);
                 
                 showMessage(`✅ Welcome back, ${result.user.name}!`, 'success');
                 
-                // Redirect to dashboard
+                // Redirect to role-appropriate dashboard
                 setTimeout(() => {
-                    window.location.href = 'dashboard.html';
+                    redirectToRoleDashboard();
                 }, 1000);
                 
             } catch (error) {
@@ -262,11 +259,6 @@
                 setLoading(false);
             }
         });
-        
-        // Go to create account page
-        function goToCreateAccount() {
-            window.location.href = 'create_user.html';
-        }
         
         // Helper functions
         function setLoading(isLoading) {

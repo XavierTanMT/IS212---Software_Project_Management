@@ -20,6 +20,10 @@ class Employee {
 
 class Admin {
   - attribute: type
+  + addStaff(Employee): Bool
+  + addManager(Manager): Bool
+  + removeStaff(Employee): Bool
+  + removeManager(Manager): Bool
   + method(): Type
 }
 

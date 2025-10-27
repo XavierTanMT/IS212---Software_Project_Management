@@ -5,6 +5,7 @@ users_bp = Blueprint("users", __name__, url_prefix="/api/users")
 tasks_bp = Blueprint("tasks", __name__, url_prefix="/api/tasks")
 dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/api")
 manager_bp = Blueprint("manager", __name__, url_prefix="/api/manager")
+admin_bp = Blueprint("admin", __name__, url_prefix="/api/admin")  # ✅ ADD THIS
 
 # Additional domain blueprints
 projects_bp = Blueprint("projects", __name__, url_prefix="/api/projects")
@@ -31,6 +32,7 @@ __all__ = [
     "tasks_bp",
     "dashboard_bp",
     "manager_bp",
+    "admin_bp",  # ✅ ADD THIS
     "projects_bp",
     "notes_bp",
     "labels_bp",
