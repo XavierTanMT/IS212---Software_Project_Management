@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Dashboard - TaskMgr</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css">
+    <style>
+        body { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0; }
+        .stat-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px; text-align: center; }
+        .stat-card h3 { margin: 0 0 10px 0; font-size: 14px; opacity: 0.9; }
+        .stat-card .number { font-size: 32px; font-weight: bold; }
+        .section { background: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .user-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .user-table th, .user-table td { padding: 10px; text-align: left; border-bottom: 1px solid #eee; }
+        .user-table th { background: #f5f5f5; }
+        .badge { padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; }
+        .badge-admin { background: #dc3545; color: white; }
+        .badge-manager { background: #667eea; color: white; }
+        .badge-director { background: #764ba2; color: white; }
+        .badge-hr { background: #f093fb; color: white; }
+        .badge-staff { background: #a8edea; color: #333; }
+        .badge-active { background: #28a745; color: white; }
+        .badge-inactive { background: #6c757d; color: white; }
+        .btn { padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; margin: 2px; font-size: 14px; }
+        .btn-primary { background: #667eea; color: white; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        .btn:hover { opacity: 0.9; }
+        
+        /* Modal Styles */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
+        .modal-content { background-color: #fefefe; margin: 5% auto; padding: 30px; border-radius: 8px; width: 90%; max-width: 500px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
+        .close:hover { color: #000; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+        .form-group small { color: #666; font-size: 12px; }
+        .message { padding: 10px; border-radius: 4px; margin-top: 10px; }
+        .message.success { background: #d4edda; color: #155724; }
+        .message.error { background: #f8d7da; color: #721c24; }
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #eee; }
+        .tab { padding: 10px 20px; cursor: pointer; border: none; background: none; font-size: 16px; }
+        .tab.active { border-bottom: 3px solid #667eea; font-weight: bold; color: #667eea; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+    </style>
+</head>
+<body>
+    <div id="nav"></div>
+    
+    <h1>👑 Admin Dashboard</h1>
+    <p>System-wide administration and user management</p>
+    
+    <div class="stats-grid" id="statsGrid">
+        <!-- Stats will be loaded here -->
+    </div>
+    
+    <!-- Tabs -->
+    <div class="tabs">
+        <button class="tab active" id="tab-overview">📊 Overview</button>
+        <button class="tab" id="tab-users">👥 User Management</button>
+        <button class="tab" id="tab-projects">📁 Projects</button>
+    </div>
+    
+    <!-- Tab Content: Overview -->
+    <div id="overview-tab" class="tab-content active">
+        <div class="section">
+            <h2>📊 System Overview</h2>
+            <div id="systemOverview">
+                <p>Loading system statistics...</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tab Content: User Management -->
+    <div id="users-tab" class="tab-content">
+        <div class="section">
+            <h2>👥 User Management</h2>
+            <div style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                <button class="btn btn-success" id="createUserBtn">➕ Create New User</button>
+                <select id="roleFilter">
+                    <option value="">All Roles</option>
+                    <option value="staff">Staff</option>
+                    <option value="manager">Manager</option>
+                    <option value="director">Director</option>
+                    <option value="hr">HR</option>
+                    <option value="admin">Admin</option>
+                </select>
+                <select id="statusFilter">
+                    <option value="">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                </select>
+            </div>
+            <table class="user-table" id="usersTable">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>User ID</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="usersTableBody">
+                    <tr><td colspan="7">Loading users...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Tab Content: Projects -->
+    <div id="projects-tab" class="tab-content">
+        <div class="section">
+            <h2>📁 All Projects</h2>
+            <div id="projectsList">Loading projects...</div>
+        </div>
+    </div>
+    
+    <!-- Create User Modal -->
+    <div id="createUserModal" class="modal">
+        <div class="modal-content">
+            <span class="close" id="closeModalBtn">&times;</span>
+            <h2>➕ Create New User</h2>
+            
+            <form id="createUserForm">
+                <div class="form-group">
+                    <label for="user_id">User ID:</label>
+                    <input type="text" id="user_id" required placeholder="unique-user-id">
+                    <small>Unique identifier (e.g., emp001, john_doe)</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="name">Full Name:</label>
+                    <input type="text" id="name" required placeholder="John Doe">
+                </div>
+                
+                <div class="form-group">
+                    <label for="email">Email:</label>
+                    <input type="email" id="email" required placeholder="user@example.com">
+                    <small>User will use this email to log in</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" required placeholder="At least 6 characters" minlength="6">
+                    <small>Minimum 6 characters - share this with the user securely</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="role">Role:</label>
+                    <select id="role" required>
+                        <option value="staff">Staff</option>
+                        <option value="manager">Manager</option>
+                        <option value="director">Director</option>
+                        <option value="hr">HR</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                    <small>Determines user permissions and dashboard access</small>
+                </div>
+                
+                <button type="submit" class="btn btn-success" style="width: 100%; margin-top: 10px;">
+                    Create User
+                </button>
+                
+                <div id="createUserMessage"></div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- ✅ Load firebase-auth.js FIRST (it defines API_BASE) -->
+    <script src="firebase-auth.js"></script>
+    
+    <script>
+        // ✅ Require admin role
+        const currentUser = requireAdmin();
+        
+        // ✅ DON'T redeclare API_BASE - it's already in firebase-auth.js
+        // const API_BASE = 'http://localhost:5000'; // ❌ REMOVED
+        
+        let allUsers = [];
+        
+        // ==================== TAB SWITCHING (Event Listeners) ====================
+        
+        document.getElementById('tab-overview').addEventListener('click', function() {
+            switchTab('overview', this);
+        });
+        
+        document.getElementById('tab-users').addEventListener('click', function() {
+            switchTab('users', this);
+        });
+        
+        document.getElementById('tab-projects').addEventListener('click', function() {
+            switchTab('projects', this);
+        });
+        
+        function switchTab(tabName, tabElement) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+            tabElement.classList.add('active');
+            
+            // Load data for tab
+            if (tabName === 'users') {
+                loadUsers();
+            } else if (tabName === 'projects') {
+                loadProjects();
+            }
+        }
+        
+        // ==================== DASHBOARD LOADING ====================
+        
+        async function loadAdminDashboard() {
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/dashboard`);
+                const data = await response.json();
+                
+                // Load statistics
+                const statsHtml = `
+                    <div class="stat-card">
+                        <h3>Total Users</h3>
+                        <div class="number">${data.statistics.total_users}</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Active Users</h3>
+                        <div class="number">${data.statistics.active_users}</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Total Tasks</h3>
+                        <div class="number">${data.statistics.total_tasks}</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Total Projects</h3>
+                        <div class="number">${data.statistics.total_projects}</div>
+                    </div>
+                `;
+                document.getElementById('statsGrid').innerHTML = statsHtml;
+                
+                // Load system overview
+                const overviewHtml = `
+                    <p><strong>Users by Role:</strong></p>
+                    <ul>
+                        <li>Staff: ${data.statistics.users_by_role.staff || 0}</li>
+                        <li>Managers: ${data.statistics.users_by_role.manager || 0}</li>
+                        <li>Directors: ${data.statistics.users_by_role.director || 0}</li>
+                        <li>HR: ${data.statistics.users_by_role.hr || 0}</li>
+                        <li>Admins: ${data.statistics.users_by_role.admin || 0}</li>
+                    </ul>
+                    <p><strong>Recent Activity:</strong></p>
+                    <p>Tasks created today: ${data.statistics.tasks_created_today || 0}</p>
+                `;
+                document.getElementById('systemOverview').innerHTML = overviewHtml;
+                
+                // Store users for filtering
+                allUsers = data.recent_users || [];
+                displayUsers(allUsers);
+                
+            } catch (error) {
+                console.error('Error loading admin dashboard:', error);
+                alert('Failed to load admin dashboard');
+            }
+        }
+        
+        async function loadUsers() {
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/dashboard`);
+                const data = await response.json();
+                allUsers = data.recent_users || [];
+                displayUsers(allUsers);
+            } catch (error) {
+                console.error('Error loading users:', error);
+            }
+        }
+        
+        function displayUsers(users) {
+            const tbody = document.getElementById('usersTableBody');
+            
+            if (!users || users.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7">No users found</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = users.map(user => `
+                <tr>
+                    <td>${user.name || 'N/A'}</td>
+                    <td>${user.email || 'N/A'}</td>
+                    <td><code>${user.user_id || 'N/A'}</code></td>
+                    <td><span class="badge badge-${user.role || 'staff'}">${(user.role || 'staff').toUpperCase()}</span></td>
+                    <td><span class="badge badge-${user.is_active !== false ? 'active' : 'inactive'}">${user.is_active !== false ? 'Active' : 'Inactive'}</span></td>
+                    <td>${user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}</td>
+                    <td>
+                        <button class="btn btn-primary" onclick="changeUserRole('${user.user_id}')">Change Role</button>
+                        ${user.is_active !== false ? 
+                            `<button class="btn btn-danger" onclick="deactivateUser('${user.user_id}')">Deactivate</button>` :
+                            `<button class="btn btn-success" onclick="activateUser('${user.user_id}')">Activate</button>`
+                        }
+                    </td>
+                </tr>
+            `).join('');
+        }
+        
+        // ==================== USER FILTERING ====================
+        
+        document.getElementById('roleFilter').addEventListener('change', filterUsers);
+        document.getElementById('statusFilter').addEventListener('change', filterUsers);
+        
+        function filterUsers() {
+            const roleFilter = document.getElementById('roleFilter').value;
+            const statusFilter = document.getElementById('statusFilter').value;
+            
+            let filtered = allUsers;
+            
+            if (roleFilter) {
+                filtered = filtered.filter(u => u.role === roleFilter);
+            }
+            
+            if (statusFilter === 'active') {
+                filtered = filtered.filter(u => u.is_active !== false);
+            } else if (statusFilter === 'inactive') {
+                filtered = filtered.filter(u => u.is_active === false);
+            }
+            
+            displayUsers(filtered);
+        }
+        
+        // ==================== CREATE USER MODAL ====================
+        
+        document.getElementById('createUserBtn').addEventListener('click', openCreateUserModal);
+        document.getElementById('closeModalBtn').addEventListener('click', closeCreateUserModal);
+        
+        function openCreateUserModal() {
+            document.getElementById('createUserModal').style.display = 'block';
+            document.getElementById('createUserForm').reset();
+            document.getElementById('createUserMessage').innerHTML = '';
+        }
+        
+        function closeCreateUserModal() {
+            document.getElementById('createUserModal').style.display = 'none';
+        }
+        
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('createUserModal');
+            if (event.target == modal) {
+                closeCreateUserModal();
+            }
+        }
+        
+        // ==================== CREATE USER HANDLER ====================
+        
+        document.getElementById('createUserForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const messageDiv = document.getElementById('createUserMessage');
+            messageDiv.innerHTML = '<p>Creating user...</p>';
+            
+            const userData = {
+                user_id: document.getElementById('user_id').value.trim(),
+                name: document.getElementById('name').value.trim(),
+                email: document.getElementById('email').value.trim(),
+                password: document.getElementById('password').value,
+                role: document.getElementById('role').value,
+                manager_type: document.getElementById('role').value  // For backend compatibility
+            };
+            
+            try {
+                // Determine endpoint based on role
+                const endpoint = userData.role === 'staff' ? 'staff' : 'managers';
+                
+                const response = await fetch(`${API_BASE}/api/admin/${endpoint}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(userData)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    messageDiv.innerHTML = `
+                        <div class="message success">
+                            <p><strong>✅ User Created Successfully!</strong></p>
+                            <p>Send these credentials to the user:</p>
+                            <p><strong>Email:</strong> ${result.user.email}</p>
+                            <p><strong>Password:</strong> ${userData.password}</p>
+                            <p><strong>Role:</strong> ${result.user.role}</p>
+                            <p><strong>Login URL:</strong> <a href="login.html" target="_blank">login.html</a></p>
+                        </div>
+                    `;
+                    
+                    // Reload users list
+                    setTimeout(() => {
+                        loadUsers();
+                        closeCreateUserModal();
+                    }, 3000);
+                    
+                } else {
+                    messageDiv.innerHTML = `<div class="message error">❌ ${result.error}</div>`;
+                }
+                
+            } catch (error) {
+                messageDiv.innerHTML = `<div class="message error">❌ Error: ${error.message}</div>`;
+            }
+        });
+        
+        // ==================== USER MANAGEMENT ACTIONS ====================
+        
+        async function changeUserRole(userId) {
+            const newRole = prompt('Enter new role (staff, manager, director, hr, admin):');
+            if (!newRole) return;
+            
+            const validRoles = ['staff', 'manager', 'director', 'hr', 'admin'];
+            if (!validRoles.includes(newRole)) {
+                alert('Invalid role. Must be: staff, manager, director, hr, or admin');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/users/${userId}/role`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ role: newRole })
+                });
+                
+                if (response.ok) {
+                    alert('Role updated successfully');
+                    loadUsers();
+                } else {
+                    const error = await response.json();
+                    alert('Failed: ' + error.error);
+                }
+            } catch (error) {
+                alert('Error updating role');
+            }
+        }
+        
+        async function deactivateUser(userId) {
+            if (!confirm('Deactivate this user? They will not be able to log in.')) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/users/${userId}/status`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ is_active: false })
+                });
+                
+                if (response.ok) {
+                    alert('User deactivated');
+                    loadUsers();
+                } else {
+                    alert('Failed to deactivate user');
+                }
+            } catch (error) {
+                alert('Error deactivating user');
+            }
+        }
+        
+        async function activateUser(userId) {
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/users/${userId}/status`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ is_active: true })
+                });
+                
+                if (response.ok) {
+                    alert('User activated');
+                    loadUsers();
+                } else {
+                    alert('Failed to activate user');
+                }
+            } catch (error) {
+                alert('Error activating user');
+            }
+        }
+        
+        // ==================== PROJECTS ====================
+        
+        async function loadProjects() {
+            try {
+                const response = await fetch(`${API_BASE}/api/projects`);
+                const projects = await response.json();
+                
+                const projectsHtml = projects.map(p => `
+                    <div style="padding: 15px; border: 1px solid #eee; margin: 10px 0; border-radius: 4px; background: #f9f9f9;">
+                        <h3>${p.name || p.project_id}</h3>
+                        <p>${p.description || 'No description'}</p>
+                        <p><strong>Project ID:</strong> <code>${p.project_id}</code></p>
+                        <p><strong>Created:</strong> ${p.created_at ? new Date(p.created_at).toLocaleDateString() : 'N/A'}</p>
+                    </div>
+                `).join('');
+                
+                document.getElementById('projectsList').innerHTML = projectsHtml || 'No projects found';
+            } catch (error) {
+                console.error('Error loading projects:', error);
+                document.getElementById('projectsList').innerHTML = 'Error loading projects';
+            }
+        }
+        
+        // ==================== PAGE INITIALIZATION ====================
+        
+        // Load dashboard on page load
+        document.addEventListener('DOMContentLoaded', loadAdminDashboard);
+    </script>
+</body>
+</html>
