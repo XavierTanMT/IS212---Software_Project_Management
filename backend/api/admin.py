@@ -4,7 +4,7 @@ Admin extends Employee and can add/remove staff and managers.
 Also includes debugging utilities for Firebase Auth and Firestore sync.
 """
 from flask import request, jsonify
-from . import admin_bp
+from . import admin_bp, users_bp
 from firebase_admin import auth, firestore
 from datetime import datetime, timezone
 
@@ -699,6 +699,7 @@ def get_all_tasks():
 # ========== DEBUGGING & SYNC UTILITIES ==========
 
 @admin_bp.get("/check/<user_id>")
+@users_bp.get("/admin/check/<user_id>")
 def check_user_sync(user_id):
     """
     Check if user exists in both Firebase Auth and Firestore.
@@ -752,6 +753,7 @@ def check_user_sync(user_id):
     }), 200
 
 @admin_bp.delete("/cleanup/<user_id>")
+@users_bp.delete("/admin/cleanup/<user_id>")
 def cleanup_user(user_id):
     """
     Clean up orphaned user data.
@@ -806,6 +808,7 @@ def cleanup_user(user_id):
         return jsonify(results), 404
 
 @admin_bp.post("/sync/<user_id>")
+@users_bp.post("/admin/sync/<user_id>")
 def sync_user(user_id):
     """
     Attempt to sync user between Firebase Auth and Firestore.
