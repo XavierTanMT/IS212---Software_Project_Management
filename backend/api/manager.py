@@ -1,3 +1,5 @@
+# filepath: /Users/xaviertan/Documents/GitHub/IS212---Software_Project_Management/backend/api/manager.py
+
 from datetime import datetime, timezone
 from flask import request, jsonify
 from . import manager_bp
@@ -379,9 +381,6 @@ def get_team_tasks():
     if error_response:
         return error_response, status_code
     
-    # ... (rest of your existing code stays the same)
-    # [Keep all your existing team-tasks logic here]
-    
     # Get query parameters
     sort_by = request.args.get("sort_by", "due_date")
     sort_order = request.args.get("sort_order", "asc")
@@ -550,7 +549,10 @@ def get_team_tasks():
 
 @manager_bp.post("/tasks/<task_id>/assign")
 def assign_task(task_id):
-    """Assign task to team member(s) - Manager.assignTask() from diagram."""
+    """
+    Assign task to team member(s) - Manager.assignTask() from diagram.
+    Accept team members from projects AND direct manager-staff relationship.
+    """
     db = firestore.client()
     manager_id = _get_viewer_id()
     
@@ -562,10 +564,10 @@ def assign_task(task_id):
     if error_response:
         return error_response, status_code
     
-    data = request.get_json()
+    data = request.get_json() or {}
     assignee_ids = data.get("assignee_ids", [])
     
-    if not assignee_ids:
+    if not assignee_ids or not isinstance(assignee_ids, list):
         return jsonify({"error": "assignee_ids required"}), 400
     
     # Get task
@@ -575,11 +577,20 @@ def assign_task(task_id):
     if not task_doc.exists:
         return jsonify({"error": "Task not found"}), 404
     
-    # Verify assignees are team members
-    team_member_ids = _get_manager_team_member_ids(manager_id)
+    # Get team members from BOTH sources
+    # Method 1: Existing project-based team members
+    project_team_ids = _get_manager_team_member_ids(manager_id)  # returns set()
     
+    # Method 2: Direct manager->staff relationship (users where manager_id == manager_id)
+    direct_staff_query = db.collection("users").where("manager_id", "==", manager_id).stream()
+    direct_staff_ids = set(doc.id for doc in direct_staff_query)
+    
+    # Combine both sources
+    all_team_member_ids = set(project_team_ids) | direct_staff_ids
+    
+    # Verify assignees are in the combined team
     for assignee_id in assignee_ids:
-        if assignee_id not in team_member_ids:
+        if assignee_id not in all_team_member_ids:
             return jsonify({"error": f"User {assignee_id} is not in your team"}), 403
     
     # Get assignee details
