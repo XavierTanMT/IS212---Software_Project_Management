@@ -880,4 +880,71 @@ class TestDashboardTimelineMode:
         conflicts = data["conflicts"]
         assert len(conflicts) >= 1  # At least one conflict
         assert conflicts[0]["count"] == 2  # Two tasks on same date
+    
+    def test_dashboard_timeline_handles_unknown_status(self, client, mock_db, monkeypatch):
+        """Test timeline mode handles tasks with unknown timeline_status gracefully.
+        This tests the 'status not in timeline' branch at line 93"""
+        from datetime import datetime, timezone, timedelta
+        
+        now = datetime.now(timezone.utc)
+        
+        # Mock user doc
+        mock_user_doc = Mock()
+        mock_user_doc.exists = True
+        mock_user_doc.to_dict.return_value = {"user_id": "user123", "name": "Test User"}
+        
+        # Create a task that will have an unknown status not in the timeline dict
+        # The enrich_task_with_timeline_status function might return unexpected values
+        # We'll patch it to return a task with unknown status
+        unknown_status_task = Mock()
+        unknown_status_task.id = "task_unknown"
+        unknown_status_task.to_dict.return_value = {
+            "title": "Unknown Status Task",
+            "status": "To Do",
+            "priority": 5,
+            "due_date": (now + timedelta(days=5)).isoformat(),
+            "created_by": {"user_id": "user123", "name": "Test User"},
+            "assigned_to": None,
+            "archived": False
+        }
+        
+        def collection_side_effect(col_name):
+            mock_collection = Mock()
+            if col_name == "users":
+                mock_doc_ref = Mock()
+                mock_doc_ref.get.return_value = mock_user_doc
+                mock_collection.document.return_value = mock_doc_ref
+            elif col_name == "tasks":
+                mock_query = Mock()
+                mock_query.where.return_value.stream.return_value = [unknown_status_task]
+                mock_collection.where = mock_query.where
+            return mock_collection
+        
+        mock_db.collection = Mock(side_effect=collection_side_effect)
+        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
+        
+        # Patch enrich_task_with_timeline_status to return a task with unknown status
+        def mock_enrich(task):
+            task["timeline_status"] = "unknown_custom_status"  # Not in timeline dict
+            return task
+        
+        monkeypatch.setattr(dashboard_module, "enrich_task_with_timeline_status", mock_enrich)
+        
+        # Request with timeline mode
+        response = client.get("/api/users/user123/dashboard?view_mode=timeline")
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        
+        # Verify timeline data is present
+        assert "timeline" in data
+        
+        # The task with unknown status should NOT appear in any timeline category
+        # because the 'status not in timeline' branch skips adding it
+        total_tasks_in_timeline = 0
+        for category in data["timeline"].values():
+            total_tasks_in_timeline += len(category)
+        
+        # Should be 0 since unknown status is not added to timeline
+        assert total_tasks_in_timeline == 0
 

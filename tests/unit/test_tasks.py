@@ -718,6 +718,73 @@ class TestListTasks:
         response = client.get("/api/tasks?limit=invalid", headers={"X-User-Id": "user1"})
         
         assert response.status_code == 200
+    
+    def test_list_tasks_with_include_archived_true(self, client, mock_db, monkeypatch):
+        """Test listing tasks with include_archived=true (line 241 false branch)"""
+        # When include_archived=true, the filtering code at line 241-248 is skipped
+        mock_doc1 = Mock()
+        mock_doc1.id = "task1"
+        mock_doc1.to_dict.return_value = {
+            "title": "Active Task",
+            "archived": False,
+            "created_at": "2024-01-01T00:00:00+00:00"
+        }
+        
+        mock_doc2 = Mock()
+        mock_doc2.id = "task2"
+        mock_doc2.to_dict.return_value = {
+            "title": "Archived Task",
+            "archived": True,
+            "created_at": "2024-01-02T00:00:00+00:00"
+        }
+        
+        mock_query = Mock()
+        mock_query.limit.return_value.stream.return_value = [mock_doc1, mock_doc2]
+        mock_db.collection.return_value.where.return_value = mock_query
+        
+        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
+        
+        # include_archived=true means line 241 condition is False, skips filtering
+        response = client.get("/api/tasks?include_archived=true", headers={"X-User-Id": "user1"})
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        # Both tasks returned (no filtering)
+        assert len(data) == 2
+    
+    def test_list_tasks_filters_archived_by_default(self, client, mock_db, monkeypatch):
+        """Test that archived tasks are filtered out by default (line 245 false branch)"""
+        # When include_archived is false/absent, archived tasks should be filtered
+        mock_doc1 = Mock()
+        mock_doc1.id = "task1"
+        mock_doc1.to_dict.return_value = {
+            "title": "Active Task",
+            "archived": False,
+            "created_at": "2024-01-01T00:00:00+00:00"
+        }
+        
+        mock_doc2 = Mock()
+        mock_doc2.id = "task2"
+        mock_doc2.to_dict.return_value = {
+            "title": "Archived Task",
+            "archived": True,  # This task should be filtered out
+            "created_at": "2024-01-02T00:00:00+00:00"
+        }
+        
+        mock_query = Mock()
+        mock_query.limit.return_value.stream.return_value = [mock_doc1, mock_doc2]
+        mock_db.collection.return_value.where.return_value = mock_query
+        
+        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
+        
+        # No include_archived parameter, so defaults to filtering
+        response = client.get("/api/tasks", headers={"X-User-Id": "user1"})
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        # Only active task returned (archived filtered out)
+        assert len(data) == 1
+        assert data[0]["task_id"] == "task1"
 
 
 class TestGetTask:
@@ -1490,5 +1557,38 @@ class TestHelperFunctionsDirectly:
         # Should return the new task ID
         assert result == "new_task_id"
         mock_new_task_ref.set.assert_called_once()
+
+
+class TestUpdateTaskTimezone:
+    """Test update task due_date timezone handling (line 316 branch)"""
+    
+    def test_update_task_due_date_with_timezone(self, client, mock_db, monkeypatch):
+        """Test updating task with due_date that already has timezone (line 316: tzinfo != None)"""
+        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
+        
+        mock_task_doc = Mock()
+        mock_task_doc.exists = True
+        mock_task_doc.id = "task123"
+        mock_task_doc.to_dict.return_value = {
+            "title": "Task",
+            "status": "To Do",
+            "created_by": {"user_id": "user1"},
+            "archived": False
+        }
+        
+        mock_task_ref = Mock()
+        mock_task_ref.get.return_value = mock_task_doc
+        
+        mock_db.collection.return_value.document.return_value = mock_task_ref
+        
+        # Update with due_date that includes timezone (should skip line 317)
+        response = client.put("/api/tasks/task123",
+                            headers={"X-User-Id": "user1"},
+                            json={"due_date": "2025-12-31T23:59:59+08:00"})  # Has timezone
+        
+        assert response.status_code == 200
+        # Verify update was called (date was accepted)
+        mock_task_ref.update.assert_called_once()
+
 
 

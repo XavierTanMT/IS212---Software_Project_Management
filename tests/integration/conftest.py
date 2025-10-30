@@ -18,41 +18,41 @@ BACKEND_DIR = os.path.join(REPO_ROOT, "backend")
 if BACKEND_DIR not in sys.path:
     sys.path.insert(0, BACKEND_DIR)
 
-# CRITICAL: Clean up unit test mocks IMMEDIATELY at module load time
-# This must happen BEFORE any other imports in this file
-print("=" * 80)
-print("INTEGRATION TEST SETUP: Cleaning up unit test mocks...")
-print("=" * 80)
+# # CRITICAL: Clean up unit test mocks IMMEDIATELY at module load time
+# # This must happen BEFORE any other imports in this file
+# print("=" * 80)
+# print("INTEGRATION TEST SETUP: Cleaning up unit test mocks...")
+# print("=" * 80)
 
-for module_name in list(sys.modules.keys()):
-    if module_name.startswith('firebase_admin'):
-        module = sys.modules[module_name]
-        if not hasattr(module, '__file__'):
-            print(f"  Removing mock Firebase module: {module_name}")
-            del sys.modules[module_name]
+# for module_name in list(sys.modules.keys()):
+#     if module_name.startswith('firebase_admin'):
+#         module = sys.modules[module_name]
+#         if not hasattr(module, '__file__'):
+#             print(f"  Removing mock Firebase module: {module_name}")
+#             del sys.modules[module_name]
 
-# Remove backend modules that may have imported mocked firebase
-backend_modules = [m for m in sys.modules.keys() if m.startswith('backend')]
-for module_name in backend_modules:
-    print(f"  Removing backend module: {module_name}")
-    del sys.modules[module_name]
+# # Remove backend modules that may have imported mocked firebase
+# backend_modules = [m for m in sys.modules.keys() if m.startswith('backend')]
+# for module_name in backend_modules:
+#     print(f"  Removing backend module: {module_name}")
+#     del sys.modules[module_name]
 
-print("=" * 80)
-
-
-# Import the shared Firebase credential utility AFTER cleaning up mocks
-from backend.firebase_utils import get_firebase_credentials
+# print("=" * 80)
 
 
-# Initialize Firebase for integration tests
-import firebase_admin
-from firebase_admin import credentials, firestore, auth as firebase_auth
+# DO NOT import Firebase at module level - use lazy imports to avoid slowdown
+# This makes test collection much faster
 
 _firebase_initialized = False
 
 def ensure_firebase_initialized():
-    """Ensure Firebase is initialized exactly once."""
+    """Ensure Firebase is initialized exactly once. Uses lazy imports for speed."""
     global _firebase_initialized
+    
+    # Lazy import - only load when actually needed
+    import firebase_admin
+    from firebase_admin import credentials
+    from backend.firebase_utils import get_firebase_credentials
     
     # Check if firebase_admin has any apps - this is the real indicator
     if firebase_admin._apps:
@@ -76,9 +76,6 @@ def ensure_firebase_initialized():
             import traceback
             traceback.print_exc()
             raise RuntimeError(f"Failed to initialize Firebase: {e}")
-
-# DO NOT initialize Firebase at module load - only when fixtures are used
-# This prevents hanging when integration tests aren't actually being run
 
 
 @pytest.fixture
@@ -269,6 +266,9 @@ def test_task(db, test_user, test_project, test_collection_prefix, cleanup_colle
 def auth_token(test_user):
     """Generate authentication token for test user."""
     try:
+        # Lazy import to avoid loading Firebase at module level
+        from firebase_admin import auth as firebase_auth
+        
         # Create custom token for test user
         token = firebase_auth.create_custom_token(test_user["user_id"])
         return token.decode('utf-8') if isinstance(token, bytes) else token

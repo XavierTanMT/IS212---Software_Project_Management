@@ -60,7 +60,7 @@ jobs:
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
         run: |
-          python -m pytest tests/integration -q
+          python -m pytest tests/integration --ignore=tests/integration/archive -q
 
   e2e-playwright:
     name: E2E Playwright

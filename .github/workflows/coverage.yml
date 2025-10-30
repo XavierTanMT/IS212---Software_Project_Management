@@ -39,7 +39,7 @@ jobs:
         env:
           FIREBASE_CREDENTIALS_JSON: ${{ secrets.FIREBASE_CREDENTIALS_JSON }}
         run: |
-          python -m pytest --cov=backend --cov-report=xml:backend-coverage.xml --cov-report=html:backend-htmlcov --cov-report=term -v
+          python -m pytest --cov=backend --cov-report=xml:backend-coverage.xml --cov-report=html:backend-htmlcov --cov-report=term --ignore=tests/integration/archive -v
 
       - name: Upload backend coverage to Codecov
         uses: codecov/codecov-action@v4

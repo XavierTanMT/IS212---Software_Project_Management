@@ -901,3 +901,168 @@ class TestEdgeCases:
         response = client.patch("/api/projects/proj123", json=payload)
         
         assert response.status_code == 200
+
+
+class TestOwnerIdResolution:
+    """Test owner_id resolution logic covering lines 37 and 40 branches"""
+    
+    def test_create_project_owner_id_email_not_found(self, client, mock_db, monkeypatch):
+        """Test when email query returns no results (line 37 loop doesn't complete)"""
+        # This tests the branch where the 'for d in q2' loop finds nothing
+        
+        mock_proj_ref = Mock()
+        mock_proj_ref.id = "proj_new"
+        mock_mem_ref = Mock()
+        
+        # Mock user lookup by ID - returns nothing
+        mock_user_by_id_query = Mock()
+        mock_user_by_id_query.limit.return_value.stream.return_value = []
+        
+        # Mock user lookup by username - returns nothing
+        mock_user_by_username_query = Mock()
+        mock_user_by_username_query.limit.return_value.stream.return_value = []
+        
+        # Mock user lookup by email - returns nothing (triggers line 37 branch)
+        mock_user_by_email_query = Mock()
+        mock_user_by_email_query.limit.return_value.stream.return_value = []  # Empty result
+        
+        def mock_collection(col_name):
+            mock_col = Mock()
+            if col_name == "projects":
+                mock_col.document.return_value = mock_proj_ref
+            elif col_name == "memberships":
+                mock_col.document.return_value = mock_mem_ref
+            elif col_name == "users":
+                def mock_where(field=None, op=None, value=None, filter=None):
+                    if filter is not None:
+                        field = getattr(filter, "field_path", field)
+                    # Return empty queries for all lookups
+                    if "user_id" in field:
+                        return mock_user_by_id_query
+                    elif "username" in field:
+                        return mock_user_by_username_query
+                    elif "email" in field:
+                        return mock_user_by_email_query
+                    return Mock()
+                mock_col.where = mock_where
+                # Also need document() for final check
+                mock_doc = Mock()
+                mock_doc.get.return_value.exists = False
+                mock_col.document.return_value = mock_doc
+            return mock_col
+        
+        mock_db.collection = mock_collection
+        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
+        
+        payload = {
+            "name": "Test Project",
+            "key": "TEST",
+            "owner_id": "nonexistent@email.com"  # Will try email lookup
+        }
+        
+        response = client.post("/api/projects", json=payload)
+        
+        # Should still succeed, just owner_id won't be resolved
+        assert response.status_code == 201
+    
+    def test_create_project_owner_id_all_lookups_fail(self, client, mock_db, monkeypatch):
+        """Test when all 3 lookups fail and resolved stays None (line 40 branch)"""
+        # This tests the branch where 'if resolved' is False (line 40)
+        
+        mock_proj_ref = Mock()
+        mock_proj_ref.id = "proj_new2"
+        mock_mem_ref = Mock()
+        
+        # All queries return empty results
+        def create_empty_query():
+            q = Mock()
+            q.limit.return_value.stream.return_value = []
+            return q
+        
+        def mock_collection(col_name):
+            mock_col = Mock()
+            if col_name == "projects":
+                mock_col.document.return_value = mock_proj_ref
+            elif col_name == "memberships":
+                mock_col.document.return_value = mock_mem_ref
+            elif col_name == "users":
+                # All where() queries return empty
+                mock_col.where = lambda **kwargs: create_empty_query()
+                # document() also returns non-existent
+                mock_doc = Mock()
+                mock_doc.get.return_value.exists = False
+                mock_col.document.return_value = mock_doc
+            return mock_col
+        
+        mock_db.collection = mock_collection
+        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
+        
+        payload = {
+            "name": "Test Project 2",
+            "key": "TEST2",
+            "owner_id": "totally_nonexistent_user"
+        }
+        
+        response = client.post("/api/projects", json=payload)
+        
+        # Should succeed with owner_id unchanged (not resolved)
+        assert response.status_code == 201
+    
+    def test_create_project_email_query_completes_empty(self, client, mock_db, monkeypatch):
+        """Test when email query loop completes without finding anything (line 37 completes → line 40)"""
+        # This tests the case where the 'for d in q2' loop finishes without breaking
+        # which means it reaches line 40 (the 'if resolved' check)
+        
+        mock_proj_ref = Mock()
+        mock_proj_ref.id = "proj_email_empty"
+        mock_mem_ref = Mock()
+        
+        # Create an empty iterator for the email query
+        # The loop will complete (not break) so line 37→40 branch is taken
+        empty_iterator = iter([])  # Empty, so loop completes immediately
+        
+        # Mock user lookup by username - returns nothing
+        mock_user_by_username_query = Mock()
+        mock_user_by_username_query.limit.return_value.stream.return_value = []
+        
+        # Mock user lookup by email - returns empty iterator (loop completes)
+        mock_user_by_email_query = Mock()
+        mock_user_by_email_query.limit.return_value.stream.return_value = empty_iterator
+        
+        def mock_collection(col_name):
+            mock_col = Mock()
+            if col_name == "projects":
+                mock_col.document.return_value = mock_proj_ref
+            elif col_name == "memberships":
+                mock_col.document.return_value = mock_mem_ref
+            elif col_name == "users":
+                def mock_where(field=None, op=None, value=None, filter=None):
+                    if filter is not None:
+                        field = getattr(filter, "field_path", field)
+                    # Return queries based on field
+                    if "username" in field:
+                        return mock_user_by_username_query
+                    elif "email" in field:
+                        return mock_user_by_email_query
+                    return Mock()
+                mock_col.where = mock_where
+                # Also need document() for final check
+                mock_doc = Mock()
+                mock_doc.get.return_value.exists = False
+                mock_col.document.return_value = mock_doc
+            return mock_col
+        
+        mock_db.collection = mock_collection
+        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
+        
+        payload = {
+            "name": "Email Query Test",
+            "key": "EMAILTEST",
+            "owner_id": "test@example.com"  # Has @ so will try email lookup
+        }
+        
+        response = client.post("/api/projects", json=payload)
+        
+        # Should succeed even though email query found nothing
+        assert response.status_code == 201
+
