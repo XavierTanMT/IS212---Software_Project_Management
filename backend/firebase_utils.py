@@ -25,11 +25,14 @@ def get_firebase_credentials() -> Dict[str, Any]:
         try:
             # Try parsing as JSON string first
             return json.loads(creds_json)
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
             # If it's a file path, load from file
             if os.path.exists(creds_json):
                 with open(creds_json, 'r') as f:
                     return json.load(f)
+            # Debug: show what we got
+            print(f"DEBUG: FIREBASE_CREDENTIALS_JSON parse error: {e}")
+            print(f"DEBUG: First 100 chars: {creds_json[:100] if len(creds_json) > 100 else creds_json}")
     
     # Option 2: FIREBASE_CREDENTIALS_PATH (file path)
     creds_path = os.getenv('FIREBASE_CREDENTIALS_PATH')

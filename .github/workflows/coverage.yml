@@ -25,7 +25,19 @@ jobs:
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           pip install pytest pytest-cov
 
+      - name: Debug - Check Firebase credentials
+        run: |
+          if [ -z "$FIREBASE_CREDENTIALS_JSON" ]; then
+            echo "ERROR: FIREBASE_CREDENTIALS_JSON is empty or not set"
+          else
+            echo "FIREBASE_CREDENTIALS_JSON is set (length: ${#FIREBASE_CREDENTIALS_JSON})"
+          fi
+        env:
+          FIREBASE_CREDENTIALS_JSON: ${{ secrets.FIREBASE_CREDENTIALS_JSON }}
+
       - name: Run backend tests with coverage
+        env:
+          FIREBASE_CREDENTIALS_JSON: ${{ secrets.FIREBASE_CREDENTIALS_JSON }}
         run: |
           python -m pytest --cov=backend --cov-report=xml:backend-coverage.xml --cov-report=html:backend-htmlcov --cov-report=term -v
 
