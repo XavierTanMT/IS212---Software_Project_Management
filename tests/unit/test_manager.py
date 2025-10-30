@@ -308,7 +308,7 @@ class TestManagerTeamTasksEndpoint:
                 # Create a mock query chain
                 def mock_where(field=None, op=None, value=None, filter=None):
                     if filter is not None:
-                    field = getattr(filter, "field_path", field)
+                        field = getattr(filter, "field_path", field)
                     mock_query = Mock()
                     
                     # First call: get manager's projects (user_id == manager_user)
@@ -328,12 +328,12 @@ class TestManagerTeamTasksEndpoint:
                 # Create a mock query for tasks
                 def mock_where(field=None, op=None, value=None, filter=None):
                     if filter is not None:
-                    field = getattr(filter, "field_path", field)
+                        field = getattr(filter, "field_path", field)
                     mock_query = Mock()
                     
                     def mock_where_chained(field2=None, op2=None, value2=None, filter=None):
                         if filter is not None:
-                        field2 = getattr(filter, "field_path", field2)
+                            field2 = getattr(filter, "field_path", field2)
                         mock_query2 = Mock()
                         mock_query2.stream.return_value = [mock_task_doc]
                         return mock_query2
@@ -719,7 +719,8 @@ class TestManagerTeamTasksTimelineAndFiltering:
             elif collection_name == "memberships":
                 def mock_where(field=None, op=None, value=None, filter=None):
                     if filter is not None:
-                    field = getattr(filter, "field_path", field)
+                        field = getattr(filter, "field_path", field)
+                        value = getattr(filter, "value", value)
                     mock_query = Mock()
                     if field == "user_id" and value == "manager1":
                         mock_query.stream.return_value = [mock_membership]
@@ -733,11 +734,13 @@ class TestManagerTeamTasksTimelineAndFiltering:
             elif collection_name == "tasks":
                 def mock_where(field=None, op=None, value=None, filter=None):
                     if filter is not None:
-                    field = getattr(filter, "field_path", field)
+                        field = getattr(filter, "field_path", field)
+                        value = getattr(filter, "value", value)
                     mock_query = Mock()
                     def mock_where_chained(field2=None, op2=None, value2=None, filter=None):
                         if filter is not None:
-                        field2 = getattr(filter, "field_path", field2)
+                            field2 = getattr(filter, "field_path", field2)
+                            value2 = getattr(filter, "value", value2)
                         mock_query2 = Mock()
                         mock_query2.stream.return_value = [overdue_task, today_task, conflict_task1, conflict_task2]
                         return mock_query2
@@ -831,7 +834,7 @@ class TestManagerTeamTasksTimelineAndFiltering:
             elif collection_name == "memberships":
                 def mock_where(field=None, op=None, value=None, filter=None):
                     if filter is not None:
-                    field = getattr(filter, "field_path", field)
+                        field = getattr(filter, "field_path", field)
                     mock_query = Mock()
                     mock_query.stream.return_value = [mock_membership] if field == "user_id" else [mock_team_membership]
                     return mock_query
@@ -839,7 +842,7 @@ class TestManagerTeamTasksTimelineAndFiltering:
             elif collection_name == "tasks":
                 def mock_where(field=None, op=None, value=None, filter=None):
                     if filter is not None:
-                    field = getattr(filter, "field_path", field)
+                        field = getattr(filter, "field_path", field)
                     mock_query = Mock()
                     mock_query.where.return_value.stream.return_value = [mock_task]
                     mock_query.stream.return_value = [mock_task]
@@ -948,7 +951,7 @@ class TestManagerTeamTasksTimelineAndFiltering:
             elif collection_name == "memberships":
                 def mock_where(field=None, op=None, value=None, filter=None):
                     if filter is not None:
-                    field = getattr(filter, "field_path", field)
+                        field = getattr(filter, "field_path", field)
                     mock_query = Mock()
                     mock_query.stream.return_value = [mock_membership] if field == "user_id" else [mock_team_membership]
                     return mock_query
@@ -956,7 +959,7 @@ class TestManagerTeamTasksTimelineAndFiltering:
             elif collection_name == "tasks":
                 def mock_where(field=None, op=None, value=None, filter=None):
                     if filter is not None:
-                    field = getattr(filter, "field_path", field)
+                        field = getattr(filter, "field_path", field)
                     mock_query = Mock()
                     mock_query.where.return_value.stream.return_value = [mock_task]
                     mock_query.stream.return_value = [mock_task]
@@ -1065,7 +1068,7 @@ class TestManagerTeamTasksTimelineAndFiltering:
             elif collection_name == "memberships":
                 def mock_where(field=None, op=None, value=None, filter=None):
                     if filter is not None:
-                    field = getattr(filter, "field_path", field)
+                        field = getattr(filter, "field_path", field)
                     mock_query = Mock()
                     mock_query.stream.return_value = [mock_membership] if field == "user_id" else [mock_team_membership]
                     return mock_query
@@ -1073,7 +1076,7 @@ class TestManagerTeamTasksTimelineAndFiltering:
             elif collection_name == "tasks":
                 def mock_where(field=None, op=None, value=None, filter=None):
                     if filter is not None:
-                    field = getattr(filter, "field_path", field)
+                        field = getattr(filter, "field_path", field)
                     mock_query = Mock()
                     mock_query.where.return_value.stream.return_value = [no_due_task, invalid_date_task, this_week_task]
                     mock_query.stream.return_value = [no_due_task, invalid_date_task, this_week_task]

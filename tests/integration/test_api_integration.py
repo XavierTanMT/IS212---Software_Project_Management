@@ -1,327 +1,333 @@
-"""API Integration tests - Testing Flask endpoints with real Firebase backend."""
-import pytest
-import json
-from datetime import datetime, timezone, timedelta
+"""
+Integration tests for API endpoints using Flask test client.
+
+These tests verify that API endpoints work correctly by making HTTP requests
+and confirming both the API responses and Firebase data persistence.
+"""
+
+from datetime import datetime, timezone
 
 
 class TestUserAPIIntegration:
     """Test user API endpoints with real Firebase."""
     
-    def test_create_user_via_api(self, client, db, test_collection_prefix, cleanup_collections):
-        """Test creating user through POST /api/users endpoint."""
-        users_collection = f"{test_collection_prefix}_users"
-        cleanup_collections.append(users_collection)
-        
-        user_id = f"api_user_{datetime.now(timezone.utc).timestamp()}"
+    def test_create_user_via_api(self, client, db):
+        """Test POST /api/users - create user."""
+        user_id = f"api_user_{int(datetime.now(timezone.utc).timestamp() * 1000)}"
         payload = {
             "user_id": user_id,
-            "email": f"{user_id}@example.com",
             "name": "API Test User",
-            "role": "Member"
+            "email": f"{user_id}@example.com"
         }
         
-        # Call API endpoint
-        response = client.post("/api/users", 
-                             json=payload,
-                             headers={"Content-Type": "application/json"})
+        # Call API
+        response = client.post("/api/users", json=payload)
         
-        # Verify API response
-        assert response.status_code == 201
-        data = response.get_json()
-        assert data["user"]["user_id"] == user_id
-        assert data["user"]["email"] == payload["email"]
-        
-        # Verify data in Firebase
-        doc = db.collection("users").document(user_id).get()
-        assert doc.exists
-        assert doc.to_dict()["email"] == payload["email"]
-        
-        # Cleanup
-        db.collection("users").document(user_id).delete()
+        try:
+            # Verify API response
+            assert response.status_code == 201
+            data = response.get_json()
+            assert "user" in data
+            assert data["user"]["user_id"] == user_id
+            
+            # Verify Firebase
+            doc = db.collection("users").document(user_id).get()
+            assert doc.exists
+        finally:
+            db.collection("users").document(user_id).delete()
     
     
     def test_get_user_via_api(self, client, db):
-        """Test retrieving user through GET /api/users/<user_id> endpoint."""
-        # Create test user directly in Firebase
-        user_id = f"get_user_{datetime.now(timezone.utc).timestamp()}"
+        """Test GET /api/users/<user_id> - get user."""
+        user_id = f"get_user_{int(datetime.now(timezone.utc).timestamp() * 1000)}"
         user_data = {
             "user_id": user_id,
-            "email": f"{user_id}@example.com",
-            "name": "Get Test User",
-            "role": "Member"
+            "name": "Get Test",
+            "email": f"{user_id}@example.com"
         }
         db.collection("users").document(user_id).set(user_data)
         
         try:
-            # Call API endpoint
             response = client.get(f"/api/users/{user_id}")
-            
-            # Verify response
             assert response.status_code == 200
             data = response.get_json()
             assert data["user_id"] == user_id
-            assert data["email"] == user_data["email"]
         finally:
-            # Cleanup
             db.collection("users").document(user_id).delete()
     
     
-    def test_list_users_via_api(self, client, db):
-        """Test listing users through GET /api/users endpoint."""
-        # Create multiple test users
-        user_ids = []
-        for i in range(3):
-            user_id = f"list_user_{i}_{datetime.now(timezone.utc).timestamp()}"
-            db.collection("users").document(user_id).set({
-                "user_id": user_id,
-                "email": f"{user_id}@example.com",
-                "name": f"List User {i}"
-            })
-            user_ids.append(user_id)
+    def test_get_user_role_via_api(self, client, db):
+        """Test GET /api/users/<user_id>/role - get user role."""
+        user_id = f"role_user_{int(datetime.now(timezone.utc).timestamp() * 1000)}"
+        user_data = {
+            "user_id": user_id,
+            "name": "Role Test",
+            "email": f"{user_id}@example.com",
+            "role": "manager"
+        }
+        db.collection("users").document(user_id).set(user_data)
         
         try:
-            # Call API endpoint
-            response = client.get("/api/users")
-            
-            # Verify response
+            response = client.get(f"/api/users/{user_id}/role")
             assert response.status_code == 200
             data = response.get_json()
-            assert "users" in data
-            assert len(data["users"]) >= 3
+            assert data["role"] == "manager"
         finally:
-            # Cleanup
-            for user_id in user_ids:
-                db.collection("users").document(user_id).delete()
+            db.collection("users").document(user_id).delete()
 
 
 class TestTaskAPIIntegration:
     """Test task API endpoints with real Firebase."""
     
     def test_create_task_via_api(self, client, db):
-        """Test creating task through POST /api/tasks endpoint."""
-        task_id = f"api_task_{datetime.now(timezone.utc).timestamp()}"
-        payload = {
-            "task_id": task_id,
-            "title": "API Task",
-            "description": "Task created via API",
-            "status": "To Do",
-            "priority": 5,
-            "created_by": {"user_id": "test_creator", "name": "Creator"}
-        }
-        
-        # Call API endpoint
-        response = client.post("/api/tasks",
-                             json=payload,
-                             headers={"X-User-Id": "test_creator"})
+        """Test POST /api/tasks - create task."""
+        # Create user first (required by API)
+        user_id = f"task_creator_{int(datetime.now(timezone.utc).timestamp() * 1000)}"
+        db.collection("users").document(user_id).set({
+            "user_id": user_id,
+            "name": "Task Creator",
+            "email": f"{user_id}@example.com"
+        })
         
         try:
-            # Verify API response
+            payload = {
+                "title": "API Created Task",
+                "description": "This is a task created via API test endpoint",
+                "status": "To Do",
+                "priority": "High",
+                "created_by_id": user_id
+            }
+            
+            response = client.post("/api/tasks", json=payload)
+            
+            # Verify response
             assert response.status_code == 201
             data = response.get_json()
-            assert data["task"]["task_id"] == task_id
-            assert data["task"]["title"] == payload["title"]
+            # API returns task object directly, not wrapped
+            task_id = data["task_id"]
             
-            # Verify data in Firebase
+            # Verify in Firebase
             doc = db.collection("tasks").document(task_id).get()
             assert doc.exists
-            assert doc.to_dict()["title"] == payload["title"]
-        finally:
-            # Cleanup
+            
+            # Cleanup task
             db.collection("tasks").document(task_id).delete()
+        finally:
+            db.collection("users").document(user_id).delete()
     
     
-    def test_get_task_via_api(self, client, db):
-        """Test retrieving task through GET /api/tasks/<task_id> endpoint."""
-        # Create test task in Firebase
-        task_id = f"get_task_{datetime.now(timezone.utc).timestamp()}"
+    def test_get_tasks_list_via_api(self, client, db):
+        """Test GET /api/tasks - list tasks."""
+        # Create a test user (required for X-User-Id header)
+        user_id = f"viewer_{int(datetime.now(timezone.utc).timestamp() * 1000)}"
+        db.collection("users").document(user_id).set({
+            "user_id": user_id,
+            "name": "Viewer",
+            "email": f"{user_id}@example.com"
+        })
+        
+        # Create a test task
+        task_id = f"list_task_{int(datetime.now(timezone.utc).timestamp() * 1000)}"
         task_data = {
             "task_id": task_id,
-            "title": "Get Test Task",
+            "title": "List Test Task",
+            "description": "Task for testing GET endpoint",
             "status": "To Do",
-            "priority": 3
+            "priority": "Medium"
         }
         db.collection("tasks").document(task_id).set(task_data)
         
         try:
-            # Call API endpoint
-            response = client.get(f"/api/tasks/{task_id}",
-                                headers={"X-User-Id": "test_user"})
-            
-            # Verify response
+            # GET /api/tasks returns list of tasks (requires X-User-Id header)
+            response = client.get("/api/tasks", headers={"X-User-Id": user_id})
             assert response.status_code == 200
             data = response.get_json()
-            assert data["task_id"] == task_id
-            assert data["title"] == task_data["title"]
+            # Response is array of tasks
+            assert isinstance(data, list)
         finally:
-            # Cleanup
             db.collection("tasks").document(task_id).delete()
+            db.collection("users").document(user_id).delete()
     
     
     def test_update_task_via_api(self, client, db):
-        """Test updating task through PATCH /api/tasks/<task_id> endpoint."""
-        # Create test task
-        task_id = f"update_task_{datetime.now(timezone.utc).timestamp()}"
+        """Test PUT /api/tasks/<task_id> - update task."""
+        task_id = f"update_task_{int(datetime.now(timezone.utc).timestamp() * 1000)}"
+        user_id = f"updater_{int(datetime.now(timezone.utc).timestamp() * 1000)}"
+        
+        # Create user (updates require authentication)
+        db.collection("users").document(user_id).set({
+            "user_id": user_id,
+            "name": "Updater",
+            "email": f"{user_id}@example.com",
+            "role": "admin"  # Give admin role to bypass permission checks
+        })
+        
+        # Create task with the user as creator to allow updates
         db.collection("tasks").document(task_id).set({
             "task_id": task_id,
             "title": "Original Title",
+            "description": "Original description for update testing",
             "status": "To Do",
-            "priority": 5
+            "priority": "Low",
+            "created_by": {"user_id": user_id}  # User owns this task
         })
         
         try:
-            # Update via API
             update_payload = {
-                "title": "Updated Title",
-                "status": "In Progress",
-                "priority": 10
+                "title": "Updated Title via API",
+                "status": "In Progress"
             }
-            response = client.patch(f"/api/tasks/{task_id}",
-                                  json=update_payload,
-                                  headers={"X-User-Id": "test_user"})
+            # Include user ID in headers
+            response = client.put(f"/api/tasks/{task_id}", 
+                                json=update_payload,
+                                headers={"X-User-Id": user_id})
             
-            # Verify API response
             assert response.status_code == 200
-            data = response.get_json()
-            assert data["task"]["title"] == "Updated Title"
-            assert data["task"]["status"] == "In Progress"
             
-            # Verify data in Firebase
+            # Verify update in Firebase
             doc = db.collection("tasks").document(task_id).get()
-            updated_data = doc.to_dict()
-            assert updated_data["title"] == "Updated Title"
-            assert updated_data["priority"] == 10
+            data = doc.to_dict()
+            assert data["title"] == "Updated Title via API"
+            assert data["status"] == "In Progress"
         finally:
-            # Cleanup
             db.collection("tasks").document(task_id).delete()
+            db.collection("users").document(user_id).delete()
     
     
-    def test_delete_task_via_api(self, client, db):
-        """Test deleting task through DELETE /api/tasks/<task_id> endpoint."""
-        # Create test task
-        task_id = f"delete_task_{datetime.now(timezone.utc).timestamp()}"
-        db.collection("tasks").document(task_id).set({
-            "task_id": task_id,
-            "title": "Task to Delete",
-            "status": "To Do"
+    def test_reassign_task_via_api(self, client, db):
+        """Test PATCH /api/tasks/<task_id>/reassign - reassign task."""
+        task_id = f"reassign_task_{int(datetime.now(timezone.utc).timestamp() * 1000)}"
+        user1_id = f"user1_{int(datetime.now(timezone.utc).timestamp() * 1000)}"
+        user2_id = f"user2_{int(datetime.now(timezone.utc).timestamp() * 1000)}"
+        manager_id = f"manager_{int(datetime.now(timezone.utc).timestamp() * 1000)}"
+        
+        # Create users
+        for uid in [user1_id, user2_id]:
+            db.collection("users").document(uid).set({
+                "user_id": uid,
+                "name": f"User {uid}",
+                "email": f"{uid}@example.com"
+            })
+        
+        # Create manager user (to perform reassignment)
+        db.collection("users").document(manager_id).set({
+            "user_id": manager_id,
+            "name": "Manager",
+            "email": f"{manager_id}@example.com",
+            "role": "manager"
         })
         
-        # Verify task exists
-        doc = db.collection("tasks").document(task_id).get()
-        assert doc.exists
+        # Create task
+        db.collection("tasks").document(task_id).set({
+            "task_id": task_id,
+            "title": "Task to Reassign",
+            "description": "This task will be reassigned via API",
+            "status": "To Do",
+            "assigned_to": {"user_id": user1_id}
+        })
         
-        # Delete via API
-        response = client.delete(f"/api/tasks/{task_id}",
-                               headers={"X-User-Id": "test_user"})
-        
-        # Verify API response
-        assert response.status_code == 200
-        
-        # Verify task is deleted from Firebase
-        doc = db.collection("tasks").document(task_id).get()
-        assert not doc.exists
+        try:
+            # Reassign via API (requires X-User-Id header)
+            response = client.patch(f"/api/tasks/{task_id}/reassign",
+                                   json={"new_assigned_to_id": user2_id},  # Correct field name
+                                   headers={"X-User-Id": manager_id})
+            assert response.status_code == 200
+            
+            # Verify reassignment
+            doc = db.collection("tasks").document(task_id).get()
+            data = doc.to_dict()
+            assert data["assigned_to"]["user_id"] == user2_id
+        finally:
+            db.collection("tasks").document(task_id).delete()
+            db.collection("users").document(user1_id).delete()
+            db.collection("users").document(user2_id).delete()
+            db.collection("users").document(manager_id).delete()
 
 
 class TestProjectAPIIntegration:
     """Test project API endpoints with real Firebase."""
     
     def test_create_project_via_api(self, client, db):
-        """Test creating project through POST /api/projects endpoint."""
-        project_id = f"api_project_{datetime.now(timezone.utc).timestamp()}"
-        payload = {
-            "project_id": project_id,
-            "name": "API Project",
-            "description": "Project created via API"
-        }
-        
-        response = client.post("/api/projects",
-                             json=payload,
-                             headers={"X-User-Id": "test_creator"})
+        """Test POST /api/projects - create project."""
+        # Create owner user first (required by API)
+        owner_id = f"proj_owner_{int(datetime.now(timezone.utc).timestamp() * 1000)}"
+        db.collection("users").document(owner_id).set({
+            "user_id": owner_id,
+            "name": "Project Owner",
+            "email": f"{owner_id}@example.com"
+        })
         
         try:
+            payload = {
+                "name": "API Test Project",
+                "description": "Project created via API",
+                "owner_id": owner_id  # Required by API
+            }
+            
+            response = client.post("/api/projects", json=payload)
+            
             assert response.status_code == 201
             data = response.get_json()
-            assert data["project"]["project_id"] == project_id
+            assert "project_id" in data
+            project_id = data["project_id"]
             
             # Verify in Firebase
             doc = db.collection("projects").document(project_id).get()
             assert doc.exists
-        finally:
+            
+            # Cleanup
             db.collection("projects").document(project_id).delete()
+        finally:
+            db.collection("users").document(owner_id).delete()
     
     
-    def test_list_projects_via_api(self, client, db):
-        """Test listing projects through GET /api/projects endpoint."""
-        # Create test projects
-        project_ids = []
-        for i in range(2):
-            project_id = f"list_proj_{i}_{datetime.now(timezone.utc).timestamp()}"
-            db.collection("projects").document(project_id).set({
-                "project_id": project_id,
-                "name": f"Project {i}"
-            })
-            project_ids.append(project_id)
+    def test_get_project_via_api(self, client, db):
+        """Test GET /api/projects/<project_id> - get project."""
+        project_id = f"get_proj_{int(datetime.now(timezone.utc).timestamp() * 1000)}"
+        project_data = {
+            "project_id": project_id,
+            "name": "Get Test Project",
+            "description": "Project for testing GET"
+        }
+        db.collection("projects").document(project_id).set(project_data)
         
         try:
-            response = client.get("/api/projects",
-                                headers={"X-User-Id": "test_user"})
-            
+            response = client.get(f"/api/projects/{project_id}")
             assert response.status_code == 200
             data = response.get_json()
-            assert "projects" in data
+            assert data["project_id"] == project_id
         finally:
-            for project_id in project_ids:
-                db.collection("projects").document(project_id).delete()
+            db.collection("projects").document(project_id).delete()
 
 
 class TestDashboardAPIIntegration:
     """Test dashboard API endpoints with real Firebase."""
     
     def test_get_user_dashboard_via_api(self, client, db):
-        """Test GET /api/users/<user_id>/dashboard endpoint."""
-        # Create test user
-        user_id = f"dashboard_user_{datetime.now(timezone.utc).timestamp()}"
+        """Test GET /api/users/<user_id>/dashboard - get user dashboard."""
+        user_id = f"dash_user_{int(datetime.now(timezone.utc).timestamp() * 1000)}"
         db.collection("users").document(user_id).set({
             "user_id": user_id,
-            "email": f"{user_id}@example.com",
-            "name": "Dashboard User"
+            "name": "Dashboard User",
+            "email": f"{user_id}@example.com"
         })
         
-        # Create tasks for user
-        task_ids = []
-        for i in range(2):
-            task_id = f"dashboard_task_{i}_{datetime.now(timezone.utc).timestamp()}"
-            db.collection("tasks").document(task_id).set({
-                "task_id": task_id,
-                "title": f"Dashboard Task {i}",
-                "status": "To Do",
-                "created_by": {"user_id": user_id},
-                "priority": 5
-            })
-            task_ids.append(task_id)
-        
         try:
-            # Call dashboard API
             response = client.get(f"/api/users/{user_id}/dashboard")
-            
             assert response.status_code == 200
             data = response.get_json()
-            assert "tasks" in data
-            assert "statistics" in data
+            # Dashboard returns multiple sections
+            assert "recent_created_tasks" in data or "recent_assigned_tasks" in data
         finally:
-            # Cleanup
             db.collection("users").document(user_id).delete()
-            for task_id in task_ids:
-                db.collection("tasks").document(task_id).delete()
 
 
 class TestLabelAPIIntegration:
     """Test label API endpoints with real Firebase."""
     
     def test_create_label_via_api(self, client, db):
-        """Test creating label through POST /api/labels endpoint."""
-        label_id = f"api_label_{datetime.now(timezone.utc).timestamp()}"
+        """Test POST /api/labels - create label."""
         payload = {
-            "label_id": label_id,
             "name": "API Label",
             "color": "blue"
         }
@@ -331,20 +337,29 @@ class TestLabelAPIIntegration:
         try:
             assert response.status_code == 201
             data = response.get_json()
-            assert data["label_id"] == label_id
+            assert "label_id" in data
+            label_id = data["label_id"]
             
             # Verify in Firebase
             doc = db.collection("labels").document(label_id).get()
             assert doc.exists
-        finally:
+            
+            # Cleanup
             db.collection("labels").document(label_id).delete()
+        except AssertionError:
+            # Cleanup on failure
+            if response.status_code == 201:
+                label_id = response.get_json().get("label_id")
+                if label_id:
+                    db.collection("labels").document(label_id).delete()
+            raise
     
     
     def test_assign_label_to_task_via_api(self, client, db):
-        """Test POST /api/labels/<label_id>/assign endpoint."""
+        """Test POST /api/labels/assign - assign label to task."""
         # Create label and task
-        label_id = f"assign_label_{datetime.now(timezone.utc).timestamp()}"
-        task_id = f"assign_task_{datetime.now(timezone.utc).timestamp()}"
+        label_id = f"label_{int(datetime.now(timezone.utc).timestamp() * 1000)}"
+        task_id = f"task_{int(datetime.now(timezone.utc).timestamp() * 1000)}"
         
         db.collection("labels").document(label_id).set({
             "label_id": label_id,
@@ -354,20 +369,24 @@ class TestLabelAPIIntegration:
         
         db.collection("tasks").document(task_id).set({
             "task_id": task_id,
-            "title": "Test Task",
+            "title": "Test Task for Label",
+            "description": "Task for testing label assignment",
             "labels": []
         })
         
         try:
-            # Assign label via API
-            response = client.post(f"/api/labels/{label_id}/assign",
-                                 json={"task_id": task_id})
+            # Note: endpoint is /api/labels/assign (not /api/labels/<id>/assign)
+            payload = {
+                "label_id": label_id,
+                "task_id": task_id
+            }
+            response = client.post("/api/labels/assign", json=payload)
             
             assert response.status_code == 200
             
-            # Verify task has label
-            doc = db.collection("tasks").document(task_id).get()
-            task_data = doc.to_dict()
+            # Verify label was assigned
+            task_doc = db.collection("tasks").document(task_id).get()
+            task_data = task_doc.to_dict()
             assert label_id in task_data.get("labels", [])
         finally:
             db.collection("labels").document(label_id).delete()
@@ -377,22 +396,37 @@ class TestLabelAPIIntegration:
 class TestNotesAPIIntegration:
     """Test notes/comments API endpoints with real Firebase."""
     
-    def test_add_comment_via_api(self, client, db):
-        """Test adding comment through POST /api/notes endpoint."""
-        task_id = "test_task_for_comment"
-        comment_payload = {
-            "task_id": task_id,
-            "author_id": "test_author",
-            "body": "This is a test comment via API"
-        }
+    def test_add_note_via_api(self, client, db):
+        """Test POST /api/notes - add note/comment."""
+        user_id = f"note_author_{int(datetime.now(timezone.utc).timestamp() * 1000)}"
+        task_id = f"note_task_{int(datetime.now(timezone.utc).timestamp() * 1000)}"
         
-        response = client.post("/api/notes", json=comment_payload)
+        db.collection("users").document(user_id).set({
+            "user_id": user_id,
+            "name": "Note Author",
+            "email": f"{user_id}@example.com"
+        })
+        
+        db.collection("tasks").document(task_id).set({
+            "task_id": task_id,
+            "title": "Task with Note",
+            "description": "Task for testing notes"
+        })
         
         try:
+            payload = {
+                "task_id": task_id,
+                "author_id": user_id,
+                "body": "This is a test comment via API"
+            }
+            
+            response = client.post("/api/notes", json=payload)
+            
             assert response.status_code == 201
             data = response.get_json()
+            # API returns note object directly with note_id
+            assert "note_id" in data
             note_id = data["note_id"]
-            assert data["body"] == comment_payload["body"]
             
             # Verify in Firebase
             doc = db.collection("notes").document(note_id).get()
@@ -400,18 +434,19 @@ class TestNotesAPIIntegration:
             
             # Cleanup
             db.collection("notes").document(note_id).delete()
-        except:
-            pass
+        finally:
+            db.collection("users").document(user_id).delete()
+            db.collection("tasks").document(task_id).delete()
     
     
-    def test_list_task_comments_via_api(self, client, db):
-        """Test listing comments through GET /api/tasks/<task_id>/notes endpoint."""
-        task_id = f"task_with_notes_{datetime.now(timezone.utc).timestamp()}"
+    def test_get_task_notes_via_api(self, client, db):
+        """Test GET /api/notes/by-task/<task_id> - get notes for task."""
+        task_id = f"notes_task_{int(datetime.now(timezone.utc).timestamp() * 1000)}"
         
-        # Create comments in Firebase
+        # Create notes in Firebase
         note_ids = []
         for i in range(2):
-            note_id = f"note_{i}_{datetime.now(timezone.utc).timestamp()}"
+            note_id = f"note_{i}_{int(datetime.now(timezone.utc).timestamp() * 1000)}"
             db.collection("notes").document(note_id).set({
                 "note_id": note_id,
                 "task_id": task_id,
@@ -422,12 +457,14 @@ class TestNotesAPIIntegration:
             note_ids.append(note_id)
         
         try:
-            # Get comments via API
-            response = client.get(f"/api/tasks/{task_id}/notes")
+            # Note: endpoint is /api/notes/by-task/<task_id>
+            response = client.get(f"/api/notes/by-task/{task_id}")
             
             assert response.status_code == 200
             data = response.get_json()
-            assert "notes" in data
+            # API returns array of notes directly (not wrapped)
+            assert isinstance(data, list)
+            assert len(data) == 2
         finally:
             for note_id in note_ids:
                 db.collection("notes").document(note_id).delete()

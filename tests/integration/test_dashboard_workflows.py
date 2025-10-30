@@ -289,9 +289,10 @@ class TestDashboardTimelineGrouping:
         conflict_date = (datetime.now(timezone.utc) + timedelta(days=2)).isoformat()
         task_ids = []
         
-        # Create 3 tasks with same due date
+        # Create 3 tasks with same due date - use index to ensure unique IDs
+        base_timestamp = datetime.now(timezone.utc).timestamp()
         for i in range(3):
-            task_id = f"conflict_{i}_{datetime.now(timezone.utc).timestamp()}"
+            task_id = f"conflict_{i}_{base_timestamp}_{i}"  # Add index twice for uniqueness
             db.collection(collection_name).document(task_id).set({
                 "task_id": task_id,
                 "title": f"Conflict Task {i}",

@@ -31,6 +31,15 @@ def add_attachment():
 @attachments_bp.get("/by-task/<task_id>")
 def list_attachments(task_id):
     db = firestore.client()
-    q = db.collection("attachments").where(filter=FieldFilter("task_id", "==", task_id)).order_by("upload_date").stream()
-    res = [{"attachment_id": d.id, **d.to_dict()} for d in q]
+    # Try with ordering first, fallback to unordered if index doesn't exist
+    try:
+        q = db.collection("attachments").where(filter=FieldFilter("task_id", "==", task_id)).order_by("upload_date").stream()
+        res = [{"attachment_id": d.id, **d.to_dict()} for d in q]
+    except Exception as e:
+        # Fallback: if composite index doesn't exist, query without ordering
+        if "index" in str(e).lower():
+            q = db.collection("attachments").where(filter=FieldFilter("task_id", "==", task_id)).stream()
+            res = [{"attachment_id": d.id, **d.to_dict()} for d in q]
+        else:
+            raise
     return jsonify(res), 200
