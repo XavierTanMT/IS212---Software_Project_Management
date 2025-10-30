@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from flask import request, jsonify
 from . import projects_bp
 from firebase_admin import firestore
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 def now_iso():
     return datetime.now(timezone.utc).isoformat()
@@ -25,14 +26,14 @@ def create_project():
         user_ref = db.collection("users").document(owner_id).get()
         if not user_ref.exists:
             # 2) Try by handle
-            q = db.collection("users").where("handle", "==", owner_id).limit(1).stream()
+            q = db.collection("users").where(filter=FieldFilter("handle", "==", owner_id)).limit(1).stream()
             resolved = None
             for d in q:
                 resolved = d.id
                 break
             if not resolved and "@" in owner_id:
                 # 3) Try by email
-                q2 = db.collection("users").where("email", "==", owner_id.lower()).limit(1).stream()
+                q2 = db.collection("users").where(filter=FieldFilter("email", "==", owner_id.lower())).limit(1).stream()
                 for d in q2:
                     resolved = d.id
                     break
@@ -107,7 +108,7 @@ def delete_project(project_id):
         return jsonify({"error": "Project not found"}), 404
 
     # Cleanup memberships for this project
-    mems = db.collection("memberships").where("project_id", "==", project_id).stream()
+    mems = db.collection("memberships").where(filter=FieldFilter("project_id", "==", project_id)).stream()
     for m in mems:
         db.collection("memberships").document(m.id).delete()
 

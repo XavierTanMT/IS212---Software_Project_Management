@@ -4,12 +4,13 @@ from typing import Optional, Dict, Any
 from flask import request, jsonify
 from . import users_bp
 from firebase_admin import firestore
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 def now_iso():
     return datetime.now(timezone.utc).isoformat()
 
 def get_user_by_email(db, email: str):
-    q = db.collection("users").where("email", "==", email).limit(1).stream()
+    q = db.collection("users").where(filter=FieldFilter("email", "==", email)).limit(1).stream()
     for d in q:
         return {"id": d.id, **d.to_dict()}
     return None

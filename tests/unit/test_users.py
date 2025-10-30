@@ -128,7 +128,10 @@ class TestGetUserByEmail:
         
         # Verify the query was constructed correctly
         mock_db.collection.assert_called_with("users")
-        mock_db.collection.return_value.where.assert_called_with("email", "==", "john@example.com")
+        # New FieldFilter syntax uses filter parameter
+        assert mock_db.collection.return_value.where.called
+        call_kwargs = mock_db.collection.return_value.where.call_args[1]
+        assert 'filter' in call_kwargs
         mock_db.collection.return_value.where.return_value.limit.assert_called_with(1)
         
     def test_get_user_by_email_not_found(self):

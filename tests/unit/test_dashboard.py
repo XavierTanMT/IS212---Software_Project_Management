@@ -189,7 +189,11 @@ class TestUserDashboard:
         mock_assigned_where.stream = Mock(return_value=[])
         
         mock_task_collection = Mock()
-        def where_side_effect(field, op, value):
+        def where_side_effect(field=None, op=None, value=None, filter=None):
+            # Handle both old and new FieldFilter syntax
+            if filter is not None:
+                field = getattr(filter, "field_path", field)
+                value = getattr(filter, "value", value)
             if "created_by" in field:
                 return mock_created_where
             elif "assigned_to" in field:
@@ -263,7 +267,11 @@ class TestUserDashboard:
         mock_assigned_where.stream = Mock(return_value=[])
         
         mock_task_collection = Mock()
-        def where_side_effect(field, op, value):
+        def where_side_effect(field=None, op=None, value=None, filter=None):
+            # Handle both old and new FieldFilter syntax
+            if filter is not None:
+                field = getattr(filter, "field_path", field)
+                value = getattr(filter, "value", value)
             if "created_by" in field:
                 return mock_created_where
             elif "assigned_to" in field:
@@ -326,7 +334,11 @@ class TestUserDashboard:
         mock_assigned_where.stream = Mock(return_value=[mock_task1])
         
         mock_task_collection = Mock()
-        def where_side_effect(field, op, value):
+        def where_side_effect(field=None, op=None, value=None, filter=None):
+            # Handle both old and new FieldFilter syntax
+            if filter is not None:
+                field = getattr(filter, "field_path", field)
+                value = getattr(filter, "value", value)
             if "created_by" in field:
                 return mock_created_where
             elif "assigned_to" in field:
@@ -423,7 +435,11 @@ class TestUserDashboard:
         mock_assigned_where.stream = Mock(return_value=[])
         
         mock_task_collection = Mock()
-        def where_side_effect(field, op, value):
+        def where_side_effect(field=None, op=None, value=None, filter=None):
+            # Handle both old and new FieldFilter syntax
+            if filter is not None:
+                field = getattr(filter, "field_path", field)
+                value = getattr(filter, "value", value)
             if "created_by" in field:
                 return mock_created_where
             elif "assigned_to" in field:
@@ -484,7 +500,11 @@ class TestUserDashboard:
         mock_assigned_where.stream = Mock(return_value=mock_tasks)  # Same for assigned
         
         mock_task_collection = Mock()
-        def where_side_effect(field, op, value):
+        def where_side_effect(field=None, op=None, value=None, filter=None):
+            # Handle both old and new FieldFilter syntax
+            if filter is not None:
+                field = getattr(filter, "field_path", field)
+                value = getattr(filter, "value", value)
             if "created_by" in field:
                 return mock_created_where
             elif "assigned_to" in field:
@@ -565,7 +585,11 @@ class TestUserDashboard:
         mock_assigned_where.stream = Mock(return_value=[])
         
         mock_task_collection = Mock()
-        def where_side_effect(field, op, value):
+        def where_side_effect(field=None, op=None, value=None, filter=None):
+            # Handle both old and new FieldFilter syntax
+            if filter is not None:
+                field = getattr(filter, "field_path", field)
+                value = getattr(filter, "value", value)
             if "created_by" in field:
                 return mock_created_where
             elif "assigned_to" in field:
@@ -640,7 +664,11 @@ class TestEdgeCases:
         mock_assigned_where.stream = Mock(return_value=[])
         
         mock_task_collection = Mock()
-        def where_side_effect(field, op, value):
+        def where_side_effect(field=None, op=None, value=None, filter=None):
+            # Handle both old and new FieldFilter syntax
+            if filter is not None:
+                field = getattr(filter, "field_path", field)
+                value = getattr(filter, "value", value)
             if "created_by" in field:
                 return mock_created_where
             elif "assigned_to" in field:
@@ -683,7 +711,11 @@ class TestEdgeCases:
         mock_assigned_where.stream = Mock(return_value=[])
         
         mock_task_collection = Mock()
-        def where_side_effect(field, op, value):
+        def where_side_effect(field=None, op=None, value=None, filter=None):
+            # Handle both old and new FieldFilter syntax
+            if filter is not None:
+                field = getattr(filter, "field_path", field)
+                value = getattr(filter, "value", value)
             if "created_by" in field:
                 return mock_created_where
             elif "assigned_to" in field:

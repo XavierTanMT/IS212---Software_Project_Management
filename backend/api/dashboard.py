@@ -2,6 +2,7 @@ from datetime import datetime, timezone, timedelta
 from flask import jsonify, request
 from . import dashboard_bp
 from firebase_admin import firestore
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 def task_to_json(d):
     data = d.to_dict()
@@ -140,8 +141,8 @@ def user_dashboard(user_id):
         return jsonify({"error": "User not found"}), 404
 
     # Avoid composite index by NOT using order_by on a different field than the filter.
-    created_stream = db.collection("tasks").where("created_by.user_id", "==", user_id).stream()
-    assigned_stream = db.collection("tasks").where("assigned_to.user_id", "==", user_id).stream()
+    created_stream = db.collection("tasks").where(filter=FieldFilter("created_by.user_id", "==", user_id)).stream()
+    assigned_stream = db.collection("tasks").where(filter=FieldFilter("assigned_to.user_id", "==", user_id)).stream()
 
     # Convert to JSON and sort locally by created_at desc
     created_tasks = sorted(

@@ -319,11 +319,15 @@ class TestCreateProject:
                 mock_where_email = Mock()
                 mock_where_email.limit.return_value.stream.return_value = [mock_email_result]
                 
-                def mock_where(field, op, value):
-                    if field == "handle":
-                        return mock_where_handle
-                    elif field == "email":
-                        return mock_where_email
+                # Updated to handle FieldFilter syntax (filter= keyword argument)
+                def mock_where(filter=None, **kwargs):
+                    if filter is not None:
+                        # New FieldFilter syntax - check the field name in the FieldFilter object
+                        field_name = getattr(filter, 'field_path', None)
+                        if field_name == "handle":
+                            return mock_where_handle
+                        elif field_name == "email":
+                            return mock_where_email
                     return Mock()
                 
                 users_col.where = mock_where

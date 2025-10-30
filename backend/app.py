@@ -13,6 +13,7 @@ from api import (
     users_bp, tasks_bp, dashboard_bp, manager_bp,
     projects_bp, notes_bp, labels_bp, memberships_bp, attachments_bp
 )
+from firebase_utils import get_firebase_credentials
 
 # Check if running in test/development mode without Firebase
 DEV_MODE = os.getenv("DEV_MODE", "false").lower() == "true"
@@ -23,27 +24,23 @@ def init_firebase():
         print("🔧 Running in DEV_MODE - Firebase disabled (will use mock data)")
         return False
     
-    cred_path = os.getenv("FIREBASE_CREDENTIALS_JSON") or os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-    if not cred_path:
-        print("⚠️  WARNING: No Firebase credentials environment variable set.")
-        print("   Set FIREBASE_CREDENTIALS_JSON or GOOGLE_APPLICATION_CREDENTIALS")
-        print("   Or run with DEV_MODE=true for testing")
-        return False
-    
-    if not os.path.isfile(cred_path):
-        print(f"⚠️  WARNING: Firebase credentials file not found: {cred_path}")
-        return False
-    
-    if not firebase_admin._apps:
-        try:
-            cred = credentials.Certificate(cred_path)
+    try:
+        # Use the unified credential loading function
+        firebase_creds = get_firebase_credentials()
+        
+        if not firebase_admin._apps:
+            cred = credentials.Certificate(firebase_creds)
             firebase_admin.initialize_app(cred)
             print("✓ Firebase initialized successfully")
             return True
-        except Exception as e:
-            print(f"❌ Firebase initialization failed: {e}")
-            return False
-    return True
+        return True
+    except ValueError as e:
+        print(f"⚠️  WARNING: {e}")
+        print("   Or run with DEV_MODE=true for testing")
+        return False
+    except Exception as e:
+        print(f"❌ Firebase initialization failed: {e}")
+        return False
 
 def create_app():
     app = Flask(__name__)

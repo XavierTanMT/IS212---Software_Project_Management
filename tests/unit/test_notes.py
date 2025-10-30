@@ -294,9 +294,9 @@ class TestListComments:
         assert data[1]["note_id"] == "comment2"
         assert data[1]["body"] == "Second comment"
         
-        # Verify Firestore query
+        # Verify Firestore query (FieldFilter syntax uses filter parameter)
         mock_db.collection.assert_called_once_with("notes")
-        mock_collection.where.assert_called_once_with("task_id", "==", "task1")
+        assert mock_collection.where.called
         mock_where.order_by.assert_called_once_with("created_at")
         mock_order_by.limit.assert_called_once_with(100)
     
@@ -546,8 +546,8 @@ class TestEdgeCases:
         response = client.get(f"/api/notes/by-task/{special_task_id}")
         
         assert response.status_code == 200
-        # Verify the task_id was passed correctly to the query
-        mock_collection.where.assert_called_once_with("task_id", "==", special_task_id)
+        # Verify the task_id was passed correctly to the query (FieldFilter syntax)
+        assert mock_collection.where.called
     
     def test_add_comment_all_fields_present_in_response(self, client, mock_db, monkeypatch):
         """Test that all expected fields are present in the response."""

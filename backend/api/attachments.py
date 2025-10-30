@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from flask import request, jsonify
 from . import attachments_bp
 from firebase_admin import firestore
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 def now_iso():
     return datetime.now(timezone.utc).isoformat()
@@ -30,6 +31,6 @@ def add_attachment():
 @attachments_bp.get("/by-task/<task_id>")
 def list_attachments(task_id):
     db = firestore.client()
-    q = db.collection("attachments").where("task_id","==",task_id).order_by("upload_date").stream()
+    q = db.collection("attachments").where(filter=FieldFilter("task_id", "==", task_id)).order_by("upload_date").stream()
     res = [{"attachment_id": d.id, **d.to_dict()} for d in q]
     return jsonify(res), 200

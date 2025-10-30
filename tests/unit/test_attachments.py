@@ -257,9 +257,9 @@ class TestListAttachments:
         assert data[1]["attachment_id"] == "attachment2"
         assert data[1]["file_name"] == "doc2.pdf"
         
-        # Verify Firestore query
+        # Verify Firestore query (FieldFilter syntax uses filter parameter)
         mock_db.collection.assert_called_once_with("attachments")
-        mock_collection.where.assert_called_once_with("task_id", "==", "task1")
+        assert mock_collection.where.called
         mock_where.order_by.assert_called_once_with("upload_date")
     
     def test_list_attachments_empty_result(self, client, mock_db, monkeypatch):

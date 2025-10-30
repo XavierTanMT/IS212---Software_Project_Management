@@ -619,7 +619,9 @@ class TestListTasks:
         
         # Track where calls
         where_calls = []
-        def track_where(field, op, value):
+        def track_where(field=None, op=None, value=None, filter=None):
+            if filter is not None:
+                field = getattr(filter, "field_path", field)
             where_calls.append((field, op, value))
             return mock_query
         mock_query.where = track_where
@@ -638,7 +640,9 @@ class TestListTasks:
         mock_query.limit.return_value.stream.return_value = []
         
         where_calls = []
-        def track_where(field, op, value):
+        def track_where(field=None, op=None, value=None, filter=None):
+            if filter is not None:
+                field = getattr(filter, "field_path", field)
             where_calls.append((field, op, value))
             return mock_query
         mock_query.where = track_where
@@ -657,7 +661,9 @@ class TestListTasks:
         mock_query.limit.return_value.stream.return_value = []
         
         where_calls = []
-        def track_where(field, op, value):
+        def track_where(field=None, op=None, value=None, filter=None):
+            if filter is not None:
+                field = getattr(filter, "field_path", field)
             where_calls.append((field, op, value))
             return mock_query
         mock_query.where = track_where

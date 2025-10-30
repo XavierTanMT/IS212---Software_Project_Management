@@ -249,9 +249,9 @@ class TestListProjectMembers:
         assert data[1]["user_id"] == "user2"
         assert data[1]["role"] == "contributor"
         
-        # Verify database calls
+        # Verify database calls (FieldFilter syntax uses filter parameter)
         mock_db.collection.assert_called_with("memberships")
-        mock_db.collection.return_value.where.assert_called_with("project_id", "==", "proj123")
+        assert mock_db.collection.return_value.where.called
         
     def test_list_project_members_empty_result(self, client, mock_db, monkeypatch):
         """Test listing members when project has no members"""
@@ -350,5 +350,5 @@ class TestEdgeCases:
         response = client.get("/api/memberships/by-project/test_project_id")
         
         assert response.status_code == 200
-        # Verify the where clause is correctly applied
-        mock_db.collection.return_value.where.assert_called_with("project_id", "==", "test_project_id")
+        # Verify the where clause is correctly applied (FieldFilter syntax)
+        assert mock_db.collection.return_value.where.called

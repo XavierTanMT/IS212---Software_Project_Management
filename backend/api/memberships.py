@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from flask import request, jsonify
 from . import memberships_bp
 from firebase_admin import firestore
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 def now_iso():
     return datetime.now(timezone.utc).isoformat()
@@ -23,6 +24,6 @@ def add_member():
 @memberships_bp.get("/by-project/<project_id>")
 def list_project_members(project_id):
     db = firestore.client()
-    q = db.collection("memberships").where("project_id","==",project_id).stream()
+    q = db.collection("memberships").where(filter=FieldFilter("project_id", "==", project_id)).stream()
     res = [d.to_dict() for d in q]
     return jsonify(res), 200
