@@ -18,7 +18,29 @@ BACKEND_DIR = os.path.join(REPO_ROOT, "backend")
 if BACKEND_DIR not in sys.path:
     sys.path.insert(0, BACKEND_DIR)
 
-# Import the shared Firebase credential utility
+# CRITICAL: Clean up unit test mocks IMMEDIATELY at module load time
+# This must happen BEFORE any other imports in this file
+print("=" * 80)
+print("INTEGRATION TEST SETUP: Cleaning up unit test mocks...")
+print("=" * 80)
+
+for module_name in list(sys.modules.keys()):
+    if module_name.startswith('firebase_admin'):
+        module = sys.modules[module_name]
+        if not hasattr(module, '__file__'):
+            print(f"  Removing mock Firebase module: {module_name}")
+            del sys.modules[module_name]
+
+# Remove backend modules that may have imported mocked firebase
+backend_modules = [m for m in sys.modules.keys() if m.startswith('backend')]
+for module_name in backend_modules:
+    print(f"  Removing backend module: {module_name}")
+    del sys.modules[module_name]
+
+print("=" * 80)
+
+
+# Import the shared Firebase credential utility AFTER cleaning up mocks
 from backend.firebase_utils import get_firebase_credentials
 
 
@@ -26,15 +48,47 @@ from backend.firebase_utils import get_firebase_credentials
 import firebase_admin
 from firebase_admin import credentials, firestore, auth as firebase_auth
 
-if not firebase_admin._apps:
-    firebase_creds = get_firebase_credentials()
-    cred = credentials.Certificate(firebase_creds)
-    firebase_admin.initialize_app(cred)
+_firebase_initialized = False
+
+def ensure_firebase_initialized():
+    """Ensure Firebase is initialized exactly once."""
+    global _firebase_initialized
+    
+    # Check if firebase_admin has any apps - this is the real indicator
+    if firebase_admin._apps:
+        _firebase_initialized = True
+        return
+    
+    # If we thought we initialized but _apps is empty, we need to reinitialize
+    # (This can happen when modules are cleaned up between test runs)
+    if _firebase_initialized and not firebase_admin._apps:
+        _firebase_initialized = False
+    
+    if not _firebase_initialized:
+        try:
+            firebase_creds = get_firebase_credentials()
+            cred = credentials.Certificate(firebase_creds)
+            firebase_admin.initialize_app(cred)
+            _firebase_initialized = True
+            print("✓ Firebase initialized successfully")
+        except Exception as e:
+            print(f"✗ Firebase initialization failed: {e}")
+            import traceback
+            traceback.print_exc()
+            raise RuntimeError(f"Failed to initialize Firebase: {e}")
+
+# DO NOT initialize Firebase at module load - only when fixtures are used
+# This prevents hanging when integration tests aren't actually being run
 
 
 @pytest.fixture
 def app():
     """Create Flask application for testing."""
+    # Ensure Firebase is properly initialized before creating app
+    ensure_firebase_initialized()
+    
+    # Import and create the app
+    # The cleanup_unit_test_mocks fixture ensures we're using real Firebase
     from backend.app import create_app
     
     app = create_app()
@@ -52,7 +106,25 @@ def client(app):
 @pytest.fixture
 def db():
     """Get real Firestore database instance."""
-    return firestore.client()
+    # Ensure Firebase is initialized before creating client
+    ensure_firebase_initialized()
+    
+    # CRITICAL: Import firestore directly to avoid unit test mocks
+    # The unit test conftest may have monkeypatched firebase_admin in sys.modules
+    # We need to use the REAL firestore module we imported at the top of this file
+    from firebase_admin import firestore as real_firestore
+    
+    # Get Firestore client from the real module
+    client = real_firestore.client()
+    
+    # Validate that we have a proper Firestore client with required methods
+    if not hasattr(client, 'collection'):
+        raise RuntimeError(
+            f"Firestore client is invalid (type: {type(client)}). "
+            "Check Firebase initialization and credentials."
+        )
+    
+    return client
 
 
 @pytest.fixture
