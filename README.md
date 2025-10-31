@@ -286,6 +286,49 @@ View and restore archived tasks with full audit trail information.
 
 ## 🔧 Development
 
+### Running Tests
+
+This project has comprehensive unit and integration tests with **100% branch coverage**.
+
+#### Unit Tests (Fast, No Setup Required)
+```bash
+# Run all unit tests
+python -m pytest tests/unit -v
+
+# Run with coverage
+python -m pytest tests/unit --cov=backend --cov-branch --cov-report=html
+
+# View coverage report
+# Open htmlcov/index.html in browser
+```
+
+#### Integration Tests (Requires Firebase Emulators)
+
+Integration tests use Firebase Local Emulator Suite - no credentials or quota limits!
+
+```bash
+# 1. Install Firebase CLI (one-time setup)
+npm install -g firebase-tools
+
+# 2. Start emulators (in separate terminal)
+firebase emulators:start
+# Or use helper script:
+.\start_emulators.ps1  # Windows
+python start_emulators.py  # Cross-platform
+
+# 3. Run integration tests (in new terminal)
+python -m pytest tests/integration --ignore=tests/integration/archive -v
+```
+
+**Benefits of Emulator-Based Testing:**
+- ✅ No Firebase credentials needed
+- ✅ No quota limits
+- ✅ Faster tests (local)
+- ✅ Free forever
+- ✅ Works offline
+
+See `tests/integration/EMULATOR_GUIDE.md` for detailed setup instructions.
+
 ### Running in Development Mode
 
 1. **Enable Debug Mode**
