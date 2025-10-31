@@ -862,6 +862,26 @@
             transition: transform 0.2s, box-shadow 0.2s;
         }
 
+        /* Floating reminder toggle button (appears when reminders are hidden for today)
+           Placed next to the user avatar inside .user-info so it stays attached */
+        #showReminderBtn {
+            background: #ffca28;
+            color: #1f2937;
+            border: none;
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 16px;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.08);
+            margin-right: 8px; /* gap between button and avatar */
+            flex: 0 0 auto;
+        }
+        #showReminderBtn.hidden { display: none; }
+
         /* for delete button */
         .task-actions {
             display: flex;
@@ -1038,6 +1058,8 @@
             <button class="logout-btn" onclick="logout()">Logout</button>
         </div>
     </div>
+    <!-- Reminder banner (injected by JS on login) -->
+    <div id="reminderBannerContainer" style="position:relative;z-index:40"></div>
 
     <!-- Main Container -->
     <div class="container">
@@ -1197,6 +1219,168 @@
 // API_BASE is already defined in firebase-auth.js
 // Using shared getCurrentUser from common.js
 // Using shared setCurrentUser from common.js
+
+// ------------------ Reminders: show tasks due today on login ------------------
+async function fetchDueTodayReminders() {
+    try {
+        // Compute local day's UTC range and send as query params so server can match user's "today"
+        const now = new Date();
+        const localYear = now.getFullYear();
+        const localMonth = now.getMonth(); // 0-based
+        const localDate = now.getDate();
+
+        const localStart = new Date(localYear, localMonth, localDate, 0, 0, 0);
+        const localEnd = new Date(localYear, localMonth, localDate, 23, 59, 59, 999);
+    // Convert local start/end to UTC ISO strings
+    // Use toISOString() on the local Date objects - they represent the correct
+    // instants (local midnight/local end) and toISOString() converts them to
+    // the corresponding UTC timestamps. Previous code subtracted the
+    // timezone offset which inverted the conversion and produced the wrong range.
+    const start_iso = localStart.toISOString();
+    const end_iso = localEnd.toISOString();
+
+        const url = `${API_BASE}/api/notifications/due-today?start_iso=${encodeURIComponent(start_iso)}&end_iso=${encodeURIComponent(end_iso)}`;
+        console.debug('Reminder request url:', url, 'start_iso', start_iso, 'end_iso', end_iso);
+        const res = await fetch(url);
+        console.debug('Reminder response status:', res.status);
+        if (!res.ok) {
+            console.warn('Reminder fetch failed', res.status);
+            return null;
+        }
+        const payload = await res.json();
+        console.debug('Reminder payload:', payload);
+        return payload;
+    } catch (e) {
+        console.warn('Failed to fetch due-today reminders', e);
+        return null;
+    }
+}
+
+function renderReminderBanner(data) {
+        const container = document.getElementById('reminderBannerContainer');
+        if (!container) return;
+
+        const hideKey = 'hideReminderUntil';
+        const hideUntil = sessionStorage.getItem(hideKey);
+        const today = new Date().toISOString().slice(0,10);
+
+        // If user hid reminders for today, show a floating toggle button so they can unhide
+        if (hideUntil === today) {
+                container.innerHTML = '';
+                showFloatingReminderToggle();
+                return;
+        }
+
+        if (!data || !data.count || data.count === 0) {
+                // No reminders to show — ensure floating toggle is removed
+                removeFloatingReminderToggle();
+                container.innerHTML = '';
+                return;
+        }
+
+        // We have reminders — ensure floating toggle is hidden
+        removeFloatingReminderToggle();
+
+        const tasks = data.tasks || [];
+        const plural = tasks.length > 1 ? 's' : '';
+        let itemsHtml = '';
+        for (const t of tasks.slice(0,5)) {
+                itemsHtml += `<div style="padding:6px 0;border-bottom:1px dashed rgba(0,0,0,0.06)">${escapeHtml(t.title || 'Untitled')} — due ${escapeHtml(t.due_date || '')}</div>`;
+        }
+
+        const more = tasks.length > 5 ? `<div style="padding:6px 0;color:#666">And ${tasks.length-5} more...</div>` : '';
+
+        container.innerHTML = `
+            <div style="background:#fff3cd;border:1px solid #ffeeba;padding:12px 16px;border-radius:6px;margin:12px 0;display:flex;align-items:flex-start;gap:12px">
+                <div style="font-size:20px">⏰</div>
+                <div style="flex:1">
+                    <div style="font-weight:700;color:#856404">You have ${tasks.length} task${plural} due today</div>
+                    <div style="margin-top:6px;color:#856404;font-size:14px">${itemsHtml}${more}</div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:8px">
+                    <button id="dismissReminderBtn" style="background:#856404;color:white;border:none;padding:8px 12px;border-radius:6px;cursor:pointer">Hide</button>
+                    <a href="tasks_list.html" style="text-align:center;padding:8px 12px;border-radius:6px;background:white;border:1px solid #ddd;color:#333;text-decoration:none">View tasks</a>
+                </div>
+            </div>
+        `;
+
+        const dismissBtn = document.getElementById('dismissReminderBtn');
+        if (dismissBtn) {
+                dismissBtn.addEventListener('click', () => {
+                        sessionStorage.setItem(hideKey, today);
+                        container.innerHTML = '';
+                        showFloatingReminderToggle();
+                });
+        }
+}
+
+// Helpers: floating toggle button to re-open today's reminders after hiding
+function showFloatingReminderToggle() {
+        const id = 'showReminderBtn';
+        if (document.getElementById(id)) return; // already present
+        const btn = document.createElement('button');
+        btn.id = id;
+        btn.title = "Show today's reminders";
+        btn.innerHTML = '🔔';
+        btn.addEventListener('click', async () => {
+                // Unhide for today
+                sessionStorage.removeItem('hideReminderUntil');
+                // Remove floating toggle
+                removeFloatingReminderToggle();
+                // Re-fetch reminders and render banner
+                try {
+                        const data = await fetchDueTodayReminders();
+                        renderReminderBanner(data);
+                        // scroll to top a bit so banner is visible
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                } catch (e) {
+                        console.warn('Failed to reload reminders after unhide', e);
+                }
+        });
+    // Insert the button into the header to the left of .user-info
+    const header = document.querySelector('.header');
+    const userInfo = header ? header.querySelector('.user-info') : null;
+    // Prefer inserting into .user-info immediately before the avatar so it's attached to the avatar
+    if (userInfo) {
+        const avatar = userInfo.querySelector('.user-avatar');
+        if (avatar && avatar.parentNode) {
+            avatar.parentNode.insertBefore(btn, avatar);
+        } else {
+            // If avatar not found, append to the front of user-info
+            userInfo.insertBefore(btn, userInfo.firstChild);
+        }
+    } else if (header) {
+        header.appendChild(btn);
+    } else {
+        document.body.appendChild(btn);
+    }
+}
+
+function removeFloatingReminderToggle() {
+        const el = document.getElementById('showReminderBtn');
+        if (el) el.remove();
+}
+
+function escapeHtml(str){
+    if(!str) return '';
+    return String(str).replace(/[&<>"'`]/g, function(s){
+        return ({'&':'&amp;','<':'&lt;','>':'&gt;', '"':'&quot;',"'":'&#39;', '`':'&#96;'})[s];
+    });
+}
+
+// When the dashboard loads, fetch and show reminders for logged-in user
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        // Ensure user is authenticated (requireAuth is safe to call)
+        try { requireAuth(); } catch(e){ return; }
+        const data = await fetchDueTodayReminders();
+        renderReminderBanner(data);
+    } catch (e) {
+        console.warn('Reminder init failed', e);
+    }
+});
+
+// -----------------------------------------------------------------------------
 
 // Timeline View Functions - Defined early so onclick handlers can use them
 // Make variables global so they're accessible across script blocks
@@ -1369,58 +1553,26 @@ async function loadDashboardData() {
 }
 
     function renderDashboard(data) {
-            // Update statistics
-            document.getElementById('createdCount').textContent = data.statistics.total_created;
-            document.getElementById('assignedCount').textContent = data.statistics.total_assigned;
-            document.getElementById('completedCount').textContent = data.statistics.status_breakdown['Completed'] || 0;
-            document.getElementById('overdueCount').textContent = data.statistics.overdue_count;
+        data = data || {};
+        const stats = data.statistics || { total_created: 0, total_assigned: 0, status_breakdown: {}, priority_breakdown: {}, overdue_count: 0 };
 
-            // Render status chart
-            renderStatusChart(data.statistics.status_breakdown);
+        // Update statistics cards
+        const createdEl = document.getElementById('createdCount');
+        const assignedEl = document.getElementById('assignedCount');
+        const completedEl = document.getElementById('completedCount');
+        const overdueEl = document.getElementById('overdueCount');
+        if (createdEl) createdEl.textContent = stats.total_created || 0;
+        if (assignedEl) assignedEl.textContent = stats.total_assigned || 0;
+        if (completedEl) completedEl.textContent = (stats.status_breakdown && stats.status_breakdown['Completed']) || 0;
+        if (overdueEl) overdueEl.textContent = stats.overdue_count || 0;
 
-            // Render priority chart
-            renderPriorityChart(data.statistics.priority_breakdown);
+        // Render charts and lists
+        try { renderStatusChart(stats.status_breakdown || {}); } catch(e) { console.warn('renderStatusChart failed', e); }
+        try { renderPriorityChart(stats.priority_breakdown || {}); } catch(e) { console.warn('renderPriorityChart failed', e); }
 
-            // Render task lists
-            renderTaskList('createdTasksList', data.recent_created_tasks, 'created');
-            renderTaskList('assignedTasksList', data.recent_assigned_tasks, 'assigned');
-        }
-
-        function renderStatusChart(statusData) {
-            const chartContainer = document.getElementById('statusChart');
-
-            if (Object.keys(statusData).length === 0) {
-                chartContainer.innerHTML = '<div class="empty-state">No task data available</div>';
-                return;
-            }
-
-            const statusColors = {
-                'To Do': '#2196f3',
-                'In Progress': '#ff9800',
-                'Completed': '#4caf50',
-                'Blocked': '#f44336'
-            };
-
-            const total = Object.values(statusData).reduce((sum, count) => sum + count, 0);
-
-            let chartHTML = '';
-            for (const [status, count] of Object.entries(statusData)) {
-                if (count > 0) {
-                    const percentage = total > 0 ? Math.round((count / total) * 100) : 0;
-                    chartHTML += `
-                        <div class="chart-item">
-                            <div class="chart-label">
-                                <div class="chart-dot" style="background: ${statusColors[status] || '#666'}"></div>
-                                <span>${status}</span>
-                            </div>
-                            <div class="chart-value">${count} (${percentage}%)</div>
-                        </div>
-                    `;
-                }
-            }
-
-            chartContainer.innerHTML = chartHTML || '<div class="empty-state">No status data</div>';
-        }
+        try { renderTaskList('createdTasksList', data.recent_created_tasks || [], 'created'); } catch(e) { console.warn('renderTaskList created failed', e); }
+        try { renderTaskList('assignedTasksList', data.recent_assigned_tasks || [], 'assigned'); } catch(e) { console.warn('renderTaskList assigned failed', e); }
+    }
 
         function renderPriorityChart(priorityData) {
             const chartContainer = document.getElementById('priorityChart');

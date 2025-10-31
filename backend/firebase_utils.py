@@ -69,3 +69,4 @@ def get_firebase_credentials() -> Dict[str, Any]:
         "3. GOOGLE_APPLICATION_CREDENTIALS (path to service account JSON file)\n"
         "4. Individual env vars (FIREBASE_PROJECT_ID, FIREBASE_PRIVATE_KEY, etc.)"
     )
+ 

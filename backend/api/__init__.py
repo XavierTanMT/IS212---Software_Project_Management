@@ -6,6 +6,7 @@ tasks_bp = Blueprint("tasks", __name__, url_prefix="/api/tasks")
 dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/api")
 manager_bp = Blueprint("manager", __name__, url_prefix="/api/manager")
 admin_bp = Blueprint("admin", __name__, url_prefix="/api/admin") 
+notifications_bp = Blueprint("notifications", __name__, url_prefix="/api/notifications")
 
 # Additional domain blueprints
 projects_bp = Blueprint("projects", __name__, url_prefix="/api/projects")
@@ -26,6 +27,7 @@ from . import notes  # noqa
 from . import labels  # noqa
 from . import memberships  # noqa
 from . import attachments  # noqa
+from . import notifications  # noqa - Notifications endpoints
 
 __all__ = [
     "users_bp",
@@ -38,4 +40,5 @@ __all__ = [
     "labels_bp",
     "memberships_bp",
     "attachments_bp",
+    "notifications_bp",
 ]
