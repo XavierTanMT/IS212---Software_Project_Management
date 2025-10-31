@@ -383,6 +383,170 @@
             transform: scale(1.02);
         }
 
+        /* Calendar Styles */
+        .calendar-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 0 10px;
+        }
+
+        .calendar-nav-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .calendar-nav-btn:hover {
+            background: #5a6fd8;
+        }
+
+        .calendar-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1px;
+            background: #e0e0e0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .calendar-day-header {
+            background: #f5f5f5;
+            padding: 12px 8px;
+            text-align: center;
+            font-weight: 600;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .calendar-date {
+            background: white;
+            min-height: 100px;
+            padding: 8px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.2s;
+            border: 1px solid transparent;
+        }
+
+        .calendar-date:hover {
+            background: #f8f9ff;
+        }
+
+        .calendar-date.droppable {
+            border: 2px dashed #667eea;
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        .calendar-date.today {
+            background: #e3f2fd;
+            border: 2px solid #2196f3;
+        }
+
+        .calendar-date.other-month {
+            background: #f9f9f9;
+            color: #ccc;
+        }
+
+        .calendar-date-number {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .calendar-task-mini {
+            background: #667eea;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            margin-bottom: 2px;
+            cursor: grab;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 100%;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .calendar-task-mini:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .calendar-task-mini:active {
+            cursor: grabbing;
+        }
+
+        .calendar-task-mini.priority-high {
+            background: #f44336;
+        }
+
+        .calendar-task-mini.priority-medium {
+            background: #ff9800;
+        }
+
+        .calendar-task-mini.priority-low {
+            background: #4caf50;
+        }
+
+        .calendar-task-count {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: #667eea;
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .no-due-date-section {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .no-due-date-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            font-weight: 600;
+            color: #666;
+        }
+
+        .no-due-date-header span:first-child {
+            margin-right: 8px;
+            font-size: 18px;
+        }
+
         .task-title {
             font-weight: 600;
             margin-bottom: 0.5rem;
@@ -1000,44 +1164,19 @@
                 <div id="conflictsList"></div>
             </div>
 
-            <div class="timeline-section" data-period="overdue">
-                <div class="timeline-header overdue">
-                    <span>🚨</span>
-                    <span>Overdue Tasks</span>
-                    <span id="overdueCount">(0)</span>
+            <div class="calendar-container">
+                <div class="calendar-header">
+                    <button class="calendar-nav-btn" onclick="navigateMonth(-1)">← Previous</button>
+                    <div class="calendar-title" id="calendarTitle">October 2025</div>
+                    <button class="calendar-nav-btn" onclick="navigateMonth(1)">Next →</button>
                 </div>
-                <div class="timeline-tasks" id="overdueTasks"></div>
+                <div class="calendar-grid" id="calendarGrid">
+                    <!-- Calendar will be generated by JavaScript -->
+                </div>
             </div>
 
-            <div class="timeline-section" data-period="today">
-                <div class="timeline-header today">
-                    <span>📅</span>
-                    <span>Today</span>
-                    <span id="todayCount">(0)</span>
-                </div>
-                <div class="timeline-tasks" id="todayTasks"></div>
-            </div>
-
-            <div class="timeline-section" data-period="this_week">
-                <div class="timeline-header this_week">
-                    <span>📆</span>
-                    <span>This Week</span>
-                    <span id="thisWeekCount">(0)</span>
-                </div>
-                <div class="timeline-tasks" id="thisWeekTasks"></div>
-            </div>
-
-            <div class="timeline-section" data-period="future">
-                <div class="timeline-header future">
-                    <span>🔮</span>
-                    <span>Future</span>
-                    <span id="futureCount">(0)</span>
-                </div>
-                <div class="timeline-tasks" id="futureTasks"></div>
-            </div>
-
-            <div class="timeline-section" data-period="no_due_date">
-                <div class="timeline-header no_due_date">
+            <div class="no-due-date-section">
+                <div class="no-due-date-header">
                     <span>📝</span>
                     <span>No Due Date</span>
                     <span id="noDueDateCount">(0)</span>
@@ -1089,34 +1228,15 @@ window.toggleView = async function(viewType) {
     }
 };
 
-window.loadTimelineView = async function() {
-    const u = getCurrentUser();
-    const userId = u && (u.user_id || u.uid);
-    
-    if (!userId) {
-        const timelineView = document.getElementById('timelineView');
-        if (timelineView) {
-            timelineView.innerHTML = '<div style="padding: 2rem; text-align: center; color: #666;">You are not signed in.</div>';
-        }
-        return;
+// First loadTimelineView function removed - using the full implementation below
+
+// Helper function for showing empty states
+function showEmptyState(selector, message) {
+    const element = document.querySelector(selector);
+    if (element) {
+        element.innerHTML = `<div style="padding: 2rem; text-align: center; color: #666;">${message}</div>`;
     }
-    
-    try {
-        const res = await fetch(`${API_BASE}/api/users/${userId}/dashboard?view_mode=timeline`);
-        if (!res.ok) {
-            throw new Error(`HTTP ${res.status}`);
-        }
-        const data = await res.json();
-        window.timelineData = data;
-        window.renderTimelineView(data);
-    } catch (e) {
-        console.error('Timeline load failed:', e);
-        const timelineView = document.getElementById('timelineView');
-        if (timelineView) {
-            timelineView.innerHTML = '<div style="padding: 2rem; text-align: center; color: #666;">Failed to load timeline data.</div>';
-        }
-    }
-};
+}
 
 window.renderTimelineView = function(data) {
     // This function will be fully defined later in the file
@@ -1184,12 +1304,12 @@ const clearAutoRefresh = window.clearAutoRefresh;
     <!-- Delete Confirmation Modal -->
     <div id="deleteModal" class="modal">
         <div class="modal-content">
-            <h3>🗑️ Delete Task</h3>
-            <p id="deleteMessage">Are you sure you want to delete this task?</p>
+            <h3>🗑️ Archive Task</h3>
+            <p id="deleteMessage">Are you sure you want to archive this task?</p>
             <div class="modal-actions">
                 <button class="modal-btn cancel" onclick="closeDeleteModal()">Cancel</button>
                 <button class="modal-btn confirm" onclick="executeDelete()" id="confirmDeleteBtn">
-                    Delete Task
+                    Archive Task
                 </button>
             </div>
         </div>
@@ -1380,8 +1500,8 @@ async function loadDashboardData() {
                                 ✏️ Edit
                             </button>
                             ${showDelete ? `
-                                <button class="task-btn btn-delete" onclick="confirmDeleteTask('${task.task_id}', '${task.title.replace(/'/g, '\\\'')}')" title="Delete Task">
-                                    🗑️ Delete
+                                <button class="task-btn btn-delete" onclick="confirmDeleteTask('${task.task_id}', '${task.title.replace(/'/g, '\\\'')}')" title="Archive Task">
+                                    🗑️ Archive
                                 </button>
                             ` : ''}
                         </div>
@@ -1514,7 +1634,7 @@ async function loadDashboardData() {
         function confirmDeleteTask(taskId, taskTitle) {
             taskToDelete = { id: taskId, title: taskTitle };
             document.getElementById('deleteMessage').textContent =
-                `Are you sure you want to delete "${taskTitle}"? This action cannot be undone.`;
+                `Are you sure you want to Archive "${taskTitle}"? This action cannot be undone.`;
             document.getElementById('deleteModal').style.display = 'block';
         }
 
@@ -1533,7 +1653,7 @@ async function loadDashboardData() {
 
             try {
                 // Show loading state
-                confirmBtn.textContent = 'Deleting...';
+                confirmBtn.textContent = 'Archiving...';
                 confirmBtn.disabled = true;
 
                 // Call delete API
@@ -1545,7 +1665,7 @@ async function loadDashboardData() {
 
                 if (response.ok) {
                     // Success - show message and refresh dashboard
-                    showSuccessMessage(`Task "${taskToDelete.title}" deleted successfully!`);
+                    showSuccessMessage(`Task "${taskToDelete.title}" archived successfully!`);
                     closeDeleteModal();
 
                     // Refresh dashboard data
@@ -1553,11 +1673,11 @@ async function loadDashboardData() {
 
                 } else {
                     // Error from API
-                    showErrorMessage(`Failed to delete task: ${result.error}`);
+                    showErrorMessage(`Failed to archive task: ${result.error}`);
                 }
 
             } catch (error) {
-                console.error('Error deleting task:', error);
+                console.error('Error archiving task:', error);
                 showErrorMessage('Network error. Please check your connection and try again.');
 
             } finally {
@@ -1795,29 +1915,32 @@ window.renderTimelineView = function(data) {
     const timeline = data.timeline || {};
     const conflicts = data.conflicts || [];
     
-    // Debug: Log what the backend sent
-    console.log('Timeline data from backend:', timeline);
-    console.log('This week tasks:', timeline.this_week);
+    // Generate calendar for current month
+    generateCalendar(window.currentYear || new Date().getFullYear(), window.currentMonth || new Date().getMonth());
+    
+    // Group all tasks by date
+    const allTasks = [
+        ...(timeline.overdue || []),
+        ...(timeline.today || []),
+        ...(timeline.this_week || []),
+        ...(timeline.future || []),
+        ...(timeline.no_due_date || [])
+    ];
+    
+    // Populate calendar with tasks
+    populateCalendarWithTasks(allTasks);
+    
+    // Render no due date tasks
+    renderNoDueDateTasks(timeline.no_due_date || []);
     
     // Update counts
-    document.getElementById('overdueCount').textContent = `(${timeline.overdue?.length || 0})`;
-    document.getElementById('todayCount').textContent = `(${timeline.today?.length || 0})`;
-    document.getElementById('thisWeekCount').textContent = `(${timeline.this_week?.length || 0})`;
-    document.getElementById('futureCount').textContent = `(${timeline.future?.length || 0})`;
     document.getElementById('noDueDateCount').textContent = `(${timeline.no_due_date?.length || 0})`;
     
     // Render conflicts
     renderConflicts(conflicts);
     
-    // Render timeline sections
-    renderTimelineSection('overdue', timeline.overdue || []);
-    renderTimelineSection('today', timeline.today || []);
-    renderTimelineSection('this_week', timeline.this_week || []);
-    renderTimelineSection('future', timeline.future || []);
-    renderTimelineSection('no_due_date', timeline.no_due_date || []);
-    
-    // Initialize drag and drop
-    initializeDragDrop();
+    // Populate filter options
+    populateTimelineFilterOptions();
 };
 
 // Re-implement setupAutoRefresh and clearAutoRefresh with full logic
@@ -1918,15 +2041,29 @@ function formatDate(dateStr) {
 }
 
 function initializeDragDrop() {
-    // Make timeline sections droppable
-    document.querySelectorAll('.timeline-section').forEach(section => {
-        section.addEventListener('dragover', handleDragOver);
-        section.addEventListener('dragleave', handleDragLeave);
-        section.addEventListener('drop', handleDrop);
+    // Make calendar date cells droppable
+    const calendarCells = document.querySelectorAll('.calendar-date');
+    console.log('Initializing drag and drop for', calendarCells.length, 'calendar cells');
+    
+    calendarCells.forEach(cell => {
+        cell.addEventListener('dragover', handleDragOver);
+        cell.addEventListener('dragleave', handleDragLeave);
+        cell.addEventListener('drop', handleDrop);
     });
     
-    // Make task cards draggable
-    document.querySelectorAll('.timeline-task-card').forEach(card => {
+    // Make no due date section droppable
+    const noDueDateSection = document.querySelector('.no-due-date-section');
+    if (noDueDateSection) {
+        noDueDateSection.addEventListener('dragover', handleDragOver);
+        noDueDateSection.addEventListener('dragleave', handleDragLeave);
+        noDueDateSection.addEventListener('drop', handleDrop);
+    }
+    
+    // Make task cards draggable (both timeline and calendar mini tasks)
+    const taskCards = document.querySelectorAll('.timeline-task-card, .calendar-task-mini');
+    console.log('Initializing drag and drop for', taskCards.length, 'task cards');
+    
+    taskCards.forEach(card => {
         card.addEventListener('dragstart', handleDragStart);
         card.addEventListener('dragend', handleDragEnd);
     });
@@ -1937,18 +2074,28 @@ function handleDragStart(e) {
     e.target.classList.add('dragging');
     
     // Add visual feedback to all drop zones
-    document.querySelectorAll('.timeline-section').forEach(section => {
-        section.classList.add('drag-over');
+    document.querySelectorAll('.calendar-date').forEach(cell => {
+        cell.classList.add('drag-over');
     });
+    
+    const noDueDateSection = document.querySelector('.no-due-date-section');
+    if (noDueDateSection) {
+        noDueDateSection.classList.add('drag-over');
+    }
 }
 
 function handleDragEnd(e) {
     e.target.classList.remove('dragging');
     
     // Remove visual feedback from all drop zones
-    document.querySelectorAll('.timeline-section').forEach(section => {
-        section.classList.remove('drag-over');
+    document.querySelectorAll('.calendar-date').forEach(cell => {
+        cell.classList.remove('drag-over');
     });
+    
+    const noDueDateSection = document.querySelector('.no-due-date-section');
+    if (noDueDateSection) {
+        noDueDateSection.classList.remove('drag-over');
+    }
 }
 
 function handleDragOver(e) {
@@ -1957,6 +2104,7 @@ function handleDragOver(e) {
     
     // Add visual feedback to current drop zone
     e.currentTarget.classList.add('drag-over');
+    console.log('Drag over calendar cell:', e.currentTarget.dataset.date);
 }
 
 function handleDragLeave(e) {
@@ -1969,8 +2117,9 @@ function handleDrop(e) {
     e.currentTarget.classList.remove('drag-over');
     
     const taskId = e.dataTransfer.getData('text/plain');
-    const section = e.currentTarget;
-    const period = section.dataset.period;
+    const target = e.currentTarget;
+    
+    console.log('Drop event:', taskId, 'onto', target.classList.toString());
     
     // Show loading state on the dragged task
     const draggedTask = document.querySelector(`[data-task-id="${taskId}"]`);
@@ -1978,11 +2127,18 @@ function handleDrop(e) {
         draggedTask.classList.add('updating');
     }
     
-    if (period === 'no_due_date') {
+    // Check if dropped on calendar date cell
+    if (target.classList.contains('calendar-date')) {
+        const dateStr = target.dataset.date;
+        console.log('Dropped on calendar date:', dateStr);
+        if (dateStr) {
+            updateTaskDueDate(taskId, dateStr);
+        }
+    }
+    // Check if dropped on no due date section
+    else if (target.classList.contains('no-due-date-section')) {
+        console.log('Dropped on no due date section');
         updateTaskDueDate(taskId, null);
-    } else {
-        const newDate = calculateDateFromPeriod(period);
-        updateTaskDueDate(taskId, newDate);
     }
 }
 
@@ -2004,8 +2160,194 @@ function calculateDateFromPeriod(period) {
     }
 }
 
+// Calendar generation functions
+function generateCalendar(year, month) {
+    window.currentYear = year;
+    window.currentMonth = month;
+    
+    const calendarGrid = document.getElementById('calendarGrid');
+    const calendarTitle = document.getElementById('calendarTitle');
+    
+    // Update title
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                       'July', 'August', 'September', 'October', 'November', 'December'];
+    calendarTitle.textContent = `${monthNames[month]} ${year}`;
+    
+    // Clear existing calendar
+    calendarGrid.innerHTML = '';
+    
+    // Add day headers
+    const dayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    dayHeaders.forEach(day => {
+        const header = document.createElement('div');
+        header.className = 'calendar-day-header';
+        header.textContent = day;
+        calendarGrid.appendChild(header);
+    });
+    
+    // Get first day of month and number of days
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startDayOfWeek = firstDay.getDay();
+    
+    // Add empty cells for days before the first day of the month
+    for (let i = 0; i < startDayOfWeek; i++) {
+        const prevMonth = new Date(year, month, 0);
+        const dayNum = prevMonth.getDate() - startDayOfWeek + i + 1;
+        const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+        
+        const cell = createCalendarDateCell(dayNum, dateStr, true);
+        calendarGrid.appendChild(cell);
+    }
+    
+    // Add days of the current month
+    const today = new Date();
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const isToday = year === today.getFullYear() && month === today.getMonth() && day === today.getDate();
+        
+        const cell = createCalendarDateCell(day, dateStr, false, isToday);
+        calendarGrid.appendChild(cell);
+    }
+    
+    // Add empty cells for days after the last day of the month
+    const remainingCells = 42 - (startDayOfWeek + daysInMonth); // 42 = 6 weeks * 7 days
+    for (let day = 1; day <= remainingCells; day++) {
+        const nextMonth = new Date(year, month + 1, day);
+        const dateStr = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        
+        const cell = createCalendarDateCell(day, dateStr, true);
+        calendarGrid.appendChild(cell);
+    }
+}
+
+function createCalendarDateCell(dayNum, dateStr, isOtherMonth, isToday = false) {
+    const cell = document.createElement('div');
+    cell.className = 'calendar-date';
+    cell.dataset.date = dateStr;
+    
+    if (isOtherMonth) {
+        cell.classList.add('other-month');
+    }
+    if (isToday) {
+        cell.classList.add('today');
+    }
+    
+    const dayElement = document.createElement('div');
+    dayElement.className = 'calendar-date-number';
+    dayElement.textContent = dayNum;
+    cell.appendChild(dayElement);
+    
+    return cell;
+}
+
+function populateCalendarWithTasks(allTasks) {
+    // Group tasks by date
+    const tasksByDate = {};
+    
+    allTasks.forEach(task => {
+        const dueDate = task.due_date;
+        if (dueDate) {
+            // Extract date part from ISO string
+            const dateStr = dueDate.split('T')[0];
+            if (!tasksByDate[dateStr]) {
+                tasksByDate[dateStr] = [];
+            }
+            tasksByDate[dateStr].push(task);
+        }
+    });
+    
+    // Populate calendar cells with tasks
+    document.querySelectorAll('.calendar-date').forEach(cell => {
+        const dateStr = cell.dataset.date;
+        const tasks = tasksByDate[dateStr] || [];
+        
+        // Clear existing tasks
+        const existingTasks = cell.querySelectorAll('.calendar-task-mini');
+        existingTasks.forEach(task => task.remove());
+        
+        // Add task count badge
+        const existingBadge = cell.querySelector('.calendar-task-count');
+        if (existingBadge) {
+            existingBadge.remove();
+        }
+        
+        if (tasks.length > 0) {
+            // Add count badge
+            const badge = document.createElement('div');
+            badge.className = 'calendar-task-count';
+            badge.textContent = tasks.length;
+            cell.appendChild(badge);
+            
+            // Add mini task cards (max 3 visible)
+            const visibleTasks = tasks.slice(0, 3);
+            visibleTasks.forEach(task => {
+                const miniTask = document.createElement('div');
+                miniTask.className = `calendar-task-mini priority-${task.priority.toLowerCase()}`;
+                miniTask.textContent = task.title;
+                miniTask.title = `${task.title} - ${task.priority} priority`;
+                miniTask.dataset.taskId = task.task_id;
+                miniTask.draggable = true;
+                miniTask.onclick = () => showTaskDetails(task);
+                cell.appendChild(miniTask);
+            });
+            
+            // Show "+X more" if there are more tasks
+            if (tasks.length > 3) {
+                const moreTasks = document.createElement('div');
+                moreTasks.className = 'calendar-task-mini';
+                moreTasks.textContent = `+${tasks.length - 3} more`;
+                moreTasks.style.background = '#999';
+                cell.appendChild(moreTasks);
+            }
+        }
+    });
+    
+    // Initialize drag and drop for calendar cells after populating
+    initializeDragDrop();
+}
+
+function renderNoDueDateTasks(tasks) {
+    const container = document.getElementById('noDueDateTasks');
+    container.innerHTML = '';
+    
+    if (tasks.length === 0) {
+        container.innerHTML = '<div style="text-align: center; color: #999; padding: 20px;">No tasks without due dates</div>';
+        return;
+    }
+    
+    tasks.forEach(task => {
+        const taskCardHtml = createTaskCard(task);
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = taskCardHtml;
+        const taskCard = tempDiv.firstElementChild;
+        taskCard.draggable = true;
+        container.appendChild(taskCard);
+    });
+}
+
+function navigateMonth(direction) {
+    const newDate = new Date(window.currentYear, window.currentMonth + direction, 1);
+    generateCalendar(newDate.getFullYear(), newDate.getMonth());
+    
+    // Re-populate with tasks
+    if (window.timelineData) {
+        const allTasks = [
+            ...(window.timelineData.timeline?.overdue || []),
+            ...(window.timelineData.timeline?.today || []),
+            ...(window.timelineData.timeline?.this_week || []),
+            ...(window.timelineData.timeline?.future || []),
+            ...(window.timelineData.timeline?.no_due_date || [])
+        ];
+        populateCalendarWithTasks(allTasks);
+    }
+}
+
 async function updateTaskDueDate(taskId, newDate) {
     try {
+        console.log('Updating task', taskId, 'to date', newDate);
+        
         const u = getCurrentUser();
         const userId = u && (u.user_id || u.uid);
         if (!userId) {
@@ -2013,6 +2355,8 @@ async function updateTaskDueDate(taskId, newDate) {
         }
         
         const payload = { due_date: newDate };
+        console.log('Sending payload:', payload);
+        
         const res = await fetch(`${API_BASE}/api/tasks/${taskId}`, {
             method: 'PUT',
             headers: { 
@@ -2022,13 +2366,18 @@ async function updateTaskDueDate(taskId, newDate) {
             body: JSON.stringify(payload)
         });
         
+        console.log('API response status:', res.status);
+        
         if (!res.ok) {
             const errorData = await res.json().catch(() => ({}));
+            console.error('API error:', errorData);
             throw new Error(errorData.error || `HTTP ${res.status}`);
         }
         
+        console.log('Task updated successfully, reloading timeline...');
+        
         // Reload timeline view
-        await loadTimelineView();
+        await window.loadTimelineView();
     } catch (e) {
         console.error('Failed to update task:', e);
         alert(`Failed to reschedule task: ${e.message}`);
@@ -2162,7 +2511,7 @@ function applyTimelineFilters() {
         }
     };
     
-    // Render filtered timeline
+    // Render filtered calendar
     window.renderTimelineView(filteredTimelineData);
     
     // Save filter state
@@ -2322,12 +2671,6 @@ function loadSavedTimelineFilters() {
     }
 }
 
-// Initialize saved filters when timeline view loads
-const originalLoadTimelineView = window.loadTimelineView;
-window.loadTimelineView = async function() {
-    await originalLoadTimelineView();
-    loadSavedTimelineFilters();
-};
 </script>
 
 </body></html>
