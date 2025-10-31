@@ -90,7 +90,16 @@ def init_firebase():
         print(f"❌ Firebase initialization failed: {e}")
         return False
 
-def create_app():
+def create_app(run_startup_checks: bool = False):
+    """Create and configure the Flask application.
+
+    Args:
+        run_startup_checks: If True, run one-time startup checks that may
+            perform internal requests (used by the real application startup).
+            Defaults to False so tests and normal imports don't execute
+            internal requests. The real server can enable these checks by
+            calling `create_app(run_startup_checks=True)`.
+    """
     app = Flask(__name__)
     
     # Configure CORS - MUST be before routes
@@ -160,64 +169,58 @@ def create_app():
         response.headers.add('Access-Control-Allow-Headers', 'Content-Type, X-User-Id, Authorization')
         return response, 200
 
-    # ----------------- One-time startup check for deadlines -----------------
-    # The in-process scheduler has been removed. Instead, run the
-    # notifications.check_deadlines view once on startup to send emails for
-    # tasks due today (24 hours lookahead). This keeps behavior simple and
-    # avoids requiring APScheduler as a dependency.
-    try:
-        # Late import of notifications module
-        from api import notifications as notifications_module
+    # Optionally run one-time startup check for deadlines. This block issues
+    # internal requests using the test client and therefore must be disabled
+    # during tests to avoid locking the app from further setup calls. Only
+    # run when explicitly requested by the caller (e.g. main()).
+    if run_startup_checks:
+        try:
+            # Late import of notifications module
+            from api import notifications as notifications_module
 
-        # Compute today's UTC start/end to match the `due_today` behaviour so we
-        # include tasks that are due earlier today (even if their due_date < now).
-        now = _dt.now(_tz.utc)
-        start = _dt(now.year, now.month, now.day, 0, 0, 0, tzinfo=_tz.utc)
-        end = start + _td(days=1, microseconds=-1)
-        start_iso = start.isoformat()
-        end_iso = end.isoformat()
+            # Compute today's UTC start/end to match the `due_today` behaviour
+            now = _dt.now(_tz.utc)
+            start = _dt(now.year, now.month, now.day, 0, 0, 0, tzinfo=_tz.utc)
+            end = start + _td(days=1, microseconds=-1)
+            start_iso = start.isoformat()
+            end_iso = end.isoformat()
 
-        # Run inside app and use the test client to POST to the endpoint so we get
-        # a proper Flask Response object (avoids calling view functions directly).
-        with app.app_context():
-            with app.test_client() as client:
+            # Run inside app and use the test client to POST to the endpoint so
+            # we get a proper Flask Response object (avoids calling view
+            # functions directly).
+            with app.app_context():
+                with app.test_client() as client:
+                    try:
+                        resp = client.post('/api/notifications/check-deadlines', query_string={"start_iso": start_iso, "end_iso": end_iso})
+                    except Exception as e:
+                        print(f"[startup] check_deadlines view raised: {e}")
+
+                # If the initial UTC-day pass found nothing, attempt a retry
                 try:
-                    resp = client.post('/api/notifications/check-deadlines', query_string={"start_iso": start_iso, "end_iso": end_iso})
-                except Exception as e:
-                    print(f"[startup] check_deadlines view raised: {e}")
-
-            # If the initial UTC-day pass found nothing, attempt a retry
-            # using the host's local-day window. This helps catch tasks that
-            # are due 'today' in the local timezone (e.g., client-local day
-            # ranges) which may not overlap the UTC 00:00-23:59 window.
-            try:
-                # Parse the JSON result if available
-                parsed = None
-                try:
-                    if isinstance(resp, tuple) and hasattr(resp[0], 'get_json'):
-                        parsed = resp[0].get_json()
-                    elif hasattr(resp, 'get_json'):
-                        parsed = resp.get_json()
-                except Exception:
                     parsed = None
+                    try:
+                        if isinstance(resp, tuple) and hasattr(resp[0], 'get_json'):
+                            parsed = resp[0].get_json()
+                        elif hasattr(resp, 'get_json'):
+                            parsed = resp.get_json()
+                    except Exception:
+                        parsed = None
 
-                if not parsed or parsed.get('checked', 0) == 0:
-                    # Compute local-day start/end in UTC
-                    local_now = _dt.now().astimezone()
-                    local_start = _dt(local_now.year, local_now.month, local_now.day, 0, 0, 0, tzinfo=local_now.tzinfo)
-                    local_end = local_start + _td(days=1, microseconds=-1)
-                    # Convert to UTC ISO strings
-                    alt_start_iso = local_start.astimezone(_tz.utc).isoformat()
-                    alt_end_iso = local_end.astimezone(_tz.utc).isoformat()
-                    with app.test_client() as client:
-                        try:
-                            alt_resp = client.post('/api/notifications/check-deadlines', query_string={"start_iso": alt_start_iso, "end_iso": alt_end_iso})
-                        except Exception as e:
-                            print(f"[startup] alternate check_deadlines view raised: {e}")
-            except Exception as e:
-                print(f"[startup] failed alternate local-day check: {e}")
-    except Exception as e:
-        print(f"[startup] failed to run check_deadlines: {e}")
+                    if not parsed or parsed.get('checked', 0) == 0:
+                        local_now = _dt.now().astimezone()
+                        local_start = _dt(local_now.year, local_now.month, local_now.day, 0, 0, 0, tzinfo=local_now.tzinfo)
+                        local_end = local_start + _td(days=1, microseconds=-1)
+                        alt_start_iso = local_start.astimezone(_tz.utc).isoformat()
+                        alt_end_iso = local_end.astimezone(_tz.utc).isoformat()
+                        with app.test_client() as client:
+                            try:
+                                alt_resp = client.post('/api/notifications/check-deadlines', query_string={"start_iso": alt_start_iso, "end_iso": alt_end_iso})
+                            except Exception as e:
+                                print(f"[startup] alternate check_deadlines view raised: {e}")
+                except Exception as e:
+                    print(f"[startup] failed alternate local-day check: {e}")
+        except Exception as e:
+            print(f"[startup] failed to run check_deadlines: {e}")
     
     # NOTE: CORS OPTIONS handler registered earlier before startup requests
     
@@ -225,7 +228,27 @@ def create_app():
 
 def main():
     """Main entry point for running the application."""
-    app = create_app()
+    # When running the real server, enable one-time startup checks. Call
+    # `create_app(run_startup_checks=True)` when the function supports the
+    # parameter. If a test has monkeypatched `create_app` with a zero-arg
+    # replacement, temporarily set the env var for the call and restore it
+    # afterwards to avoid persistent process-wide side-effects that break
+    # subsequent tests.
+    import inspect
+    sig = inspect.signature(create_app)
+    if 'run_startup_checks' in sig.parameters:
+        app = create_app(run_startup_checks=True)
+    else:
+        # Temporarily set env var and restore after the call
+        old = os.environ.get("RUN_STARTUP_CHECKS")
+        os.environ["RUN_STARTUP_CHECKS"] = "true"
+        try:
+            app = create_app()
+        finally:
+            if old is None:
+                os.environ.pop("RUN_STARTUP_CHECKS", None)
+            else:
+                os.environ["RUN_STARTUP_CHECKS"] = old
     port = int(os.getenv("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
 
