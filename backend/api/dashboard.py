@@ -182,6 +182,10 @@ def user_dashboard(user_id):
         reverse=True
     )
 
+    # Exclude archived tasks
+    created_tasks = [t for t in created_tasks if not t.get("archived", False)]
+    assigned_tasks = [t for t in assigned_tasks if not t.get("archived", False)]
+
     # Combine all tasks for timeline view
     all_tasks = created_tasks + assigned_tasks
     # Remove duplicates (task might be both created by and assigned to same person)
