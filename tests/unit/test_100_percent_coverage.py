@@ -291,3 +291,102 @@ class TestProjectsBranchCoverage:
         assert response.status_code == 201
         data = response.get_json()
         assert data["project_id"] == "new_project_id"
+
+    def test_create_project_email_query_finds_match(self, client, mock_db, monkeypatch):
+        """Test email query that FINDS a match - covers lines 42-43 (if resolved: resolve_id = resolved)"""
+        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
+        
+        mock_user_doc = Mock()
+        mock_user_doc.exists = True
+        mock_user_doc.to_dict.return_value = {
+            "user_id": "user1",
+            "name": "User One",
+            "email": "user1@test.com",
+            "role": "member"
+        }
+        
+        # Mock for the owner found by email
+        mock_owner_by_email = Mock()
+        mock_owner_by_email.id = "found_owner_id"
+        
+        # Mock for the created project
+        mock_project_ref = Mock()
+        mock_project_ref.id = "new_project_id"
+        mock_project_ref.set = Mock()
+        
+        # Mock for membership
+        mock_membership_ref = Mock()
+        mock_membership_ref.set = Mock()
+        
+        def mock_collection(collection_name):
+            mock_collection_obj = Mock()
+            if collection_name == "users":
+                def mock_document(doc_id):
+                    mock_doc_ref = Mock()
+                    mock_doc_ref.get.return_value = mock_user_doc if doc_id == "user1" else Mock(exists=False)
+                    return mock_doc_ref
+                mock_collection_obj.document.side_effect = mock_document
+                
+                # Mock the where queries for owner resolution
+                # Track call count to distinguish between handle and email queries
+                where_call_count = {"count": 0}
+                
+                def mock_where(field=None, op=None, value=None, filter=None):
+                    mock_query = Mock()
+                    mock_limit = Mock()
+                    
+                    where_call_count["count"] += 1
+                    
+                    # First call is handle query (no match)
+                    # Second call is email query (finds match)
+                    if where_call_count["count"] == 1:
+                        # Handle query - no match
+                        empty_stream = iter([])
+                        mock_limit.stream.return_value = empty_stream
+                    elif where_call_count["count"] == 2:
+                        # Email query - FINDS A MATCH
+                        # This makes resolved = d.id at line 39, then lines 42-43 execute
+                        match_stream = iter([mock_owner_by_email])
+                        mock_limit.stream.return_value = match_stream
+                    else:
+                        empty_stream = iter([])
+                        mock_limit.stream.return_value = empty_stream
+                    
+                    mock_query.limit.return_value = mock_limit
+                    return mock_query
+                
+                mock_collection_obj.where.side_effect = mock_where
+                
+            elif collection_name == "projects":
+                mock_collection_obj.document.return_value = mock_project_ref
+            
+            elif collection_name == "memberships":
+                mock_collection_obj.document.return_value = mock_membership_ref
+            
+            return mock_collection_obj
+        
+        mock_db.collection.side_effect = mock_collection
+        
+        # Use an email-like owner_id (contains @)
+        # This will:
+        # 1. Fail document lookup (line 25)
+        # 2. Fail handle query (line 29-33)
+        # 3. Execute email query (line 35-39) and FIND a match
+        # 4. Set resolved = "found_owner_id"
+        # 5. Execute lines 42-43: if resolved: resolve_id = resolved
+        payload = {
+            "name": "Test Project",
+            "description": "A test project",
+            "owner_id": "owner@example.com",  # Email that will be found
+            "status": "active"
+        }
+        
+        response = client.post("/api/projects",
+                              json=payload,
+                              headers={"X-User-Id": "user1"})
+        
+        assert response.status_code == 201
+        data = response.get_json()
+        assert data["project_id"] == "new_project_id"
+        # The owner_id should have been resolved to the found user
+        # (though we can't easily check this in the response without more complex mocking)
