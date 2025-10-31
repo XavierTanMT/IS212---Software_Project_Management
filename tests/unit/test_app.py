@@ -1,6 +1,7 @@
 import sys
 import types
 import os
+import json
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 
@@ -90,7 +91,8 @@ def test_init_firebase_success(monkeypatch, tmp_path):
     """Test init_firebase successfully initializes with valid credentials."""
     # Create a fake credentials file
     cred_file = tmp_path / "credentials.json"
-    cred_file.write_text('{"type": "service_account"}')
+    cred_data = {"type": "service_account", "project_id": "test-project"}
+    cred_file.write_text(json.dumps(cred_data))
     
     # Mock os.getenv to return the valid path
     monkeypatch.setattr(os, "getenv", lambda key, default=None: str(cred_file) if key == "FIREBASE_CREDENTIALS_JSON" else None)
@@ -105,13 +107,16 @@ def test_init_firebase_success(monkeypatch, tmp_path):
     monkeypatch.setattr(fake_firebase, "initialize_app", mock_init)
     
     # Call init_firebase
-    app_module.init_firebase()
+    result = app_module.init_firebase()
     
-    # Verify Certificate was called with correct path
-    fake_credentials.Certificate.assert_called_once_with(str(cred_file))
+    # Verify Certificate was called with credentials dict (not file path)
+    fake_credentials.Certificate.assert_called_once_with(cred_data)
     
     # Verify initialize_app was called
     mock_init.assert_called_once()
+    
+    # Verify result is True
+    assert result is True
 
 
 def test_init_firebase_already_initialized(monkeypatch, tmp_path):
@@ -233,14 +238,19 @@ def test_init_firebase_with_google_application_credentials(monkeypatch, tmp_path
     """Test init_firebase works with GOOGLE_APPLICATION_CREDENTIALS."""
     # Create a fake credentials file
     cred_file = tmp_path / "google_creds.json"
-    cred_file.write_text('{"type": "service_account"}')
+    cred_data = {"type": "service_account", "project_id": "test-google-project"}
+    cred_file.write_text(json.dumps(cred_data))
     
     # Mock os.getenv to return None for FIREBASE_CREDENTIALS_JSON but valid for GOOGLE_APPLICATION_CREDENTIALS
     def mock_getenv(key, default=None):
         if key == "FIREBASE_CREDENTIALS_JSON":
             return None
+        elif key == "FIREBASE_CREDENTIALS_PATH":
+            return None
         elif key == "GOOGLE_APPLICATION_CREDENTIALS":
             return str(cred_file)
+        elif key == "FIREBASE_PROJECT_ID":
+            return None
         return default
     
     monkeypatch.setattr(os, "getenv", mock_getenv)
@@ -255,13 +265,16 @@ def test_init_firebase_with_google_application_credentials(monkeypatch, tmp_path
     monkeypatch.setattr(fake_firebase, "initialize_app", mock_init)
     
     # Call init_firebase
-    app_module.init_firebase()
+    result = app_module.init_firebase()
     
-    # Verify Certificate was called with correct path
-    fake_credentials.Certificate.assert_called_once_with(str(cred_file))
+    # Verify Certificate was called with credentials dict (not file path)
+    fake_credentials.Certificate.assert_called_once_with(cred_data)
     
     # Verify initialize_app was called
     mock_init.assert_called_once()
+    
+    # Verify result is True
+    assert result is True
 
 
 def test_main_execution_block(monkeypatch, tmp_path):

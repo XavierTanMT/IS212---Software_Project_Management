@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from flask import request, jsonify
 from . import notes_bp
 from firebase_admin import firestore
+from google.cloud.firestore_v1.base_query import FieldFilter
 import re
 
 def now_iso():
@@ -51,7 +52,7 @@ def add_note():
 def list_notes(task_id):
     """List all notes for a task."""
     db = firestore.client()
-    q = db.collection("notes").where("task_id","==",task_id).order_by("created_at").limit(100).stream()
+    q = db.collection("notes").where(filter=FieldFilter("task_id", "==", task_id)).order_by("created_at").limit(100).stream()
     res = [{"note_id": d.id, **d.to_dict()} for d in q]
     return jsonify(res), 200
 

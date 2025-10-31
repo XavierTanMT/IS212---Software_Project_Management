@@ -13,6 +13,7 @@ from api import (
     users_bp, tasks_bp, dashboard_bp, manager_bp,
     projects_bp, notes_bp, labels_bp, memberships_bp, attachments_bp, admin_bp
 )
+from firebase_utils import get_firebase_credentials
 
 # Check if running in test/development mode without Firebase
 DEV_MODE = os.getenv("DEV_MODE", "false").lower() == "true"
@@ -23,27 +24,67 @@ def init_firebase():
         print("🔧 Running in DEV_MODE - Firebase disabled (will use mock data)")
         return False
     
-    cred_path = os.getenv("FIREBASE_CREDENTIALS_JSON") or os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-    if not cred_path:
-        print("⚠️  WARNING: No Firebase credentials environment variable set.")
-        print("   Set FIREBASE_CREDENTIALS_JSON or GOOGLE_APPLICATION_CREDENTIALS")
-        print("   Or run with DEV_MODE=true for testing")
-        return False
+    # Check if Firebase emulators are configured
+    firestore_emulator = os.getenv("FIRESTORE_EMULATOR_HOST")
+    auth_emulator = os.getenv("FIREBASE_AUTH_EMULATOR_HOST")
     
-    if not os.path.isfile(cred_path):
-        print(f"⚠️  WARNING: Firebase credentials file not found: {cred_path}")
-        return False
-    
-    if not firebase_admin._apps:
+    if firestore_emulator or auth_emulator:
+        print("🔥 Firebase Emulator Mode Detected")
+        if firestore_emulator:
+            print(f"   ✓ Firestore Emulator: {firestore_emulator}")
+        if auth_emulator:
+            print(f"   ✓ Auth Emulator: {auth_emulator}")
+        
+        # When using emulators, we need minimal credentials
+        # Set GCLOUD_PROJECT if not already set
+        if not os.getenv("GCLOUD_PROJECT"):
+            os.environ["GCLOUD_PROJECT"] = "demo-no-project"
+            print(f"   ✓ Set GCLOUD_PROJECT=demo-no-project")
+        
+        # For emulators, we need a dummy credentials file
+        # Check if GOOGLE_APPLICATION_CREDENTIALS points to a valid file
+        dummy_creds = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+        if not dummy_creds or not os.path.exists(dummy_creds):
+            # Try to find the integration test dummy credentials
+            import sys
+            repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            dummy_creds_path = os.path.join(repo_root, "tests", "integration", "dummy-credentials.json")
+            if os.path.exists(dummy_creds_path):
+                os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = dummy_creds_path
+                print(f"   ✓ Using dummy credentials for emulator")
+        
         try:
-            cred = credentials.Certificate(cred_path)
-            firebase_admin.initialize_app(cred)
-            print("✓ Firebase initialized successfully")
+            if not firebase_admin._apps:
+                # Initialize with minimal options for emulator
+                firebase_admin.initialize_app(options={'projectId': os.getenv("GCLOUD_PROJECT", "demo-no-project")})
+                print("   ✓ Firebase initialized for EMULATOR use")
+                print("   ⚠️  Using emulators - NO CLOUD QUOTA USED")
+                return True
             return True
         except Exception as e:
-            print(f"❌ Firebase initialization failed: {e}")
+            print(f"   ❌ Emulator initialization failed: {e}")
             return False
-    return True
+    
+    # Normal cloud Firebase initialization
+    try:
+        # Use the unified credential loading function
+        firebase_creds = get_firebase_credentials()
+        
+        if not firebase_admin._apps:
+            cred = credentials.Certificate(firebase_creds)
+            firebase_admin.initialize_app(cred)
+            print("✓ Firebase initialized successfully (CLOUD MODE)")
+            print("⚠️  WARNING: Using cloud Firebase - may consume quota")
+            return True
+        return True
+    except ValueError as e:
+        print(f"⚠️  WARNING: {e}")
+        print("   To use emulators instead, set FIRESTORE_EMULATOR_HOST=localhost:8080")
+        print("   Or run with DEV_MODE=true for testing")
+        return False
+    except Exception as e:
+        print(f"❌ Firebase initialization failed: {e}")
+        return False
 
 def create_app():
     app = Flask(__name__)

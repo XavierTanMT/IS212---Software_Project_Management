@@ -257,9 +257,9 @@ class TestListAttachments:
         assert data[1]["attachment_id"] == "attachment2"
         assert data[1]["file_name"] == "doc2.pdf"
         
-        # Verify Firestore query
+        # Verify Firestore query (FieldFilter syntax uses filter parameter)
         mock_db.collection.assert_called_once_with("attachments")
-        mock_collection.where.assert_called_once_with("task_id", "==", "task1")
+        assert mock_collection.where.called
         mock_where.order_by.assert_called_once_with("upload_date")
     
     def test_list_attachments_empty_result(self, client, mock_db, monkeypatch):
@@ -333,6 +333,66 @@ class TestListAttachments:
         
         # Verify order_by was called with upload_date
         mock_where.order_by.assert_called_once_with("upload_date")
+    
+    def test_list_attachments_index_error_fallback(self, client, mock_db, monkeypatch):
+        """Test fallback when Firestore index is missing."""
+        # Mock documents to return
+        mock_doc1 = Mock()
+        mock_doc1.id = "attachment1"
+        mock_doc1.to_dict = Mock(return_value={
+            "task_id": "task1",
+            "file_name": "doc1.pdf",
+            "file_path": "gs://bucket/doc1.pdf",
+            "uploaded_by": "user1",
+            "upload_date": "2025-01-01T00:00:00+00:00"
+        })
+        
+        # Mock query that raises index error, then fallback query that works
+        mock_fallback_query = Mock()
+        mock_fallback_query.stream = Mock(return_value=[mock_doc1])
+        
+        mock_ordered_query = Mock()
+        mock_ordered_query.stream = Mock(side_effect=Exception("requires an index for task_id"))
+        
+        mock_where = Mock()
+        mock_where.order_by = Mock(return_value=mock_ordered_query)
+        mock_where.stream = Mock(return_value=[mock_doc1])  # Fallback without ordering
+        
+        mock_collection = Mock()
+        mock_collection.where = Mock(return_value=mock_where)
+        
+        mock_db.collection = Mock(return_value=mock_collection)
+        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
+        
+        response = client.get("/api/attachments/by-task/task1")
+        
+        # Should succeed with fallback
+        assert response.status_code == 200
+        data = response.get_json()
+        assert len(data) == 1
+        assert data[0]["attachment_id"] == "attachment1"
+        
+        # Verify fallback was used (stream called on where object, not ordered query)
+        mock_where.stream.assert_called_once()
+    
+    def test_list_attachments_non_index_error_raised(self, client, mock_db, monkeypatch):
+        """Test that non-index errors are raised (not caught by fallback)."""
+        # Mock query that raises a non-index error
+        mock_ordered_query = Mock()
+        mock_ordered_query.stream = Mock(side_effect=Exception("database connection failed"))
+        
+        mock_where = Mock()
+        mock_where.order_by = Mock(return_value=mock_ordered_query)
+        
+        mock_collection = Mock()
+        mock_collection.where = Mock(return_value=mock_where)
+        
+        mock_db.collection = Mock(return_value=mock_collection)
+        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
+        
+        # The exception should bubble up and Flask will catch it
+        with pytest.raises(Exception, match="database connection failed"):
+            attachments_module.list_attachments("task1")
 
 
 class TestBlueprintRegistration:

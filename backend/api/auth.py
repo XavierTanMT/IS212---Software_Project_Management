@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from flask import request, jsonify
 from . import users_bp
 from firebase_admin import auth, firestore
+from google.cloud.firestore_v1.base_query import FieldFilter
 import requests
 import os
 
@@ -46,7 +47,7 @@ def register_user():
             return jsonify({"error": "User ID already exists"}), 409
         
         # Check if email already exists in Firestore
-        existing_user = db.collection("users").where("email", "==", email).limit(1).stream()
+        existing_user = db.collection("users").where(filter=FieldFilter("email", "==", email)).limit(1).stream()
         if list(existing_user):
             return jsonify({"error": "Email already registered"}), 409
         
@@ -172,7 +173,7 @@ def login_user():
         else:
             # Fallback: If no Web API Key, find user by email and create custom token
             # WARNING: This doesn't verify password! Only use if you trust the source
-            users_query = db.collection("users").where("email", "==", email).limit(1).stream()
+            users_query = db.collection("users").where(filter=FieldFilter("email", "==", email)).limit(1).stream()
             users_list = list(users_query)
             
             if not users_list:

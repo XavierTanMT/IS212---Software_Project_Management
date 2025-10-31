@@ -2,6 +2,7 @@ from datetime import datetime, timezone, timedelta
 from flask import jsonify, request
 from . import dashboard_bp
 from firebase_admin import firestore
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 def task_to_json(d):
     data = d.to_dict()
@@ -158,108 +159,82 @@ def _safe_iso_to_dt(s):
 
 @dashboard_bp.get("/users/<user_id>/dashboard")
 def user_dashboard(user_id):
-    try:
-        db = firestore.client()
-        view_mode = request.args.get("view_mode", "grid")
+    db = firestore.client()
+    view_mode = request.args.get("view_mode", "grid")
 
-        user_doc = db.collection("users").document(user_id).get()
-        if not user_doc.exists:
-            return jsonify({"error": "User not found"}), 404
+    user_doc = db.collection("users").document(user_id).get()
+    if not user_doc.exists:
+        return jsonify({"error": "User not found"}), 404
 
-        # Avoid composite index by NOT using order_by on a different field than the filter.
-        created_stream = (db.collection("tasks").where("created_by.user_id", "==", user_id).where("archived", "in", [False, None]).stream())
+    # Avoid composite index by NOT using order_by on a different field than the filter.
+    created_stream = db.collection("tasks").where(filter=FieldFilter("created_by.user_id", "==", user_id)).stream()
+    assigned_stream = db.collection("tasks").where(filter=FieldFilter("assigned_to.user_id", "==", user_id)).stream()
 
-        assigned_stream = (db.collection("tasks").where("assigned_to.user_id", "==", user_id).where("archived", "in", [False, None]).stream())
+    # Convert to JSON and sort locally by created_at desc
+    created_tasks = sorted(
+        (task_to_json(d) for d in created_stream),
+        key=lambda t: (_safe_iso_to_dt(t.get("created_at")) or datetime.min.replace(tzinfo=timezone.utc)),
+        reverse=True
+    )
+    assigned_tasks = sorted(
+        (task_to_json(d) for d in assigned_stream),
+        key=lambda t: (_safe_iso_to_dt(t.get("created_at")) or datetime.min.replace(tzinfo=timezone.utc)),
+        reverse=True
+    )
 
+    # Combine all tasks for timeline view
+    all_tasks = created_tasks + assigned_tasks
+    # Remove duplicates (task might be both created by and assigned to same person)
+    seen_tasks = set()
+    unique_tasks = []
+    for task in all_tasks:
+        task_id = task["task_id"]
+        if task_id not in seen_tasks:
+            seen_tasks.add(task_id)
+            unique_tasks.append(task)
+
+    # Status + priority breakdown (based on created tasks)
+    status_breakdown = {}
+    priority_breakdown = {}
+    overdue_count = 0
+    now = datetime.now(timezone.utc)
+
+    for t in created_tasks:
+        status_breakdown[t["status"]] = status_breakdown.get(t["status"], 0) + 1
+        priority_breakdown[t["priority"]] = priority_breakdown.get(t["priority"], 0) + 1
+
+        due = t.get("due_date")
+        due_dt = _safe_iso_to_dt(due)
+        if due_dt and due_dt < now and t.get("status") != "Completed":
+            overdue_count += 1
+
+    resp = {
+        "statistics": {
+            "total_created": len(created_tasks),
+            "total_assigned": len(assigned_tasks),
+            "status_breakdown": status_breakdown,
+            "priority_breakdown": priority_breakdown,
+            "overdue_count": overdue_count,
+        },
+        "recent_created_tasks": created_tasks[:5],
+        "recent_assigned_tasks": assigned_tasks[:5],
+    }
+
+    # Add timeline data if requested
+    if view_mode == "timeline":
+        timeline_data = group_tasks_by_timeline(unique_tasks)
+        conflicts = detect_conflicts(unique_tasks)
         
-        created_tasks_raw = list(created_stream)
-        assigned_tasks_raw = list(assigned_stream)
-
-        # Convert to JSON and sort locally by created_at desc
-        def safe_sort_key(t):
-            created_at = t.get("created_at")
-            if created_at is None:
-                return datetime.min.replace(tzinfo=timezone.utc)
-            
-            # Handle different data types
-            if isinstance(created_at, str):
-                dt = _safe_iso_to_dt(created_at)
-                return dt if dt is not None else datetime.min.replace(tzinfo=timezone.utc)
-            elif isinstance(created_at, datetime):
-                return created_at
-            else:
-                # For any other type, use min datetime
-                return datetime.min.replace(tzinfo=timezone.utc)
-        
-        created_tasks = sorted(
-            (task_to_json(d) for d in created_tasks_raw),
-            key=safe_sort_key,
-            reverse=True
-        )
-        assigned_tasks = sorted(
-            (task_to_json(d) for d in assigned_tasks_raw),
-            key=safe_sort_key,
-            reverse=True
-        )
-
-        # Combine all tasks for timeline view
-        all_tasks = created_tasks + assigned_tasks
-        # Remove duplicates (task might be both created by and assigned to same person)
-        seen_tasks = set()
-        unique_tasks = []
-        for task in all_tasks:
-            task_id = task["task_id"]
-            if task_id not in seen_tasks:
-                seen_tasks.add(task_id)
-                unique_tasks.append(task)
-
-        # Status + priority breakdown (based on created tasks)
-        status_breakdown = {}
-        priority_breakdown = {}
-        overdue_count = 0
-        now = datetime.now(timezone.utc)
-
-        for t in created_tasks:
-            status_breakdown[t["status"]] = status_breakdown.get(t["status"], 0) + 1
-            priority_breakdown[t["priority"]] = priority_breakdown.get(t["priority"], 0) + 1
-
-            due = t.get("due_date")
-            due_dt = _safe_iso_to_dt(due)
-            if due_dt and due_dt < now and t.get("status") != "Completed":
-                overdue_count += 1
-
-        resp = {
-            "statistics": {
-                "total_created": len(created_tasks),
-                "total_assigned": len(assigned_tasks),
-                "status_breakdown": status_breakdown,
-                "priority_breakdown": priority_breakdown,
-                "overdue_count": overdue_count,
-            },
-            "recent_created_tasks": created_tasks[:5],
-            "recent_assigned_tasks": assigned_tasks[:5],
+        resp["timeline"] = timeline_data
+        resp["conflicts"] = conflicts
+        resp["timeline_statistics"] = {
+            "total_tasks": len(unique_tasks),
+            "overdue_count": len(timeline_data["overdue"]),
+            "today_count": len(timeline_data["today"]),
+            "this_week_count": len(timeline_data["this_week"]),
+            "future_count": len(timeline_data["future"]),
+            "no_due_date_count": len(timeline_data["no_due_date"]),
+            "conflict_count": len(conflicts)
         }
 
-        # Add timeline data if requested
-        if view_mode == "timeline":
-            timeline_data = group_tasks_by_timeline(unique_tasks)
-            conflicts = detect_conflicts(unique_tasks)
-            
-            resp["timeline"] = timeline_data
-            resp["conflicts"] = conflicts
-            resp["timeline_statistics"] = {
-                "total_tasks": len(unique_tasks),
-                "overdue_count": len(timeline_data["overdue"]),
-                "today_count": len(timeline_data["today"]),
-                "this_week_count": len(timeline_data["this_week"]),
-                "future_count": len(timeline_data["future"]),
-                "no_due_date_count": len(timeline_data["no_due_date"]),
-                "conflict_count": len(conflicts)
-            }
-
-        return jsonify(resp), 200
-    except Exception as e:
-        import traceback
-        print(f"Error in user_dashboard: {e}")
-        traceback.print_exc()
-        return jsonify({"error": f"Internal server error: {str(e)}"}), 500
+    return jsonify(resp), 200

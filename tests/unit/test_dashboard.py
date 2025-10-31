@@ -83,10 +83,37 @@ class TestUserDashboard:
     def test_user_dashboard_no_tasks(self, client, mock_db, monkeypatch):
         mock_user_doc = Mock(); mock_user_doc.exists = True
         mock_user_collection = Mock()
-        mock_user_collection.document.return_value.get.return_value = mock_user_doc
-        mock_db.collection.side_effect = lambda n: (
-            mock_user_collection if n == "users" else make_tasks_collection([], [])
-        )
+        mock_user_collection.document = Mock(return_value=Mock(get=Mock(return_value=mock_user_doc)))
+        
+        # Mock empty task collections
+        mock_created_where = Mock()
+        mock_created_where.stream = Mock(return_value=[])
+        
+        mock_assigned_where = Mock()
+        mock_assigned_where.stream = Mock(return_value=[])
+        
+        mock_task_collection = Mock()
+        def where_side_effect(field=None, op=None, value=None, filter=None):
+            # Handle both old and new FieldFilter syntax
+            if filter is not None:
+                field = getattr(filter, "field_path", field)
+                value = getattr(filter, "value", value)
+            if "created_by" in field:
+                return mock_created_where
+            elif "assigned_to" in field:
+                return mock_assigned_where
+            return Mock()
+        
+        mock_task_collection.where = Mock(side_effect=where_side_effect)
+        
+        def collection_side_effect(name):
+            if name == "users":
+                return mock_user_collection
+            elif name == "tasks":
+                return mock_task_collection
+            return Mock()
+        
+        mock_db.collection = Mock(side_effect=collection_side_effect)
         monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
         resp = client.get("/api/users/u1/dashboard")
         data = resp.get_json()
@@ -97,20 +124,58 @@ class TestUserDashboard:
     def test_user_dashboard_with_created_tasks(self, client, mock_db, monkeypatch):
         mock_user_doc = Mock(); mock_user_doc.exists = True
         mock_user_collection = Mock()
-        mock_user_collection.document.return_value.get.return_value = mock_user_doc
-        t1, t2 = Mock(), Mock()
-        t1.id, t2.id = "t1", "t2"
-        t1.to_dict.return_value = {
-            "title": "A", "priority": "High", "status": "To Do",
-            "created_at": "2025-10-19T10:00:00+00:00", "created_by": {"user_id": "u1"},
+        mock_user_collection.document = Mock(return_value=Mock(get=Mock(return_value=mock_user_doc)))
+        
+        # Create mock tasks
+        mock_task1 = Mock()
+        mock_task1.id = "task1"
+        mock_task1.to_dict.return_value = {
+            "title": "Task 1",
+            "status": "To Do",
+            "priority": "High",
+            "created_at": "2025-10-19T10:00:00+00:00",
+            "created_by": {"user_id": "u1"}
         }
-        t2.to_dict.return_value = {
-            "title": "B", "priority": "Medium", "status": "In Progress",
-            "created_at": "2025-10-18T10:00:00+00:00", "created_by": {"user_id": "u1"},
+        
+        mock_task2 = Mock()
+        mock_task2.id = "task2"
+        mock_task2.to_dict.return_value = {
+            "title": "Task 2",
+            "status": "In Progress",
+            "priority": "Medium",
+            "created_at": "2025-10-19T11:00:00+00:00",
+            "created_by": {"user_id": "u1"}
         }
-        mock_db.collection.side_effect = lambda n: (
-            mock_user_collection if n == "users" else make_tasks_collection([t1, t2], [])
-        )
+        
+        # Mock task collections
+        mock_created_where = Mock()
+        mock_created_where.stream = Mock(return_value=[mock_task1, mock_task2])
+        
+        mock_assigned_where = Mock()
+        mock_assigned_where.stream = Mock(return_value=[])
+        
+        mock_task_collection = Mock()
+        def where_side_effect(field=None, op=None, value=None, filter=None):
+            # Handle both old and new FieldFilter syntax
+            if filter is not None:
+                field = getattr(filter, "field_path", field)
+                value = getattr(filter, "value", value)
+            if "created_by" in field:
+                return mock_created_where
+            elif "assigned_to" in field:
+                return mock_assigned_where
+            return Mock()
+        
+        mock_task_collection.where = Mock(side_effect=where_side_effect)
+        
+        def collection_side_effect(name):
+            if name == "users":
+                return mock_user_collection
+            elif name == "tasks":
+                return mock_task_collection
+            return Mock()
+        
+        mock_db.collection = Mock(side_effect=collection_side_effect)
         monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
         resp = client.get("/api/users/u1/dashboard")
         data = resp.get_json()
@@ -122,16 +187,49 @@ class TestUserDashboard:
     def test_user_dashboard_with_assigned_tasks(self, client, mock_db, monkeypatch):
         mock_user_doc = Mock(); mock_user_doc.exists = True
         mock_user_collection = Mock()
-        mock_user_collection.document.return_value.get.return_value = mock_user_doc
-        task = Mock()
-        task.id = "a1"
-        task.to_dict.return_value = {
-            "title": "Assigned", "priority": "Low", "status": "Completed",
-            "created_at": "2025-10-17T10:00:00+00:00", "assigned_to": {"user_id": "u1"}
+        mock_user_collection.document = Mock(return_value=Mock(get=Mock(return_value=mock_user_doc)))
+        
+        # Create mock task
+        mock_task1 = Mock()
+        mock_task1.id = "task1"
+        mock_task1.to_dict.return_value = {
+            "title": "Assigned Task",
+            "status": "To Do",
+            "priority": "High",
+            "created_at": "2025-10-19T10:00:00+00:00",
+            "created_by": {"user_id": "u2"},
+            "assigned_to": {"user_id": "u1"}
         }
-        mock_db.collection.side_effect = lambda n: (
-            mock_user_collection if n == "users" else make_tasks_collection([], [task])
-        )
+        
+        # Mock task collections
+        mock_created_where = Mock()
+        mock_created_where.stream = Mock(return_value=[])
+        
+        mock_assigned_where = Mock()
+        mock_assigned_where.stream = Mock(return_value=[mock_task1])
+        
+        mock_task_collection = Mock()
+        def where_side_effect(field=None, op=None, value=None, filter=None):
+            # Handle both old and new FieldFilter syntax
+            if filter is not None:
+                field = getattr(filter, "field_path", field)
+                value = getattr(filter, "value", value)
+            if "created_by" in field:
+                return mock_created_where
+            elif "assigned_to" in field:
+                return mock_assigned_where
+            return Mock()
+        
+        mock_task_collection.where = Mock(side_effect=where_side_effect)
+        
+        def collection_side_effect(name):
+            if name == "users":
+                return mock_user_collection
+            elif name == "tasks":
+                return mock_task_collection
+            return Mock()
+        
+        mock_db.collection = Mock(side_effect=collection_side_effect)
         monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
         resp = client.get("/api/users/u1/dashboard")
         data = resp.get_json()
@@ -142,20 +240,81 @@ class TestUserDashboard:
         now = datetime.now(timezone.utc)
         mock_user_doc = Mock(); mock_user_doc.exists = True
         mock_user_collection = Mock()
-        mock_user_collection.document.return_value.get.return_value = mock_user_doc
-        overdue = Mock(); overdue.id = "o"
-        overdue.to_dict.return_value = {
-            "title": "Overdue", "priority": "High", "status": "To Do",
-            "due_date": (now - timedelta(days=5)).isoformat(), "created_by": {"user_id": "u1"}
+        mock_user_collection.document = Mock(return_value=Mock(get=Mock(return_value=mock_user_doc)))
+        
+        # Create mock tasks with different due dates
+        mock_overdue = Mock()
+        mock_overdue.id = "overdue"
+        mock_overdue.to_dict.return_value = {
+            "title": "Overdue Task",
+            "status": "To Do",
+            "priority": "High",
+            "due_date": (now - timedelta(days=1)).isoformat(),
+            "created_at": "2025-10-19T10:00:00+00:00",
+            "created_by": {"user_id": "u1"}
         }
-        future = Mock(); future.id = "f"
-        future.to_dict.return_value = {
-            "title": "Future", "priority": "Low", "status": "In Progress",
-            "due_date": (now + timedelta(days=3)).isoformat(), "created_by": {"user_id": "u1"}
+        
+        mock_completed_late = Mock()
+        mock_completed_late.id = "completed_late"
+        mock_completed_late.to_dict.return_value = {
+            "title": "Completed Late",
+            "status": "Completed",
+            "priority": "Medium",
+            "due_date": (now - timedelta(days=2)).isoformat(),
+            "created_at": "2025-10-19T10:00:00+00:00",
+            "created_by": {"user_id": "u1"}
         }
-        mock_db.collection.side_effect = lambda n: (
-            mock_user_collection if n == "users" else make_tasks_collection([overdue, future], [])
-        )
+        
+        mock_future = Mock()
+        mock_future.id = "future"
+        mock_future.to_dict.return_value = {
+            "title": "Future Task",
+            "status": "To Do",
+            "priority": "Low",
+            "due_date": (now + timedelta(days=5)).isoformat(),
+            "created_at": "2025-10-19T10:00:00+00:00",
+            "created_by": {"user_id": "u1"}
+        }
+        
+        mock_no_due = Mock()
+        mock_no_due.id = "no_due"
+        mock_no_due.to_dict.return_value = {
+            "title": "No Due Date",
+            "status": "To Do",
+            "priority": "Medium",
+            "created_at": "2025-10-19T10:00:00+00:00",
+            "created_by": {"user_id": "u1"}
+        }
+        
+        # Mock task collections
+        mock_created_where = Mock()
+        mock_created_where.stream = Mock(return_value=[mock_overdue, mock_completed_late, mock_future, mock_no_due])
+        
+        mock_assigned_where = Mock()
+        mock_assigned_where.stream = Mock(return_value=[])
+        
+        mock_task_collection = Mock()
+        def where_side_effect(field=None, op=None, value=None, filter=None):
+            # Handle both old and new FieldFilter syntax
+            if filter is not None:
+                field = getattr(filter, "field_path", field)
+                value = getattr(filter, "value", value)
+            if "created_by" in field:
+                return mock_created_where
+            elif "assigned_to" in field:
+                return mock_assigned_where
+            return Mock()
+        
+        mock_task_collection.where = Mock(side_effect=where_side_effect)
+        
+        def collection_side_effect(name):
+            if name == "users":
+                return mock_user_collection
+            elif name == "tasks":
+                return mock_task_collection
+            return Mock()
+        
+        mock_db.collection = Mock(side_effect=collection_side_effect)
         monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
         resp = client.get("/api/users/u1/dashboard")
         data = resp.get_json()
@@ -164,28 +323,275 @@ class TestUserDashboard:
     def test_user_dashboard_limits_to_5(self, client, mock_db, monkeypatch):
         mock_user_doc = Mock(); mock_user_doc.exists = True
         mock_user_collection = Mock()
-        mock_user_collection.document.return_value.get.return_value = mock_user_doc
-        tasks = []
-        for i in range(7):
-            m = Mock(); m.id = f"t{i}"
-            m.to_dict.return_value = {
-                "title": f"T{i}", "priority": "Medium", "status": "To Do",
+        mock_user_collection.document = Mock(return_value=Mock(get=Mock(return_value=mock_user_doc)))
+        
+        # Create 10 mock tasks
+        mock_tasks = []
+        for i in range(10):
+            task = Mock()
+            task.id = f"task{i}"
+            task.to_dict.return_value = {
+                "title": f"Task {i}",
+                "status": "To Do",
+                "priority": "Medium",
                 "created_at": f"2025-10-{19-i:02d}T10:00:00+00:00",
                 "created_by": {"user_id": "u1"}
             }
-            tasks.append(m)
-        mock_db.collection.side_effect = lambda n: (
-            mock_user_collection if n == "users" else make_tasks_collection(tasks, tasks)
-        )
+            mock_tasks.append(task)
+        
+        # Mock task collections
+        mock_created_where = Mock()
+        mock_created_where.stream = Mock(return_value=mock_tasks)
+        
+        mock_assigned_where = Mock()
+        mock_assigned_where.stream = Mock(return_value=mock_tasks)  # Same for assigned
+        
+        mock_task_collection = Mock()
+        def where_side_effect(field=None, op=None, value=None, filter=None):
+            # Handle both old and new FieldFilter syntax
+            if filter is not None:
+                field = getattr(filter, "field_path", field)
+                value = getattr(filter, "value", value)
+            if "created_by" in field:
+                return mock_created_where
+            elif "assigned_to" in field:
+                return mock_assigned_where
+            return Mock()
+        
+        mock_task_collection.where = Mock(side_effect=where_side_effect)
+        
+        def collection_side_effect(name):
+            if name == "users":
+                return mock_user_collection
+            elif name == "tasks":
+                return mock_task_collection
+            return Mock()
+        
+        mock_db.collection = Mock(side_effect=collection_side_effect)
         monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
         resp = client.get("/api/users/u1/dashboard")
         data = resp.get_json()
         assert len(data["recent_created_tasks"]) == 5
         assert len(data["recent_assigned_tasks"]) == 5
+        
+        # Should be the 5 most recent (task0 through task4)
+        assert data["recent_created_tasks"][0]["task_id"] == "task0"
+        assert data["recent_created_tasks"][4]["task_id"] == "task4"
+    
+    def test_user_dashboard_sorting_with_null_created_at(self, client, mock_db, monkeypatch):
+        """Test dashboard handles tasks with null/missing created_at dates."""
+        # Mock user document
+        mock_user_doc = Mock()
+        mock_user_doc.exists = True
+        
+        # Task with valid created_at
+        mock_task_valid = Mock()
+        mock_task_valid.id = "valid"
+        mock_task_valid.to_dict = Mock(return_value={
+            "title": "Valid Date",
+            "priority": "High",
+            "status": "To Do",
+            "created_at": "2025-10-19T10:00:00+00:00",
+            "created_by": {"user_id": "user123"},
+        })
+        
+        # Task with null created_at
+        mock_task_null = Mock()
+        mock_task_null.id = "null"
+        mock_task_null.to_dict = Mock(return_value={
+            "title": "Null Date",
+            "priority": "Medium",
+            "status": "To Do",
+            "created_at": None,
+            "created_by": {"user_id": "user123"},
+        })
+        
+        # Task with missing created_at
+        mock_task_missing = Mock()
+        mock_task_missing.id = "missing"
+        mock_task_missing.to_dict = Mock(return_value={
+            "title": "Missing Date",
+            "priority": "Low",
+            "status": "To Do",
+            "created_by": {"user_id": "user123"},
+        })
+        
+        mock_user_collection = Mock()
+        mock_user_collection.document = Mock(return_value=Mock(get=Mock(return_value=mock_user_doc)))
+        
+        # Mock task collections
+        mock_created_where = Mock()
+        mock_created_where.stream = Mock(return_value=[mock_task_valid, mock_task_null, mock_task_missing])
+        
+        mock_assigned_where = Mock()
+        mock_assigned_where.stream = Mock(return_value=[])
+        
+        mock_task_collection = Mock()
+        def where_side_effect(field=None, op=None, value=None, filter=None):
+            # Handle both old and new FieldFilter syntax
+            if filter is not None:
+                field = getattr(filter, "field_path", field)
+                value = getattr(filter, "value", value)
+            if "created_by" in field:
+                return mock_created_where
+            elif "assigned_to" in field:
+                return mock_assigned_where
+            return Mock()
+        
+        mock_task_collection.where = Mock(side_effect=where_side_effect)
+        
+        def collection_side_effect(name):
+            if name == "users":
+                return mock_user_collection
+            elif name == "tasks":
+                return mock_task_collection
+            return Mock()
+        
+        mock_db.collection = Mock(side_effect=collection_side_effect)
+        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
+        
+        response = client.get("/api/users/user123/dashboard")
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        
+        # Should have all 3 tasks
+        assert data["statistics"]["total_created"] == 3
+        
+        # Valid date should be first, null/missing should be last
+        assert data["recent_created_tasks"][0]["task_id"] == "valid"
+        # null and missing can be in any order after valid
 
 
-class TestDashboardTimeline:
-    def test_timeline_mode(self, client, mock_db, monkeypatch):
+
+
+class TestEdgeCases:
+    """Test edge cases and error scenarios."""
+    
+    def test_dashboard_with_invalid_due_date(self, client, mock_db, monkeypatch):
+        """Test dashboard handles tasks with invalid due_date strings."""
+        # Mock user document
+        mock_user_doc = Mock()
+        mock_user_doc.exists = True
+        
+        # Task with invalid due date
+        mock_task = Mock()
+        mock_task.id = "invalid_due"
+        mock_task.to_dict = Mock(return_value={
+            "title": "Invalid Due Date",
+            "priority": "High",
+            "status": "To Do",
+            "due_date": "not-a-date",  # Invalid date
+            "created_at": "2025-10-19T10:00:00+00:00",
+            "created_by": {"user_id": "user123"},
+        })
+        
+        mock_user_collection = Mock()
+        mock_user_collection.document = Mock(return_value=Mock(get=Mock(return_value=mock_user_doc)))
+        
+        mock_created_where = Mock()
+        mock_created_where.stream = Mock(return_value=[mock_task])
+        
+        mock_assigned_where = Mock()
+        mock_assigned_where.stream = Mock(return_value=[])
+        
+        mock_task_collection = Mock()
+        def where_side_effect(field=None, op=None, value=None, filter=None):
+            # Handle both old and new FieldFilter syntax
+            if filter is not None:
+                field = getattr(filter, "field_path", field)
+                value = getattr(filter, "value", value)
+            if "created_by" in field:
+                return mock_created_where
+            elif "assigned_to" in field:
+                return mock_assigned_where
+            return Mock()
+        
+        mock_task_collection.where = Mock(side_effect=where_side_effect)
+        
+        def collection_side_effect(name):
+            if name == "users":
+                return mock_user_collection
+            elif name == "tasks":
+                return mock_task_collection
+            return Mock()
+        
+        mock_db.collection = Mock(side_effect=collection_side_effect)
+        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
+        
+        response = client.get("/api/users/user123/dashboard")
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        
+        # Invalid due date should not crash, should not count as overdue
+        assert data["statistics"]["overdue_count"] == 0
+    
+    def test_dashboard_response_structure(self, client, mock_db, monkeypatch):
+        """Test that dashboard response has correct structure."""
+        # Mock user document
+        mock_user_doc = Mock()
+        mock_user_doc.exists = True
+        
+        mock_user_collection = Mock()
+        mock_user_collection.document = Mock(return_value=Mock(get=Mock(return_value=mock_user_doc)))
+        
+        mock_created_where = Mock()
+        mock_created_where.stream = Mock(return_value=[])
+        
+        mock_assigned_where = Mock()
+        mock_assigned_where.stream = Mock(return_value=[])
+        
+        mock_task_collection = Mock()
+        def where_side_effect(field=None, op=None, value=None, filter=None):
+            # Handle both old and new FieldFilter syntax
+            if filter is not None:
+                field = getattr(filter, "field_path", field)
+                value = getattr(filter, "value", value)
+            if "created_by" in field:
+                return mock_created_where
+            elif "assigned_to" in field:
+                return mock_assigned_where
+            return Mock()
+        
+        mock_task_collection.where = Mock(side_effect=where_side_effect)
+        
+        def collection_side_effect(name):
+            if name == "users":
+                return mock_user_collection
+            elif name == "tasks":
+                return mock_task_collection
+            return Mock()
+        
+        mock_db.collection = Mock(side_effect=collection_side_effect)
+        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
+        
+        response = client.get("/api/users/user123/dashboard")
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        
+        # Verify all required keys are present
+        assert "statistics" in data
+        assert "recent_created_tasks" in data
+        assert "recent_assigned_tasks" in data
+        
+        # Verify statistics structure
+        stats = data["statistics"]
+        assert "total_created" in stats
+        assert "total_assigned" in stats
+        assert "status_breakdown" in stats
+        assert "priority_breakdown" in stats
+        assert "overdue_count" in stats
+
+
+class TestDashboardTimelineMode:
+    """Test timeline mode view to achieve 100% coverage"""
+    
+    def test_dashboard_with_timeline_mode(self, client, mock_db, monkeypatch):
+        """Test dashboard with view_mode=timeline includes timeline data"""
+        from datetime import datetime, timezone, timedelta
+        
         now = datetime.now(timezone.utc)
         mock_user_doc = Mock(); mock_user_doc.exists = True
         mock_user_collection = Mock()
@@ -227,7 +633,97 @@ class TestDashboardTimeline:
         assert resp.status_code == 200
         assert "timeline" in data
         assert "conflicts" in data
-        assert data["timeline_statistics"]["conflict_count"] >= 1
+        assert "timeline_statistics" in data
+        
+        # Verify timeline structure
+        timeline = data["timeline"]
+        assert "overdue" in timeline
+        assert "today" in timeline
+        assert "this_week" in timeline
+        assert "future" in timeline
+        assert "no_due_date" in timeline
+        
+        # Verify timeline_statistics
+        timeline_stats = data["timeline_statistics"]
+        assert "total_tasks" in timeline_stats
+        assert "overdue_count" in timeline_stats
+        assert "today_count" in timeline_stats
+        assert "this_week_count" in timeline_stats
+        assert "future_count" in timeline_stats
+        assert "no_due_date_count" in timeline_stats
+        assert "conflict_count" in timeline_stats
+        
+        # Verify conflicts detected (2 tasks on same date)
+        conflicts = data["conflicts"]
+        assert len(conflicts) >= 1  # At least one conflict
+        assert conflicts[0]["count"] == 2  # Two tasks on same date
+    
+    def test_dashboard_timeline_handles_unknown_status(self, client, mock_db, monkeypatch):
+        """Test timeline mode handles tasks with unknown timeline_status gracefully.
+        This tests the 'status not in timeline' branch at line 93"""
+        from datetime import datetime, timezone, timedelta
+        
+        now = datetime.now(timezone.utc)
+        
+        # Mock user doc
+        mock_user_doc = Mock()
+        mock_user_doc.exists = True
+        mock_user_doc.to_dict.return_value = {"user_id": "user123", "name": "Test User"}
+        
+        # Create a task that will have an unknown status not in the timeline dict
+        # The enrich_task_with_timeline_status function might return unexpected values
+        # We'll patch it to return a task with unknown status
+        unknown_status_task = Mock()
+        unknown_status_task.id = "task_unknown"
+        unknown_status_task.to_dict.return_value = {
+            "title": "Unknown Status Task",
+            "status": "To Do",
+            "priority": 5,
+            "due_date": (now + timedelta(days=5)).isoformat(),
+            "created_by": {"user_id": "user123", "name": "Test User"},
+            "assigned_to": None,
+            "archived": False
+        }
+        
+        def collection_side_effect(col_name):
+            mock_collection = Mock()
+            if col_name == "users":
+                mock_doc_ref = Mock()
+                mock_doc_ref.get.return_value = mock_user_doc
+                mock_collection.document.return_value = mock_doc_ref
+            elif col_name == "tasks":
+                mock_query = Mock()
+                mock_query.where.return_value.stream.return_value = [unknown_status_task]
+                mock_collection.where = mock_query.where
+            return mock_collection
+        
+        mock_db.collection = Mock(side_effect=collection_side_effect)
+        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
+        
+        # Patch enrich_task_with_timeline_status to return a task with unknown status
+        def mock_enrich(task):
+            task["timeline_status"] = "unknown_custom_status"  # Not in timeline dict
+            return task
+        
+        monkeypatch.setattr(dashboard_module, "enrich_task_with_timeline_status", mock_enrich)
+        
+        # Request with timeline mode
+        response = client.get("/api/users/user123/dashboard?view_mode=timeline")
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        
+        # Verify timeline data is present
+        assert "timeline" in data
+        
+        # The task with unknown status should NOT appear in any timeline category
+        # because the 'status not in timeline' branch skips adding it
+        total_tasks_in_timeline = 0
+        for category in data["timeline"].values():
+            total_tasks_in_timeline += len(category)
+        
+        # Should be 0 since unknown status is not added to timeline
+        assert total_tasks_in_timeline == 0
 
 
 class TestBlueprint:

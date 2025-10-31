@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from flask import request, jsonify
 from . import manager_bp
 from firebase_admin import firestore
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 def now_iso():
     return datetime.now(timezone.utc).isoformat()
@@ -235,7 +236,7 @@ def get_team_tasks():
     view_mode = request.args.get("view_mode", "grid")
     
     # Find all projects where manager is a member
-    manager_memberships = db.collection("memberships").where("user_id", "==", manager_id).stream()
+    manager_memberships = db.collection("memberships").where(filter=FieldFilter("user_id", "==", manager_id)).stream()
     manager_projects = set()
     for mem in manager_memberships:
         manager_projects.add(mem.to_dict().get("project_id"))
@@ -259,7 +260,7 @@ def get_team_tasks():
     project_memberships = {}
     
     for project_id in manager_projects:
-        project_members = db.collection("memberships").where("project_id", "==", project_id).stream()
+        project_members = db.collection("memberships").where(filter=FieldFilter("project_id", "==", project_id)).stream()
         project_member_ids = []
         for mem in project_members:
             user_id = mem.to_dict().get("user_id")
@@ -271,7 +272,8 @@ def get_team_tasks():
     # Get all tasks for team members
     all_tasks = []
     for member_id in team_member_ids:
-        created_tasks = db.collection("tasks").where("created_by.user_id", "==", member_id).stream()
+        # Get tasks created by this member
+        created_tasks = db.collection("tasks").where(filter=FieldFilter("created_by.user_id", "==", member_id)).stream()
         for task_doc in created_tasks:
             task_data = task_doc.to_dict()
             enriched_task = _enrich_task_with_status(task_data, task_doc.id)
@@ -279,7 +281,8 @@ def get_team_tasks():
             enriched_task["member_role"] = "creator"
             all_tasks.append(enriched_task)
         
-        assigned_tasks = db.collection("tasks").where("assigned_to.user_id", "==", member_id).stream()
+        # Get tasks assigned to this member
+        assigned_tasks = db.collection("tasks").where(filter=FieldFilter("assigned_to.user_id", "==", member_id)).stream()
         for task_doc in assigned_tasks:
             task_data = task_doc.to_dict()
             enriched_task = _enrich_task_with_status(task_data, task_doc.id)

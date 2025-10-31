@@ -2,6 +2,7 @@ from datetime import datetime, timezone, timedelta
 from flask import request, jsonify
 from . import tasks_bp
 from firebase_admin import firestore
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 def now_iso():
     return datetime.now(timezone.utc).isoformat()
@@ -223,14 +224,14 @@ def list_tasks():
     limit_fetch = max(limit, 200)
 
     # Base query: tasks created by the viewer
-    query = db.collection("tasks").where("created_by.user_id", "==", viewer)
+    query = db.collection("tasks").where(filter=FieldFilter("created_by.user_id", "==", viewer))
 
     if project_id:
-        query = query.where("project_id", "==", project_id)
+        query = query.where(filter=FieldFilter("project_id", "==", project_id))
     if assigned_to_id:
-        query = query.where("assigned_to.user_id", "==", assigned_to_id)
+        query = query.where(filter=FieldFilter("assigned_to.user_id", "==", assigned_to_id))
     if label_id:
-        query = query.where("labels", "array_contains", label_id)
+        query = query.where(filter=FieldFilter("labels", "array_contains", label_id))
 
     include_archived = (request.args.get("include_archived") or "").lower() in ("1", "true", "yes")
 

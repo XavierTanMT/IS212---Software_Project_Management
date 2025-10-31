@@ -48,7 +48,20 @@ Thumbs.db
 firebase-credentials.json
 *service-account*.json
 *serviceAccount*.json
-*firebase*.json
+
+# But keep dummy credentials for emulator testing (fake key, safe to commit)
+!tests/integration/dummy-credentials.json
+
+# Firebase emulator data
+.firebase/
+emulator-data/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# But keep firebase.json and firestore.rules (config files)
+!firebase.json
+!firestore.rules
 
 # Node (if you add tooling later)
 node_modules/

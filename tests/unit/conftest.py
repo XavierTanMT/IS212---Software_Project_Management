@@ -261,7 +261,13 @@ def make_tasks_collection(created_results, assigned_results):
     """Return a mock 'tasks' collection with chainable where() for tests."""
     tasks_collection = Mock()
 
-    def first_where(field, op, value):
+    def first_where(field=None, op=None, value=None, filter=None):
+        # Handle FieldFilter (new API)
+        if filter is not None:
+            field = getattr(filter, "field_path", field)
+            value = getattr(filter, "value", value)
+        
+        # Handle string field names
         if isinstance(field, str) and field.startswith("created_by."):
             return _ChainableQuery(created_results)
         if isinstance(field, str) and field.startswith("assigned_to."):
