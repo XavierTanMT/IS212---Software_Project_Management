@@ -8,11 +8,15 @@ load_dotenv()
 
 import firebase_admin
 from firebase_admin import credentials
+from datetime import datetime as _dt, timedelta as _td, timezone as _tz
+from urllib.parse import quote_plus
+import atexit
 
 from api import (
     users_bp, tasks_bp, dashboard_bp, manager_bp,
     projects_bp, notes_bp, labels_bp, memberships_bp, attachments_bp, admin_bp
 )
+from api import notifications_bp
 from firebase_utils import get_firebase_credentials
 
 # Check if running in test/development mode without Firebase
@@ -146,8 +150,8 @@ def create_app():
     app.register_blueprint(memberships_bp)
     app.register_blueprint(attachments_bp)
     app.register_blueprint(admin_bp)  # ✅ ADD THIS LINE
-    
-    # Add OPTIONS handler for CORS preflight
+    app.register_blueprint(notifications_bp)
+    # Add OPTIONS handler for CORS preflight (register before any requests)
     @app.route('/<path:path>', methods=['OPTIONS'])
     def handle_options(path):
         response = jsonify({'status': 'ok'})
@@ -155,6 +159,67 @@ def create_app():
         response.headers.add('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
         response.headers.add('Access-Control-Allow-Headers', 'Content-Type, X-User-Id, Authorization')
         return response, 200
+
+    # ----------------- One-time startup check for deadlines -----------------
+    # The in-process scheduler has been removed. Instead, run the
+    # notifications.check_deadlines view once on startup to send emails for
+    # tasks due today (24 hours lookahead). This keeps behavior simple and
+    # avoids requiring APScheduler as a dependency.
+    try:
+        # Late import of notifications module
+        from api import notifications as notifications_module
+
+        # Compute today's UTC start/end to match the `due_today` behaviour so we
+        # include tasks that are due earlier today (even if their due_date < now).
+        now = _dt.now(_tz.utc)
+        start = _dt(now.year, now.month, now.day, 0, 0, 0, tzinfo=_tz.utc)
+        end = start + _td(days=1, microseconds=-1)
+        start_iso = start.isoformat()
+        end_iso = end.isoformat()
+
+        # Run inside app and use the test client to POST to the endpoint so we get
+        # a proper Flask Response object (avoids calling view functions directly).
+        with app.app_context():
+            with app.test_client() as client:
+                try:
+                    resp = client.post('/api/notifications/check-deadlines', query_string={"start_iso": start_iso, "end_iso": end_iso})
+                except Exception as e:
+                    print(f"[startup] check_deadlines view raised: {e}")
+
+            # If the initial UTC-day pass found nothing, attempt a retry
+            # using the host's local-day window. This helps catch tasks that
+            # are due 'today' in the local timezone (e.g., client-local day
+            # ranges) which may not overlap the UTC 00:00-23:59 window.
+            try:
+                # Parse the JSON result if available
+                parsed = None
+                try:
+                    if isinstance(resp, tuple) and hasattr(resp[0], 'get_json'):
+                        parsed = resp[0].get_json()
+                    elif hasattr(resp, 'get_json'):
+                        parsed = resp.get_json()
+                except Exception:
+                    parsed = None
+
+                if not parsed or parsed.get('checked', 0) == 0:
+                    # Compute local-day start/end in UTC
+                    local_now = _dt.now().astimezone()
+                    local_start = _dt(local_now.year, local_now.month, local_now.day, 0, 0, 0, tzinfo=local_now.tzinfo)
+                    local_end = local_start + _td(days=1, microseconds=-1)
+                    # Convert to UTC ISO strings
+                    alt_start_iso = local_start.astimezone(_tz.utc).isoformat()
+                    alt_end_iso = local_end.astimezone(_tz.utc).isoformat()
+                    with app.test_client() as client:
+                        try:
+                            alt_resp = client.post('/api/notifications/check-deadlines', query_string={"start_iso": alt_start_iso, "end_iso": alt_end_iso})
+                        except Exception as e:
+                            print(f"[startup] alternate check_deadlines view raised: {e}")
+            except Exception as e:
+                print(f"[startup] failed alternate local-day check: {e}")
+    except Exception as e:
+        print(f"[startup] failed to run check_deadlines: {e}")
+    
+    # NOTE: CORS OPTIONS handler registered earlier before startup requests
     
     return app
 

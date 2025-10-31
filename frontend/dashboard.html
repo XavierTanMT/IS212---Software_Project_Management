@@ -1038,6 +1038,8 @@
             <button class="logout-btn" onclick="logout()">Logout</button>
         </div>
     </div>
+    <!-- Reminder banner (injected by JS on login) -->
+    <div id="reminderBannerContainer" style="position:relative;z-index:40"></div>
 
     <!-- Main Container -->
     <div class="container">
@@ -1197,6 +1199,111 @@
 // API_BASE is already defined in firebase-auth.js
 // Using shared getCurrentUser from common.js
 // Using shared setCurrentUser from common.js
+
+// ------------------ Reminders: show tasks due today on login ------------------
+async function fetchDueTodayReminders() {
+    try {
+        // Compute local day's UTC range and send as query params so server can match user's "today"
+        const now = new Date();
+        const localYear = now.getFullYear();
+        const localMonth = now.getMonth(); // 0-based
+        const localDate = now.getDate();
+
+        const localStart = new Date(localYear, localMonth, localDate, 0, 0, 0);
+        const localEnd = new Date(localYear, localMonth, localDate, 23, 59, 59, 999);
+    // Convert local start/end to UTC ISO strings
+    // Use toISOString() on the local Date objects - they represent the correct
+    // instants (local midnight/local end) and toISOString() converts them to
+    // the corresponding UTC timestamps. Previous code subtracted the
+    // timezone offset which inverted the conversion and produced the wrong range.
+    const start_iso = localStart.toISOString();
+    const end_iso = localEnd.toISOString();
+
+        const url = `${API_BASE}/api/notifications/due-today?start_iso=${encodeURIComponent(start_iso)}&end_iso=${encodeURIComponent(end_iso)}`;
+        console.debug('Reminder request url:', url, 'start_iso', start_iso, 'end_iso', end_iso);
+        const res = await fetch(url);
+        console.debug('Reminder response status:', res.status);
+        if (!res.ok) {
+            console.warn('Reminder fetch failed', res.status);
+            return null;
+        }
+        const payload = await res.json();
+        console.debug('Reminder payload:', payload);
+        return payload;
+    } catch (e) {
+        console.warn('Failed to fetch due-today reminders', e);
+        return null;
+    }
+}
+
+function renderReminderBanner(data) {
+    const container = document.getElementById('reminderBannerContainer');
+    if (!container) return;
+
+    // sessionStorage key to remember user hid the reminder today
+    const hideKey = 'hideReminderUntil';
+    const hideUntil = sessionStorage.getItem(hideKey);
+    const today = new Date().toISOString().slice(0,10);
+    if (hideUntil === today) {
+        // user hid it for today
+        container.innerHTML = '';
+        return;
+    }
+
+    if (!data || !data.count || data.count === 0) {
+        container.innerHTML = '';
+        return;
+    }
+
+    const tasks = data.tasks || [];
+    const plural = tasks.length > 1 ? 's' : '';
+    let itemsHtml = '';
+    for (const t of tasks.slice(0,5)) {
+        itemsHtml += `<div style="padding:6px 0;border-bottom:1px dashed rgba(0,0,0,0.06)">${escapeHtml(t.title || 'Untitled')} — due ${escapeHtml(t.due_date || '')}</div>`;
+    }
+
+    const more = tasks.length > 5 ? `<div style="padding:6px 0;color:#666">And ${tasks.length-5} more...</div>` : '';
+
+    container.innerHTML = `
+      <div style="background:#fff3cd;border:1px solid #ffeeba;padding:12px 16px;border-radius:6px;margin:12px 0;display:flex;align-items:flex-start;gap:12px">
+        <div style="font-size:20px">⏰</div>
+        <div style="flex:1">
+          <div style="font-weight:700;color:#856404">You have ${tasks.length} task${plural} due today</div>
+          <div style="margin-top:6px;color:#856404;font-size:14px">${itemsHtml}${more}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button id="dismissReminderBtn" style="background:#856404;color:white;border:none;padding:8px 12px;border-radius:6px;cursor:pointer">Hide for today</button>
+          <a href="tasks_list.html" style="text-align:center;padding:8px 12px;border-radius:6px;background:white;border:1px solid #ddd;color:#333;text-decoration:none">View tasks</a>
+        </div>
+      </div>
+    `;
+
+    document.getElementById('dismissReminderBtn').addEventListener('click', () => {
+        sessionStorage.setItem(hideKey, today);
+        container.innerHTML = '';
+    });
+}
+
+function escapeHtml(str){
+    if(!str) return '';
+    return String(str).replace(/[&<>"'`]/g, function(s){
+        return ({'&':'&amp;','<':'&lt;','>':'&gt;', '"':'&quot;',"'":'&#39;', '`':'&#96;'})[s];
+    });
+}
+
+// When the dashboard loads, fetch and show reminders for logged-in user
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        // Ensure user is authenticated (requireAuth is safe to call)
+        try { requireAuth(); } catch(e){ return; }
+        const data = await fetchDueTodayReminders();
+        renderReminderBanner(data);
+    } catch (e) {
+        console.warn('Reminder init failed', e);
+    }
+});
+
+// -----------------------------------------------------------------------------
 
 // Timeline View Functions - Defined early so onclick handlers can use them
 // Make variables global so they're accessible across script blocks

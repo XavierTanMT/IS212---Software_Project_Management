@@ -205,6 +205,22 @@ def create_task():
         "parent_recurring_task_id": None,
     }
     task_ref.set(task_doc)
+    # Notify assignee if present
+    if assigned_to_id:
+        try:
+            # Late import to avoid circular imports
+            from . import notifications as notifications_module
+            notifications_module.create_notification(
+                db,
+                assigned_to_id,
+                f"Assigned: {title}",
+                f"You were assigned to task '{title}'. Due: {due_date}",
+                task_id=task_ref.id,
+                send_email=True,
+            )
+        except Exception as e:
+            print(f"Failed to create assignment notification: {e}")
+
     return jsonify({"task_id": task_ref.id, **task_doc}), 201
 
 @tasks_bp.get("")
@@ -420,7 +436,31 @@ def reassign_task(task_id):
         },
         "updated_at": now_iso()
     })
-    
+    # Notify new assignee and previous assignee (if any)
+    try:
+        from . import notifications as notifications_module
+        # Notify new assignee
+        notifications_module.create_notification(
+            db,
+            new_assigned_to_id,
+            "Task assigned to you",
+            f"You were assigned to task '{task_id}'.",
+            task_id=task_id,
+            send_email=True,
+        )
+        # Notify previous assignee they were unassigned
+        if current_assigned_to_id and current_assigned_to_id != new_assigned_to_id:
+            notifications_module.create_notification(
+                db,
+                current_assigned_to_id,
+                "Task reassigned",
+                f"Task '{task_id}' was reassigned to another user.",
+                task_id=task_id,
+                send_email=False,
+            )
+    except Exception as e:
+        print(f"Failed to create reassignment notifications: {e}")
+
     return jsonify({
         "ok": True,
         "task_id": task_id,
