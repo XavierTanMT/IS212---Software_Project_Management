@@ -64,6 +64,27 @@
       <tbody id="rows"></tbody>
     </table>
   </div>
+
+  <!-- Assignment Modal -->
+  <div id="assignModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000">
+      <div style="background:white; max-width:500px; margin:100px auto; padding:20px; border-radius:8px; box-shadow:0 4px 6px rgba(0,0,0,0.1)">
+          <h2 style="margin-top:0">Assign Task to Team Members</h2>
+          <div id="assignModalContent">
+              <div id="teamMembersList" style="max-height:300px; overflow-y:auto; margin:20px 0; border:1px solid #ddd; border-radius:4px; background:#f9f9f9">
+                  <p style="padding:20px; text-align:center; color:#666">Loading team members...</p>
+              </div>
+              <div style="margin-top:20px">
+                  <button onclick="assignSelectedMembers()" style="background:#28a745; color:white; border:none; padding:10px 20px; border-radius:4px; cursor:pointer; font-size:14px">
+                      ✓ Assign Selected
+                  </button>
+                  <button onclick="closeAssignModal()" style="background:#6c757d; color:white; border:none; padding:10px 20px; border-radius:4px; cursor:pointer; margin-left:10px; font-size:14px">
+                      Cancel
+                  </button>
+              </div>
+          </div>
+      </div>
+  </div>
+
   <script src="common.js"></script>
   <script>requireAuth();</script>
   <script>
@@ -91,6 +112,21 @@
     return projectMap[id] || id; // fallback to id until map loaded
   }
 
+  // Helper function to format assignees (handles single or multiple)
+  function formatAssignees(assigned_to) {
+    if (!assigned_to) return "Unassigned";
+    
+    // Handle array of assignees
+    if (Array.isArray(assigned_to)) {
+        if (assigned_to.length === 0) return "Unassigned";
+        if (assigned_to.length === 1) return assigned_to[0].name || "Unassigned";
+        return assigned_to.map(a => a.name).join(", "); // "John, Jane, Bob"
+    }
+    
+    // Handle single assignee object
+    return assigned_to.name || "Unassigned";
+  }
+
   async function load(){
     const qs = paramsFromUI();
     const res = await fetch(API_BASE + "/api/tasks" + (qs ? "?" + qs : ""));
@@ -101,17 +137,29 @@
       tbody.innerHTML = "<tr><td colspan='7'>No tasks</td></tr>";
       return;
     }
+
+    // Check if user is manager
+    const user = getCurrentUser();
+    const isManager = user && ['manager', 'director', 'hr', 'admin'].includes(user.role);
+
     list.forEach(t=>{
       const tr = document.createElement("tr");
       const showCompleteBtn = t.status !== 'Completed';
+      
+      // Create assign button for managers only
+      const assignBtn = isManager 
+          ? `<button onclick='openAssignModal("${t.task_id}")' style='background:#007bff;color:white;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;margin-right:8px' title='Assign to team members'>👥 Assign</button>`
+          : '';
+      
       tr.innerHTML = ""
         + "<td>" + (t.title || "") + "</td>"
         + "<td><span class='pill'>" + (t.status || "") + "</span></td>"
         + "<td>" + (t.priority || "") + "</td>"
         + "<td>" + (t.due_date || "") + "</td>"
         + "<td>" + nameForProject(t.project_id) + "</td>"
-        + "<td>" + ((t.assigned_to && t.assigned_to.user_id) || "") + "</td>"
+        + "<td>" + formatAssignees(t.assigned_to) + "</td>"
         + "<td>"
+        + assignBtn
         + (showCompleteBtn ? "<button onclick='markAsDone(\"" + t.task_id + "\")' style='background:#28a745;color:white;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;margin-right:8px'>✓ Done</button>" : "")
         +   "<a href='edit_task.html?task_id=" + encodeURIComponent(t.task_id) + "'>Edit</a> · "
         +   "<a href='task_notes.html?task_id=" + encodeURIComponent(t.task_id) + "'>Notes</a> · "
@@ -197,20 +245,148 @@
   }
   </script>
 
-<script>
-// --- PATCH: tasks empty state --- //
-(function(){
-  if (window.__tasksPatchApplied) return; window.__tasksPatchApplied = true;
-  function afterLoad(){
-    const listHost = document.querySelector('#tasksList, .tasks-list, #taskList');
-    if (!listHost) return;
-    if (listHost.children.length === 0 || listHost.innerHTML.trim() === ''){
-      listHost.innerHTML = '<div style="padding:12px;color:#666">No tasks yet. Create your first task.</div>';
-    }
-    document.querySelectorAll('.loading, .spinner').forEach(el=>el.remove());
-  }
-  window.addEventListener('load', ()=> setTimeout(afterLoad, 200));
-})();
-</script>
+  <script>
+  // Assignment Modal Functions
+  let currentAssignTaskId = null;
+  let teamMembers = [];
 
-</body></html>
+  async function openAssignModal(taskId) {
+      currentAssignTaskId = taskId;
+      document.getElementById('assignModal').style.display = 'block';
+      await loadTeamMembers();
+  }
+
+  function closeAssignModal() {
+      document.getElementById('assignModal').style.display = 'none';
+      currentAssignTaskId = null;
+  }
+
+  async function loadTeamMembers() {
+      const user = getCurrentUser();
+      const listDiv = document.getElementById('teamMembersList');
+      
+      listDiv.innerHTML = '<p style="padding:20px;text-align:center;color:#666">Loading team members...</p>';
+      
+      try {
+          // ✅ Step 1: Get team members
+          const response = await fetch(`${API_BASE}/api/manager/my-team`, {
+              headers: { 'X-User-Id': user.user_id }
+          });
+          
+          if (!response.ok) {
+              throw new Error('Failed to load team members');
+          }
+          
+          const data = await response.json();
+          teamMembers = data.team_staff || [];
+          
+          if (teamMembers.length === 0) {
+              listDiv.innerHTML = '<p style="padding:20px;color:#666;text-align:center">No team members found.<br>Add staff to your team from the <a href="manager_dashboard.html">Manager Dashboard</a>.</p>';
+              return;
+          }
+          
+          // ✅ Step 2: Get current task to find existing assignees
+          const taskResponse = await fetch(`${API_BASE}/api/tasks/${currentAssignTaskId}`);
+          const taskData = await taskResponse.json();
+          
+          // ✅ Step 3: Extract current assignee IDs
+          let currentAssigneeIds = [];
+          if (taskData && taskData.assigned_to) {
+              if (Array.isArray(taskData.assigned_to)) {
+                  // Multiple assignees
+                  currentAssigneeIds = taskData.assigned_to.map(a => a.user_id);
+              } else {
+                  // Single assignee
+                  currentAssigneeIds = [taskData.assigned_to.user_id];
+              }
+          }
+          
+          // ✅ Step 4: Render checkboxes with current assignees pre-checked and highlighted
+          listDiv.innerHTML = teamMembers.map(member => {
+              const isCurrentlyAssigned = currentAssigneeIds.includes(member.user_id);
+              return `
+                  <div style="padding:12px; border-bottom:1px solid #eee; background:${isCurrentlyAssigned ? '#e8f5e9' : 'white'}">
+                      <label style="display:flex; align-items:center; cursor:pointer">
+                          <input type="checkbox" 
+                                 value="${member.user_id}" 
+                                 class="team-member-checkbox" 
+                                 ${isCurrentlyAssigned ? 'checked' : ''}
+                                 style="margin-right:10px; width:18px; height:18px; cursor:pointer">
+                          <div style="flex:1">
+                              <strong style="font-size:14px">${member.name}</strong>
+                              ${isCurrentlyAssigned ? '<span style="color:#4caf50;font-size:12px;margin-left:8px;font-weight:bold">✓ Currently Assigned</span>' : ''}
+                              <br>
+                              <small style="color:#666">${member.email}</small>
+                          </div>
+                      </label>
+                  </div>
+              `;
+          }).join('');
+          
+      } catch (error) {
+          console.error('Error loading team members:', error);
+          listDiv.innerHTML = '<p style="padding:20px;color:red;text-align:center">Error loading team members.<br>Please try again.</p>';
+      }
+  }
+
+  async function assignSelectedMembers() {
+      const user = getCurrentUser();
+      const selectedIds = Array.from(document.querySelectorAll('.team-member-checkbox:checked'))
+          .map(cb => cb.value);
+      
+      if (selectedIds.length === 0) {
+          alert('Please select at least one team member');
+          return;
+      }
+      
+      try {
+          const response = await fetch(`${API_BASE}/api/manager/tasks/${currentAssignTaskId}/assign`, {
+              method: 'POST',
+              headers: {
+                  'Content-Type': 'application/json',
+                  'X-User-Id': user.user_id
+              },
+              body: JSON.stringify({ assignee_ids: selectedIds })
+          });
+          
+          const result = await response.json();
+          
+          if (response.ok) {
+              alert(`✅ Task assigned to ${selectedIds.length} team member(s)`);
+              closeAssignModal();
+              await load(); // Refresh task list
+          } else {
+              alert(`❌ Error: ${result.error || 'Failed to assign task'}`);
+          }
+      } catch (error) {
+          console.error('Error assigning task:', error);
+          alert('❌ Network error. Please try again.');
+      }
+  }
+
+  // Close modal when clicking outside
+  document.getElementById('assignModal')?.addEventListener('click', function(e) {
+      if (e.target === this) {
+          closeAssignModal();
+      }
+  });
+  </script>
+
+  <script>
+  // --- PATCH: tasks empty state --- //
+  (function(){
+    if (window.__tasksPatchApplied) return; window.__tasksPatchApplied = true;
+    function afterLoad(){
+      const listHost = document.querySelector('#tasksList, .tasks-list, #taskList');
+      if (!listHost) return;
+      if (listHost.children.length === 0 || listHost.innerHTML.trim() === ''){
+        listHost.innerHTML = '<div style="padding:12px;color:#666">No tasks yet. Create your first task.</div>';
+      }
+      document.querySelectorAll('.loading, .spinner').forEach(el=>el.remove());
+    }
+    window.addEventListener('load', ()=> setTimeout(afterLoad, 200));
+  })();
+  </script>
+
+</body>
+</html>
