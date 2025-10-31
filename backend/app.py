@@ -38,8 +38,8 @@ def init_firebase():
         # When using emulators, we need minimal credentials
         # Set GCLOUD_PROJECT if not already set
         if not os.getenv("GCLOUD_PROJECT"):
-            os.environ["GCLOUD_PROJECT"] = "demo-test-project"
-            print(f"   ✓ Set GCLOUD_PROJECT=demo-test-project")
+            os.environ["GCLOUD_PROJECT"] = "demo-no-project"
+            print(f"   ✓ Set GCLOUD_PROJECT=demo-no-project")
         
         # For emulators, we need a dummy credentials file
         # Check if GOOGLE_APPLICATION_CREDENTIALS points to a valid file
@@ -56,7 +56,7 @@ def init_firebase():
         try:
             if not firebase_admin._apps:
                 # Initialize with minimal options for emulator
-                firebase_admin.initialize_app(options={'projectId': os.getenv("GCLOUD_PROJECT", "demo-test-project")})
+                firebase_admin.initialize_app(options={'projectId': os.getenv("GCLOUD_PROJECT", "demo-no-project")})
                 print("   ✓ Firebase initialized for EMULATOR use")
                 print("   ⚠️  Using emulators - NO CLOUD QUOTA USED")
                 return True

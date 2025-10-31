@@ -37,7 +37,7 @@ def configure_emulators():
     # CRITICAL: Set GCLOUD_PROJECT to prevent credential lookup
     # This is required for firebase-admin SDK to work with emulators
     # See: https://github.com/firebase/firebase-admin-python/issues/227
-    os.environ["GCLOUD_PROJECT"] = "demo-test-project"
+    os.environ["GCLOUD_PROJECT"] = "demo-no-project"
     
     # CRITICAL: Set GOOGLE_APPLICATION_CREDENTIALS to dummy credentials file
     # Firebase Admin SDK needs SOME credentials file even with emulators
@@ -156,10 +156,10 @@ def ensure_firebase_initialized():
                     import firebase_admin._http_client
                     # Use the internal EmptyCredentials if available
                     mock_cred = firebase_admin._http_client.EmptyCredentials()
-                    firebase_admin.initialize_app(mock_cred, {'projectId': 'demo-test'})
+                    firebase_admin.initialize_app(mock_cred, {'projectId': 'demo-no-project'})
                 except (AttributeError, TypeError):
                     # Fallback: just initialize with options, errors will be caught below
-                    firebase_admin.initialize_app(options={'projectId': 'demo-test'})
+                    firebase_admin.initialize_app(options={'projectId': 'demo-no-project'})
             else:
                 # Fallback to real Firebase if emulators not configured
                 from backend.firebase_utils import get_firebase_credentials

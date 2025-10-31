@@ -126,6 +126,27 @@ class TestUserDashboard:
         mock_user_collection = Mock()
         mock_user_collection.document = Mock(return_value=Mock(get=Mock(return_value=mock_user_doc)))
         
+        # Create mock tasks
+        mock_task1 = Mock()
+        mock_task1.id = "task1"
+        mock_task1.to_dict.return_value = {
+            "title": "Task 1",
+            "status": "To Do",
+            "priority": "High",
+            "created_at": "2025-10-19T10:00:00+00:00",
+            "created_by": {"user_id": "u1"}
+        }
+        
+        mock_task2 = Mock()
+        mock_task2.id = "task2"
+        mock_task2.to_dict.return_value = {
+            "title": "Task 2",
+            "status": "In Progress",
+            "priority": "Medium",
+            "created_at": "2025-10-19T11:00:00+00:00",
+            "created_by": {"user_id": "u1"}
+        }
+        
         # Mock task collections
         mock_created_where = Mock()
         mock_created_where.stream = Mock(return_value=[mock_task1, mock_task2])
@@ -168,6 +189,18 @@ class TestUserDashboard:
         mock_user_collection = Mock()
         mock_user_collection.document = Mock(return_value=Mock(get=Mock(return_value=mock_user_doc)))
         
+        # Create mock task
+        mock_task1 = Mock()
+        mock_task1.id = "task1"
+        mock_task1.to_dict.return_value = {
+            "title": "Assigned Task",
+            "status": "To Do",
+            "priority": "High",
+            "created_at": "2025-10-19T10:00:00+00:00",
+            "created_by": {"user_id": "u2"},
+            "assigned_to": {"user_id": "u1"}
+        }
+        
         # Mock task collections
         mock_created_where = Mock()
         mock_created_where.stream = Mock(return_value=[])
@@ -209,6 +242,50 @@ class TestUserDashboard:
         mock_user_collection = Mock()
         mock_user_collection.document = Mock(return_value=Mock(get=Mock(return_value=mock_user_doc)))
         
+        # Create mock tasks with different due dates
+        mock_overdue = Mock()
+        mock_overdue.id = "overdue"
+        mock_overdue.to_dict.return_value = {
+            "title": "Overdue Task",
+            "status": "To Do",
+            "priority": "High",
+            "due_date": (now - timedelta(days=1)).isoformat(),
+            "created_at": "2025-10-19T10:00:00+00:00",
+            "created_by": {"user_id": "u1"}
+        }
+        
+        mock_completed_late = Mock()
+        mock_completed_late.id = "completed_late"
+        mock_completed_late.to_dict.return_value = {
+            "title": "Completed Late",
+            "status": "Completed",
+            "priority": "Medium",
+            "due_date": (now - timedelta(days=2)).isoformat(),
+            "created_at": "2025-10-19T10:00:00+00:00",
+            "created_by": {"user_id": "u1"}
+        }
+        
+        mock_future = Mock()
+        mock_future.id = "future"
+        mock_future.to_dict.return_value = {
+            "title": "Future Task",
+            "status": "To Do",
+            "priority": "Low",
+            "due_date": (now + timedelta(days=5)).isoformat(),
+            "created_at": "2025-10-19T10:00:00+00:00",
+            "created_by": {"user_id": "u1"}
+        }
+        
+        mock_no_due = Mock()
+        mock_no_due.id = "no_due"
+        mock_no_due.to_dict.return_value = {
+            "title": "No Due Date",
+            "status": "To Do",
+            "priority": "Medium",
+            "created_at": "2025-10-19T10:00:00+00:00",
+            "created_by": {"user_id": "u1"}
+        }
+        
         # Mock task collections
         mock_created_where = Mock()
         mock_created_where.stream = Mock(return_value=[mock_overdue, mock_completed_late, mock_future, mock_no_due])
@@ -247,6 +324,20 @@ class TestUserDashboard:
         mock_user_doc = Mock(); mock_user_doc.exists = True
         mock_user_collection = Mock()
         mock_user_collection.document = Mock(return_value=Mock(get=Mock(return_value=mock_user_doc)))
+        
+        # Create 10 mock tasks
+        mock_tasks = []
+        for i in range(10):
+            task = Mock()
+            task.id = f"task{i}"
+            task.to_dict.return_value = {
+                "title": f"Task {i}",
+                "status": "To Do",
+                "priority": "Medium",
+                "created_at": f"2025-10-{19-i:02d}T10:00:00+00:00",
+                "created_by": {"user_id": "u1"}
+            }
+            mock_tasks.append(task)
         
         # Mock task collections
         mock_created_where = Mock()
