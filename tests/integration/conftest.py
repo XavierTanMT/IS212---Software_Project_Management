@@ -20,24 +20,24 @@ if BACKEND_DIR not in sys.path:
 
 # # CRITICAL: Clean up unit test mocks IMMEDIATELY at module load time
 # # This must happen BEFORE any other imports in this file
-# print("=" * 80)
-# print("INTEGRATION TEST SETUP: Cleaning up unit test mocks...")
-# print("=" * 80)
+print("=" * 80)
+print("INTEGRATION TEST SETUP: Cleaning up unit test mocks...")
+print("=" * 80)
 
-# for module_name in list(sys.modules.keys()):
-#     if module_name.startswith('firebase_admin'):
-#         module = sys.modules[module_name]
-#         if not hasattr(module, '__file__'):
-#             print(f"  Removing mock Firebase module: {module_name}")
-#             del sys.modules[module_name]
+for module_name in list(sys.modules.keys()):
+    if module_name.startswith('firebase_admin'):
+        module = sys.modules[module_name]
+        if not hasattr(module, '__file__'):
+            print(f"  Removing mock Firebase module: {module_name}")
+            del sys.modules[module_name]
 
-# # Remove backend modules that may have imported mocked firebase
-# backend_modules = [m for m in sys.modules.keys() if m.startswith('backend')]
-# for module_name in backend_modules:
-#     print(f"  Removing backend module: {module_name}")
-#     del sys.modules[module_name]
+# Remove backend modules that may have imported mocked firebase
+backend_modules = [m for m in sys.modules.keys() if m.startswith('backend')]
+for module_name in backend_modules:
+    print(f"  Removing backend module: {module_name}")
+    del sys.modules[module_name]
 
-# print("=" * 80)
+print("=" * 80)
 
 
 # DO NOT import Firebase at module level - use lazy imports to avoid slowdown
