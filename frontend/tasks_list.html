@@ -145,12 +145,26 @@
     list.forEach(t=>{
       const tr = document.createElement("tr");
       const showCompleteBtn = t.status !== 'Completed';
-      
-      // Create assign button for managers only
-      const assignBtn = isManager 
+
+      // Determine if task is archived. Support both a boolean flag and a status string.
+      const isArchived = Boolean(t.archived) || (t.status === 'Archived');
+
+      // Create assign button for managers only (but not for archived tasks)
+      const assignBtn = (!isArchived && isManager)
           ? `<button onclick='openAssignModal("${t.task_id}")' style='background:#007bff;color:white;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;margin-right:8px' title='Assign to team members'>👥 Assign</button>`
           : '';
-      
+
+      // Build actions column. If archived, show a simple label instead of action buttons/links.
+      const actionsHtml = isArchived
+          ? "<span class='pill'>Archived</span>"
+          : (
+              assignBtn
+              + (showCompleteBtn ? "<button onclick='markAsDone(\"" + t.task_id + "\")' style='background:#28a745;color:white;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;margin-right:8px'>✓ Done</button>" : "")
+              + "<a href='edit_task.html?task_id=" + encodeURIComponent(t.task_id) + "'>Edit</a> · "
+              + "<a href='task_notes.html?task_id=" + encodeURIComponent(t.task_id) + "'>Notes</a> · "
+              + "<a href='attachments.html?task_id=" + encodeURIComponent(t.task_id) + "'>Files</a>"
+            );
+
       tr.innerHTML = ""
         + "<td>" + (t.title || "") + "</td>"
         + "<td><span class='pill'>" + (t.status || "") + "</span></td>"
@@ -158,13 +172,8 @@
         + "<td>" + (t.due_date || "") + "</td>"
         + "<td>" + nameForProject(t.project_id) + "</td>"
         + "<td>" + formatAssignees(t.assigned_to) + "</td>"
-        + "<td>"
-        + assignBtn
-        + (showCompleteBtn ? "<button onclick='markAsDone(\"" + t.task_id + "\")' style='background:#28a745;color:white;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;margin-right:8px'>✓ Done</button>" : "")
-        +   "<a href='edit_task.html?task_id=" + encodeURIComponent(t.task_id) + "'>Edit</a> · "
-        +   "<a href='task_notes.html?task_id=" + encodeURIComponent(t.task_id) + "'>Notes</a> · "
-        +   "<a href='attachments.html?task_id=" + encodeURIComponent(t.task_id) + "'>Files</a>"
-        + "</td>";
+        + "<td>" + actionsHtml + "</td>";
+
       tbody.appendChild(tr);
     });
   }
