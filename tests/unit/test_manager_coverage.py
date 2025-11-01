@@ -1207,6 +1207,11 @@ class TestManagerEndpoints:
         def collection_side_effect(name):
             mock_coll = Mock()
             if name == "users":
+                # Mock the where().stream() for direct staff query
+                mock_where = Mock()
+                mock_where.stream.return_value = iter([])  # No direct staff
+                mock_coll.where.return_value = mock_where
+                
                 user_call_count[0] += 1
                 if user_call_count[0] == 1:  # Manager
                     mock_coll.document.return_value.get.return_value = mock_mgr
@@ -1492,9 +1497,16 @@ class TestManagerEndpoints:
         def collection_side_effect(name):
             mock_coll = Mock()
             if name == "users":
+                # Mock the where().stream() for direct staff query
+                mock_where = Mock()
+                mock_direct_staff = Mock()
+                mock_direct_staff.id = "user456"
+                mock_where.stream.return_value = iter([mock_direct_staff])
+                mock_coll.where.return_value = mock_where
                 mock_coll.document.return_value.get.return_value = mock_mgr
             elif name == "tasks":
                 mock_coll.document.return_value.get.return_value = mock_task
+                mock_coll.document.return_value.update = Mock()
             elif name == "memberships":
                 # Manager has no projects
                 mock_query = Mock()
@@ -1509,9 +1521,10 @@ class TestManagerEndpoints:
             "/api/manager/tasks/task123/assign?viewer_id=mgr123",
             json={"assignee_ids": ["user456"]}
         )
-        # Should fail because user456 is not in manager's team (manager has no team)
-        assert response.status_code == 403
-        assert "not in your team" in response.get_json().get("error", "")
+        # Should succeed because user456 is a direct staff member
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['success'] == True
 
     def test_get_team_tasks_with_filtering(self, client, mock_db, monkeypatch):
         """Test GET /api/manager/team-tasks with filtering and sorting"""
@@ -2499,6 +2512,11 @@ class TestManagerEndpoints:
         def collection_side_effect(name):
             mock_coll = Mock()
             if name == "users":
+                # Mock the where().stream() for direct staff query
+                mock_where = Mock()
+                mock_where.stream.return_value = iter([])  # No direct staff
+                mock_coll.where.return_value = mock_where
+                
                 user_call_count[0] += 1
                 if user_call_count[0] == 1:  # Manager
                     mock_coll.document.return_value.get.return_value = mock_mgr
@@ -2506,7 +2524,7 @@ class TestManagerEndpoints:
                     mock_coll.document.return_value.get.return_value = mock_assignee
             elif name == "tasks":
                 mock_coll.document.return_value.get.return_value = mock_task
-                mock_coll.document.return_value.update = Mock()        
+                mock_coll.document.return_value.update = Mock()
             elif name == "memberships":
                 mock_query = Mock()
                 if membership_call_count[0] == 0:
