@@ -35,7 +35,13 @@ class TestManagerEdgeCasesFull:
                 mock_task_doc.exists = True
                 mock_task_doc.to_dict.return_value = {"project_id": "proj1", "title": "Task"}
                 mock_coll.document.return_value.get.return_value = mock_task_doc
+                mock_coll.document.return_value.update = Mock()
             elif name == "users":
+                # Mock the where().stream() for direct staff query
+                mock_where = Mock()
+                mock_where.stream.return_value = iter([])  # No direct staff
+                mock_coll.where.return_value = mock_where
+                
                 def user_doc_side_effect(doc_id):
                     user_doc = Mock()
                     if doc_id == "staff1":
