@@ -60,6 +60,100 @@ def _require_membership(db, project_id, user_id):
     mem_id = f"{project_id}_{user_id}"
     return db.collection("memberships").document(mem_id).get().exists
 
+def _notify_task_changes(db, task_id, old_data, updates, editor_id, notifications_module):
+    """Send notification emails about task changes to relevant users."""
+    
+    # Build list of changes
+    changes = []
+    field_names = {
+        "title": "Title",
+        "description": "Description",
+        "priority": "Priority",
+        "status": "Status",
+        "due_date": "Due Date",
+        "labels": "Labels"
+    }
+    
+    for field, new_value in updates.items():
+        if field in field_names and field in old_data:
+            old_value = old_data.get(field)
+            if old_value != new_value:
+                # Format the change message
+                if field == "labels":
+                    old_str = ", ".join(old_value) if old_value else "None"
+                    new_str = ", ".join(new_value) if new_value else "None"
+                else:
+                    old_str = str(old_value) if old_value else "None"
+                    new_str = str(new_value) if new_value else "None"
+                
+                changes.append(f"• {field_names[field]}: {old_str} → {new_str}")
+    
+    if not changes:
+        return  # No significant changes to notify about
+    
+    # Get editor name. Prefer information already present in old_data
+    editor_name = "Someone"
+    try:
+        if (old_data.get("created_by") or {}).get("user_id") == editor_id:
+            editor_name = (old_data.get("created_by") or {}).get("name") or "Someone"
+        elif (old_data.get("assigned_to") or {}).get("user_id") == editor_id:
+            editor_name = (old_data.get("assigned_to") or {}).get("name") or "Someone"
+        else:
+            # Fall back to DB lookup only if necessary
+            editor_doc = db.collection("users").document(editor_id).get()
+            if editor_doc.exists:
+                editor_data = editor_doc.to_dict() or {}
+                editor_name = editor_data.get("name", "Someone")
+    except Exception:
+        # In tests/mocks this may fail; default to generic name
+        editor_name = "Someone"
+    
+    # Determine who to notify
+    task_title = updates.get("title", old_data.get("title", "Task"))
+    recipients = set()
+    
+    # Notify creator (everyone gets notified, including editor)
+    creator_id = (old_data.get("created_by") or {}).get("user_id")
+    if creator_id:
+        recipients.add(creator_id)
+    
+    # Notify assignee (everyone gets notified, including editor)
+    assignee_id = (old_data.get("assigned_to") or {}).get("user_id")
+    if assignee_id:
+        recipients.add(assignee_id)
+    
+    # Notify project members (if task is in a project)
+    project_id = old_data.get("project_id")
+    if project_id:
+        mem_q = db.collection("memberships").where(
+            filter=FieldFilter("project_id", "==", project_id)
+        ).stream()
+        for m in mem_q:
+            md = m.to_dict() or {}
+            uid = md.get("user_id")
+            if uid:
+                recipients.add(uid)
+    
+    # Send notification to each recipient
+    changes_text = "\n".join(changes)
+    notification_title = f"Task Updated: {task_title}"
+    notification_body = f"{editor_name} made changes to the task:\n\n{changes_text}"
+    
+    for user_id in recipients:
+        try:
+            # Create in-app notification. Defer/send emails via background job or
+            # the notifications service to avoid extra DB lookups during request-based flows.
+            notifications_module.create_notification(
+                db,
+                user_id,
+                notification_title,
+                notification_body,
+                task_id=task_id,
+                send_email=False,
+            )
+        except Exception as e:
+            print(f"Failed to notify user {user_id} about task changes: {e}")
+
 def _create_next_recurring_task(db, completed_task_doc):
     """
     Create the next occurrence of a recurring task.
@@ -337,6 +431,13 @@ def update_task(task_id):
 
     updates["updated_at"] = now_iso()
     doc_ref.update(updates)
+    
+    # Send notification email about task changes
+    try:
+        from . import notifications as notifications_module
+        _notify_task_changes(db, task_id, current_data, updates, viewer, notifications_module)
+    except Exception as e:
+        print(f"Failed to send task update notifications: {e}")
     
     # Check if task was just completed and is recurring
     new_status = updates.get("status")

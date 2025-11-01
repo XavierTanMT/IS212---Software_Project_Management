@@ -21,10 +21,15 @@ def create_notification(db, user_id: str, title: str, body: str, task_id: str = 
     if not user_id:
         return None
 
-    # Try to get user email
-    user_doc = db.collection("users").document(user_id).get()
-    user_data = user_doc.to_dict() if user_doc.exists else {}
-    user_email = user_data.get("email")
+    # Only fetch user email if we plan to send an email; avoid extra DB lookups
+    user_email = None
+    if send_email:
+        try:
+            user_doc = db.collection("users").document(user_id).get()
+            user_data = user_doc.to_dict() if user_doc.exists else {}
+            user_email = user_data.get("email")
+        except Exception:
+            user_email = None
 
     notif = {
         "user_id": user_id,
@@ -49,6 +54,52 @@ def create_notification(db, user_id: str, title: str, body: str, task_id: str = 
             # email sent; no debug print to reduce noise
 
     return ref.id
+
+
+@notifications_bp.post("/test-email")
+def test_email():
+    """Send a test email directly without creating a task or notification.
+    
+    Request body:
+      user_id - recipient user ID
+      title - email subject
+      body - email body
+    """
+    db = firestore.client()
+    payload = request.get_json(force=True) or {}
+    
+    user_id = payload.get("user_id")
+    title = payload.get("title", "Test Email")
+    body = payload.get("body", "This is a test email.")
+    
+    if not user_id:
+        return jsonify({"error": "user_id is required"}), 400
+    
+    # Get user email
+    user_doc = db.collection("users").document(user_id).get()
+    if not user_doc.exists:
+        return jsonify({"error": "User not found"}), 404
+    
+    user_data = user_doc.to_dict()
+    user_email = user_data.get("email")
+    
+    if not user_email:
+        return jsonify({"error": "User has no email address"}), 400
+    
+    # Send email directly
+    success = send_email_util(user_email, title, body)
+    
+    if success:
+        return jsonify({
+            "success": True,
+            "message": f"Email sent to {user_email}",
+            "recipient": user_email
+        }), 200
+    else:
+        return jsonify({
+            "success": False,
+            "error": "Failed to send email. Check SMTP configuration."
+        }), 500
 
 
 @notifications_bp.post("/check-deadlines")
