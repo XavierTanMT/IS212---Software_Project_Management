@@ -5,7 +5,7 @@ from flask import request, jsonify
 from . import notifications_bp
 from firebase_admin import firestore
 from google.cloud.firestore_v1.base_query import FieldFilter
-from email_utils import send_email
+from email_utils import send_email as send_email_util
 
 
 def now_iso():
@@ -13,7 +13,7 @@ def now_iso():
 
 
 
-def create_notification(db, user_id: str, title: str, body: str, task_id: str = None, send_email_flag: bool = False, send_email_param: bool = None):
+def create_notification(db, user_id: str, title: str, body: str, task_id: str = None, send_email: bool = False):
     """Create an in-app notification and optionally send an email.
 
     Returns the notification document id on success, or None on failure.
@@ -41,16 +41,9 @@ def create_notification(db, user_id: str, title: str, body: str, task_id: str = 
     ref = db.collection("notifications").document()
     ref.set(notif)
 
-    # Backwards-compatible handling: callers historically used keyword
-    # `send_email` while the function used `send_email_flag`. Support both by
-    # checking the renamed `send_email_param` argument and falling back to
-    # `send_email_flag`.
-    send_flag = send_email_flag if send_email_param is None else bool(send_email_param)
-
     # Send email if requested and we have an address
-    if send_flag and user_email:
-        # call the imported send_email function from email_utils
-        ok = send_email(user_email, title, body)
+    if send_email and user_email:
+        ok = send_email_util(user_email, title, body)
         if ok:
             ref.update({"email_sent": True, "email_sent_at": now_iso()})
             # email sent; no debug print to reduce noise
@@ -170,7 +163,7 @@ def check_deadlines():
                 # If requested, attempt to resend email for existing notification when email hasn't been sent
                 if resend_existing and not existing_data.get("email_sent") and user_email:
                     try:
-                        ok = send_email(user_email, msg_title, msg_body)
+                        ok = send_email_util(user_email, msg_title, msg_body)
                         if ok:
                             existing_doc.reference.update({"email_sent": True, "email_sent_at": now_iso()})
                             resent += 1
@@ -186,7 +179,7 @@ def check_deadlines():
                 continue
 
             # create notification for this user (no verbose print)
-            create_notification(db, uid, msg_title, msg_body, task_id=task_id, send_email_flag=True)
+            create_notification(db, uid, msg_title, msg_body, task_id=task_id, send_email=True)
             created += 1
 
     # Fallback / complementary path: iterate users and notify them of tasks that are due in the same window
@@ -280,7 +273,7 @@ def _notify_user_due_tasks(db, user_id: str, start_iso: str, end_iso: str) -> in
                 continue
 
             # create notification for this user (no verbose print)
-            create_notification(db, user_id, msg_title, msg_body, task_id=task_id, send_email_flag=True)
+            create_notification(db, user_id, msg_title, msg_body, task_id=task_id, send_email=True)
             created_local += 1
 
     # summary logging removed; only exceptions are printed
