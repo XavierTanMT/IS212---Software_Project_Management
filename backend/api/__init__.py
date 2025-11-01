@@ -14,6 +14,7 @@ notes_bp = Blueprint("notes", __name__, url_prefix="/api/notes")
 labels_bp = Blueprint("labels", __name__, url_prefix="/api/labels")
 memberships_bp = Blueprint("memberships", __name__, url_prefix="/api/memberships")
 attachments_bp = Blueprint("attachments", __name__, url_prefix="/api/attachments")
+reports_bp = Blueprint("reports", __name__, url_prefix="/api/reports")
 
 # Import modules so routes attach
 from . import users  # noqa
@@ -28,6 +29,7 @@ from . import labels  # noqa
 from . import memberships  # noqa
 from . import attachments  # noqa
 from . import notifications  # noqa - Notifications endpoints
+from . import reports  # noqa - Reports endpoints
 
 __all__ = [
     "users_bp",
@@ -41,4 +43,5 @@ __all__ = [
     "memberships_bp",
     "attachments_bp",
     "notifications_bp",
+    "reports_bp",
 ]
