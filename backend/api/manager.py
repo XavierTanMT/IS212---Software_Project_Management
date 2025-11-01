@@ -311,12 +311,13 @@ def get_team_tasks():
             unique_tasks = [t for t in unique_tasks if t.get("visual_status") == filter_value]
     
     # Sort tasks
-    if sort_by == "due_date":
-        unique_tasks.sort(key=lambda t: _safe_iso_to_dt(t.get("due_date")) or datetime.max.replace(tzinfo=timezone.utc), reverse=(sort_order == "desc"))
-    elif sort_by == "priority":
-        unique_tasks.sort(key=lambda t: t.get("priority", 5), reverse=(sort_order == "desc"))
-    elif sort_by == "project":
-        unique_tasks.sort(key=lambda t: t.get("project_id") or "", reverse=(sort_order == "desc"))
+    sort_functions = {
+        "due_date": lambda t: _safe_iso_to_dt(t.get("due_date")) or datetime.max.replace(tzinfo=timezone.utc),
+        "priority": lambda t: t.get("priority", 5),
+        "project": lambda t: t.get("project_id") or "",
+    }
+    if sort_by in sort_functions:
+        unique_tasks.sort(key=sort_functions[sort_by], reverse=(sort_order == "desc"))
     
     # Get team member details
     team_members = []
@@ -457,7 +458,7 @@ def assign_task(task_id):
         "success": True,
         "message": f"Task assigned to {len(assignee_ids)} member(s)",
         "task_id": task_id,
-        "assigned_to": assigned_to_list
+        "assigned_to": assigned_to_list[0] if len(assigned_to_list) == 1 else assigned_to_list
     }), 200
 
 @manager_bp.post("/projects")

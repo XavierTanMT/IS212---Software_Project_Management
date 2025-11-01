@@ -214,7 +214,7 @@ def app():
     # Import all blueprints
     from backend.api import (
         users_bp, projects_bp, tasks_bp,
-        labels_bp, notes_bp, attachments_bp, memberships_bp, dashboard_bp, manager_bp, admin_bp
+        labels_bp, notes_bp, attachments_bp, memberships_bp, dashboard_bp, manager_bp, admin_bp, staff_bp
     )
     
     # Create a fresh app each time
@@ -224,7 +224,7 @@ def app():
     # Register all blueprints to ensure all endpoints are available
     blueprints = [
         users_bp, projects_bp, tasks_bp, labels_bp,
-        notes_bp, attachments_bp, memberships_bp, dashboard_bp, manager_bp, admin_bp
+        notes_bp, attachments_bp, memberships_bp, dashboard_bp, manager_bp, admin_bp, staff_bp
     ]
     
     for bp in blueprints:

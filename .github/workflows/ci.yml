@@ -58,7 +58,7 @@ jobs:
 
       - name: Start Firebase emulators
         run: |
-          firebase emulators:start --only firestore,auth --project demo-test &
+          firebase emulators:start --only firestore,auth --project demo-no-project &
           sleep 10
         env:
           FIRESTORE_EMULATOR_HOST: localhost:8080
