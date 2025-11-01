@@ -1,5 +1,6 @@
 from datetime import datetime, timezone, timedelta
 import os
+import re
 from flask import request, jsonify
 from . import notifications_bp
 from firebase_admin import firestore
@@ -12,7 +13,7 @@ def now_iso():
 
 
 
-def create_notification(db, user_id: str, title: str, body: str, task_id: str = None, send_email_flag: bool = False):
+def create_notification(db, user_id: str, title: str, body: str, task_id: str = None, send_email_flag: bool = False, send_email_param: bool = None):
     """Create an in-app notification and optionally send an email.
 
     Returns the notification document id on success, or None on failure.
@@ -40,8 +41,15 @@ def create_notification(db, user_id: str, title: str, body: str, task_id: str = 
     ref = db.collection("notifications").document()
     ref.set(notif)
 
+    # Backwards-compatible handling: callers historically used keyword
+    # `send_email` while the function used `send_email_flag`. Support both by
+    # checking the renamed `send_email_param` argument and falling back to
+    # `send_email_flag`.
+    send_flag = send_email_flag if send_email_param is None else bool(send_email_param)
+
     # Send email if requested and we have an address
-    if send_email_flag and user_email:
+    if send_flag and user_email:
+        # call the imported send_email function from email_utils
         ok = send_email(user_email, title, body)
         if ok:
             ref.update({"email_sent": True, "email_sent_at": now_iso()})
@@ -73,9 +81,40 @@ def check_deadlines():
         start_iso = now.isoformat()
         end_iso = window_end.isoformat()
 
-    # Query tasks with due_date between start_iso and end_iso (ISO UTC strings)
-    # Firestore stores dates as ISO strings in this project; so we compare strings
-    q = db.collection("tasks").where(filter=FieldFilter("due_date", ">=", start_iso)).where(filter=FieldFilter("due_date", "<=", end_iso))
+    # Query tasks with due_date between start_iso and end_iso (ISO strings)
+    # Firestore stores due dates as strings in different formats sometimes
+    # (e.g. "YYYY-MM-DDTHH:MM"). Normalize start/end ISO to match stored
+    # format when possible so string comparisons behave as expected.
+    try:
+        sample = next(db.collection("tasks").limit(1).stream(), None)
+        sample_due = None
+        if sample:
+            sample_due = (sample.to_dict() or {}).get("due_date")
+        if isinstance(sample_due, str) and re.match(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$", sample_due):
+            # store minute-resolution UTC string like '2025-10-29T08:00'
+            def fmt_minute(dt: datetime) -> str:
+                return dt.strftime("%Y-%m-%dT%H:%M")
+
+            # parse the already computed ISO strings back to datetimes then
+            # format them to minute-only to match stored documents
+            try:
+                start_dt = datetime.fromisoformat(start_iso)
+                end_dt = datetime.fromisoformat(end_iso)
+                start_iso_q = fmt_minute(start_dt)
+                end_iso_q = fmt_minute(end_dt)
+            except Exception:
+                # fallback: fall back to using original strings if parsing fails
+                start_iso_q = start_iso
+                end_iso_q = end_iso
+        else:
+            start_iso_q = start_iso
+            end_iso_q = end_iso
+    except Exception as e:
+        print(f"check_deadlines: sample lookup failed: {e}")
+        start_iso_q = start_iso
+        end_iso_q = end_iso
+
+    q = db.collection("tasks").where(filter=FieldFilter("due_date", ">=", start_iso_q)).where(filter=FieldFilter("due_date", "<=", end_iso_q))
     try:
         docs_preview = [d.id for d in list(q.limit(50).stream())]
     except Exception as e:
@@ -173,7 +212,30 @@ def _notify_user_due_tasks(db, user_id: str, start_iso: str, end_iso: str) -> in
 
     Returns number of notifications created for this user.
     """
-    q = db.collection("tasks").where(filter=FieldFilter("due_date", ">=", start_iso)).where(filter=FieldFilter("due_date", "<=", end_iso))
+    # Normalize per same logic as check_deadlines: many docs store minute-only
+    # ISO datetimes like 'YYYY-MM-DDTHH:MM'. Detect and format accordingly.
+    try:
+        sample = next(db.collection("tasks").limit(1).stream(), None)
+        sample_due = None
+        if sample:
+            sample_due = (sample.to_dict() or {}).get("due_date")
+        if isinstance(sample_due, str) and re.match(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$", sample_due):
+            try:
+                start_dt = datetime.fromisoformat(start_iso)
+                end_dt = datetime.fromisoformat(end_iso)
+                start_iso_q = start_dt.strftime("%Y-%m-%dT%H:%M")
+                end_iso_q = end_dt.strftime("%Y-%m-%dT%H:%M")
+            except Exception:
+                start_iso_q = start_iso
+                end_iso_q = end_iso
+        else:
+            start_iso_q = start_iso
+            end_iso_q = end_iso
+    except Exception:
+        start_iso_q = start_iso
+        end_iso_q = end_iso
+
+    q = db.collection("tasks").where(filter=FieldFilter("due_date", ">=", start_iso_q)).where(filter=FieldFilter("due_date", "<=", end_iso_q))
     docs = list(q.stream())
     created_local = 0
     for d in docs:

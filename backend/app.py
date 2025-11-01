@@ -200,9 +200,13 @@ def create_app(run_startup_checks: bool = False):
                     parsed = None
                     try:
                         if isinstance(resp, tuple) and hasattr(resp[0], 'get_json'):
+                            print("hello world")
                             parsed = resp[0].get_json()
+                            print("hello world 2")
+                            print(f"[startup] check_deadlines response: {parsed}")
                         elif hasattr(resp, 'get_json'):
                             parsed = resp.get_json()
+                            print(f"[startup] check_deadlines response: {parsed}")
                     except Exception:
                         parsed = None
 
