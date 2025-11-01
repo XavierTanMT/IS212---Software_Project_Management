@@ -14,7 +14,7 @@ import atexit
 
 from api import (
     users_bp, tasks_bp, dashboard_bp, manager_bp,
-    projects_bp, notes_bp, labels_bp, memberships_bp, attachments_bp, admin_bp, reports_bp
+    projects_bp, notes_bp, labels_bp, memberships_bp, attachments_bp, admin_bp, staff_bp, reports_bp
 )
 from api import notifications_bp
 from firebase_utils import get_firebase_credentials
@@ -153,6 +153,7 @@ def create_app(run_startup_checks: bool = False):
     app.register_blueprint(tasks_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(manager_bp)
+    app.register_blueprint(staff_bp)
     app.register_blueprint(projects_bp)
     app.register_blueprint(notes_bp)
     app.register_blueprint(labels_bp)

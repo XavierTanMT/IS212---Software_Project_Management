@@ -438,7 +438,7 @@ def app():
     # Import all blueprints
     from backend.api import (
         users_bp, projects_bp, tasks_bp,
-        labels_bp, notes_bp, attachments_bp, memberships_bp, dashboard_bp, manager_bp, admin_bp, reports_bp, notifications_bp
+        labels_bp, notes_bp, attachments_bp, memberships_bp, dashboard_bp, manager_bp, admin_bp, staff_bp, reports_bp, notifications_bp
     )
     # Ensure notifications module is imported so its routes attach to the
     # `notifications_bp` blueprint before registration on the test app.
@@ -465,7 +465,7 @@ def app():
     # Register all blueprints to ensure all endpoints are available
     blueprints = [
         users_bp, projects_bp, tasks_bp, labels_bp,
-        notes_bp, attachments_bp, memberships_bp, dashboard_bp, manager_bp, admin_bp, reports_bp, notifications_bp
+        notes_bp, attachments_bp, memberships_bp, dashboard_bp, manager_bp, admin_bp, staff_bp, reports_bp, notifications_bp
     ]
     # Append staff blueprint if available (register under '/staff')
     if staff_module is not None and hasattr(staff_module, 'bp'):

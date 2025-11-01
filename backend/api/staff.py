@@ -1,17 +1,25 @@
 # app/routes/staff.py
-from flask import Blueprint, request, jsonify
+from flask import request, jsonify
 from firebase_admin import firestore
-from .auth import firebase_required, staff_only
+from . import staff_bp
 from datetime import datetime, timezone
 
-bp = Blueprint('staff', __name__)
-
-@bp.route('/dashboard', methods=['GET'])
-@firebase_required
-def get_staff_dashboard(current_user):
+@staff_bp.route('/dashboard', methods=['GET'])
+def get_staff_dashboard():
     """Staff dashboard - only their own tasks"""
     db = firestore.client()
-    user_id = current_user['user_id']
+    user_id = request.args.get('user_id')
+    
+    if not user_id:
+        return jsonify({'error': 'user_id required'}), 400
+    
+    # Verify user exists
+    user_doc = db.collection('users').document(user_id).get()
+    if not user_doc.exists:
+        return jsonify({'error': 'User not found'}), 404
+    
+    current_user = user_doc.to_dict()
+    current_user['user_id'] = user_id
     
     # Get tasks created by this staff member
     my_tasks_query = db.collection('tasks').where('created_by.user_id', '==', user_id).stream()
@@ -55,12 +63,14 @@ def get_staff_dashboard(current_user):
         }
     }), 200
 
-@bp.route('/tasks', methods=['GET'])
-@firebase_required
-def get_my_tasks(current_user):
+@staff_bp.route('/tasks', methods=['GET'])
+def get_my_tasks():
     """Get only this staff member's tasks"""
     db = firestore.client()
-    user_id = current_user['user_id']
+    user_id = request.args.get('user_id')
+    
+    if not user_id:
+        return jsonify({'error': 'user_id required'}), 400
     
     # Can only see own tasks
     tasks = []
@@ -73,12 +83,22 @@ def get_my_tasks(current_user):
     
     return jsonify({'tasks': tasks}), 200
 
-@bp.route('/tasks', methods=['POST'])
-@firebase_required
-def create_task(current_user):
+@staff_bp.route('/tasks', methods=['POST'])
+def create_task():
     """Staff creates their own task"""
     db = firestore.client()
     data = request.get_json()
+    
+    user_id = request.args.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'user_id required'}), 400
+    
+    # Get user info
+    user_doc = db.collection('users').document(user_id).get()
+    if not user_doc.exists:
+        return jsonify({'error': 'User not found'}), 404
+    
+    user_data = user_doc.to_dict()
     
     task_data = {
         'title': data.get('title'),
@@ -87,9 +107,9 @@ def create_task(current_user):
         'status': data.get('status', 'To Do'),
         'due_date': data.get('due_date'),
         'created_by': {
-            'user_id': current_user['user_id'],
-            'name': current_user['name'],
-            'email': current_user['email']
+            'user_id': user_id,
+            'name': user_data.get('name'),
+            'email': user_data.get('email')
         },
         'assigned_to': data.get('assigned_to', {}),
         'project_id': data.get('project_id'),
