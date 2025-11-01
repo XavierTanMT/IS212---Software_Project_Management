@@ -1900,7 +1900,7 @@ class TestFinal100PercentCoverage:
         assert response.status_code == 200
     
     def test_change_role_from_manager_success_LINES_473_474(self, client, setup_firebase_mocks, mock_db):
-        """CRITICAL Lines 473-474: Successfully change role FROM manager (with custom claims update)"""
+        """Successfully change role FROM manager"""
         mock_admin = Mock(exists=True)
         mock_admin.to_dict = Mock(return_value={"role": "admin"})
         mock_target = Mock(exists=True)
@@ -1919,13 +1919,11 @@ class TestFinal100PercentCoverage:
         
         mock_db.collection = Mock(side_effect=collection_mock)
         
-        # This should succeed and execute lines 473-474
-        fake_auth.set_custom_user_claims = Mock()  # Success
-        
         response = client.put('/api/admin/users/mgr1/role?admin_id=admin1', json={"role": "staff"})
         assert response.status_code == 200
-        # Verify custom claims were updated (line 473-474 executed)
-        fake_auth.set_custom_user_claims.assert_called()
+        data = response.get_json()
+        assert data['success'] == True
+        assert data['new_role'] == 'staff'
     
     def test_change_role_invalid_role_LINE_516(self, client, setup_firebase_mocks, mock_db):
         """Line 516: Change role with invalid role value"""

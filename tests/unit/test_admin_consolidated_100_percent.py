@@ -181,7 +181,9 @@ class TestStaffManagement:
         
         assert response.status_code == 201
         data = response.get_json()
-        assert data['user_id'] == 'new_staff_uid'
+        assert data['success'] == True
+        assert data['user']['user_id'] == 'new_staff_uid'
+        assert data['user']['role'] == 'staff'
     
     def test_create_staff_missing_fields_line_237(self, client, setup_firebase_mocks, mock_db):
         """Line 237: Create staff with missing required fields"""
@@ -774,12 +776,20 @@ class TestUserSyncCheck:
         mock_user.to_dict = Mock(return_value={"email": "synced@test.com", "name": "User"})
         mock_db.collection.return_value.document.return_value.get.return_value = mock_user
         
-        fake_auth.get_user = Mock(return_value=Mock(uid='user1', email='synced@test.com'))
+        fake_auth.get_user = Mock(return_value=Mock(
+            uid='user1', 
+            email='synced@test.com',
+            display_name='User',
+            disabled=False,
+            email_verified=True
+        ))
         
         response = client.get('/api/admin/check/user1')
         assert response.status_code == 200
         data = response.get_json()
         assert data['synced'] == True
+        assert data['in_firestore'] == True
+        assert data['in_firebase_auth'] == True
     
     def test_check_firestore_only(self, client, setup_firebase_mocks, mock_db):
         """User only in Firestore"""
