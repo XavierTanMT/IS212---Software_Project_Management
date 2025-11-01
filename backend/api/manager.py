@@ -1,3 +1,5 @@
+# filepath: /Users/xaviertan/Documents/GitHub/IS212---Software_Project_Management/backend/api/manager.py
+
 from datetime import datetime, timezone
 from flask import request, jsonify
 from . import manager_bp
@@ -210,6 +212,161 @@ def _get_manager_team_member_ids(manager_id):
     
     return team_member_ids
 
+@manager_bp.get("/dashboard")
+def manager_dashboard():
+    """
+    GET /api/manager/dashboard
+    
+    Manager's main dashboard with team overview, statistics, and recent activity.
+    
+    Headers:
+        X-User-Id: Manager's user ID
+    
+    Returns:
+        {
+            "view": "manager",
+            "manager": {...},
+            "team_size": 5,
+            "active_tasks": 10,
+            "completed_tasks": 3,
+            "team_members": [...],
+            "team_tasks": [...],
+            "statistics": {...}
+        }
+    """
+    db = firestore.client()
+    manager_id = _get_viewer_id()
+    
+    if not manager_id:
+        return jsonify({"error": "Manager ID required via X-User-Id header"}), 401
+    
+    # Verify manager access
+    manager_data, error_response, status_code = _verify_manager_access(manager_id)
+    if error_response:
+        return error_response, status_code
+    
+    # Get manager's projects
+    manager_memberships = db.collection("memberships").where("user_id", "==", manager_id).stream()
+    manager_projects = set()
+    for mem in manager_memberships:
+        manager_projects.add(mem.to_dict().get("project_id"))
+    
+    # Get team member IDs
+    team_member_ids = _get_manager_team_member_ids(manager_id)
+    
+    # Get team member details
+    team_members = []
+    for member_id in team_member_ids:
+        member_doc = db.collection("users").document(member_id).get()
+        if member_doc.exists:
+            member_data = member_doc.to_dict()
+            team_members.append({
+                "user_id": member_id,
+                "name": member_data.get("name"),
+                "email": member_data.get("email"),
+                "role": member_data.get("role", "staff"),
+                "is_active": member_data.get("is_active", True)
+            })
+    
+    # Get all team tasks
+    all_tasks = []
+    active_tasks = 0
+    completed_tasks = 0
+    overdue_tasks = 0
+    
+    for member_id in team_member_ids:
+        # Created tasks
+        created_tasks = db.collection("tasks").where("created_by.user_id", "==", member_id).stream()
+        for task_doc in created_tasks:
+            task_data = task_doc.to_dict()
+            enriched_task = _enrich_task_with_status(task_data, task_doc.id)
+            
+            # Count by status
+            status = task_data.get("status", "To Do")
+            if status in ["To Do", "In Progress"]:
+                active_tasks += 1
+            elif status == "Completed":
+                completed_tasks += 1
+            
+            if enriched_task.get("is_overdue"):
+                overdue_tasks += 1
+            
+            all_tasks.append(enriched_task)
+        
+        # Assigned tasks
+        assigned_tasks = db.collection("tasks").where("assigned_to.user_id", "==", member_id).stream()
+        for task_doc in assigned_tasks:
+            task_data = task_doc.to_dict()
+            enriched_task = _enrich_task_with_status(task_data, task_doc.id)
+            
+            status = task_data.get("status", "To Do")
+            if status in ["To Do", "In Progress"]:
+                active_tasks += 1
+            elif status == "Completed":
+                completed_tasks += 1
+            
+            if enriched_task.get("is_overdue"):
+                overdue_tasks += 1
+            
+            all_tasks.append(enriched_task)
+    
+    # Remove duplicate tasks
+    seen_tasks = set()
+    unique_tasks = []
+    for task in all_tasks:
+        task_key = task["task_id"]
+        if task_key not in seen_tasks:
+            seen_tasks.add(task_key)
+            unique_tasks.append(task)
+    
+    # Sort by due date (most urgent first)
+    unique_tasks.sort(
+        key=lambda t: _safe_iso_to_dt(t.get("due_date")) or datetime.max.replace(tzinfo=timezone.utc)
+    )
+    
+    # Get recent tasks (last 10)
+    recent_tasks = unique_tasks[:10]
+    
+    # Calculate statistics
+    status_breakdown = {}
+    priority_breakdown = {}
+    visual_status_breakdown = {}
+    
+    for task in unique_tasks:
+        status = task.get("status", "To Do")
+        priority = task.get("priority", 5)
+        visual_status = task.get("visual_status", "no_due_date")
+        
+        status_breakdown[status] = status_breakdown.get(status, 0) + 1
+        priority_breakdown[f"Priority {priority}"] = priority_breakdown.get(f"Priority {priority}", 0) + 1
+        visual_status_breakdown[visual_status] = visual_status_breakdown.get(visual_status, 0) + 1
+    
+    return jsonify({
+        "view": "manager",
+        "manager": {
+            "user_id": manager_id,
+            "name": manager_data.get("name"),
+            "email": manager_data.get("email"),
+            "role": manager_data.get("role", "manager")
+        },
+        "team_size": len(team_members),
+        "active_tasks": active_tasks,
+        "completed_tasks": completed_tasks,
+        "total_tasks": len(unique_tasks),
+        "overdue_tasks": overdue_tasks,
+        "team_members": team_members,
+        "team_tasks": recent_tasks,  # Recent 10 tasks
+        "statistics": {
+            "total_tasks": len(unique_tasks),
+            "active_tasks": active_tasks,
+            "completed_tasks": completed_tasks,
+            "overdue_count": overdue_tasks,
+            "by_status": status_breakdown,
+            "by_priority": priority_breakdown,
+            "by_visual_status": visual_status_breakdown
+        }
+    }), 200
+
 # ========== EXISTING ENDPOINT (Keep as is) ==========
 @manager_bp.get("/team-tasks")
 def get_team_tasks():
@@ -224,9 +381,6 @@ def get_team_tasks():
     manager_data, error_response, status_code = _verify_manager_access(manager_id)
     if error_response:
         return error_response, status_code
-    
-    # ... (rest of your existing code stays the same)
-    # [Keep all your existing team-tasks logic here]
     
     # Get query parameters
     sort_by = request.args.get("sort_by", "due_date")
@@ -399,7 +553,10 @@ def get_team_tasks():
 
 @manager_bp.post("/tasks/<task_id>/assign")
 def assign_task(task_id):
-    """Assign task to team member(s) - Manager.assignTask() from diagram."""
+    """
+    Assign task to team member(s) - Manager.assignTask() from diagram.
+    Accept team members from projects AND direct manager-staff relationship.
+    """
     db = firestore.client()
     manager_id = _get_viewer_id()
     
@@ -411,10 +568,10 @@ def assign_task(task_id):
     if error_response:
         return error_response, status_code
     
-    data = request.get_json()
+    data = request.get_json() or {}
     assignee_ids = data.get("assignee_ids", [])
     
-    if not assignee_ids:
+    if not assignee_ids or not isinstance(assignee_ids, list):
         return jsonify({"error": "assignee_ids required"}), 400
     
     # Get task
@@ -424,11 +581,20 @@ def assign_task(task_id):
     if not task_doc.exists:
         return jsonify({"error": "Task not found"}), 404
     
-    # Verify assignees are team members
-    team_member_ids = _get_manager_team_member_ids(manager_id)
+    # Get team members from BOTH sources
+    # Method 1: Existing project-based team members
+    project_team_ids = _get_manager_team_member_ids(manager_id)  # returns set()
     
+    # Method 2: Direct manager->staff relationship (users where manager_id == manager_id)
+    direct_staff_query = db.collection("users").where("manager_id", "==", manager_id).stream()
+    direct_staff_ids = set(doc.id for doc in direct_staff_query)
+    
+    # Combine both sources
+    all_team_member_ids = set(project_team_ids) | direct_staff_ids
+    
+    # Verify assignees are in the combined team
     for assignee_id in assignee_ids:
-        if assignee_id not in team_member_ids:
+        if assignee_id not in all_team_member_ids:
             return jsonify({"error": f"User {assignee_id} is not in your team"}), 403
     
     # Get assignee details
@@ -564,6 +730,77 @@ def add_team_member(project_id):
         "success": True,
         "message": "Member added to project"
     }), 201
+
+# Add after line 717, before the manager-staff relationship endpoints
+
+@manager_bp.get("/all-users")
+def get_all_users():
+    """
+    GET /api/manager/all-users
+    
+    Get all users (staff and managers) for assignment purposes.
+    Managers can see all users to assign staff to themselves or other managers.
+    
+    Headers:
+        X-User-Id: Manager's user ID
+    
+    Returns:
+        {
+            "staff": [...],
+            "managers": [...],
+            "total_staff": 5,
+            "total_managers": 3
+        }
+    """
+    db = firestore.client()
+    manager_id = _get_viewer_id()
+    
+    if not manager_id:
+        return jsonify({"error": "Manager ID required"}), 401
+    
+    # Verify manager access
+    manager_data, error_response, status_code = _verify_manager_access(manager_id)
+    if error_response:
+        return error_response, status_code
+    
+    try:
+        # Get all users
+        users_ref = db.collection("users")
+        all_users = users_ref.stream()
+        
+        staff_list = []
+        manager_list = []
+        
+        for user_doc in all_users:
+            user_data = user_doc.to_dict()
+            user_role = user_data.get("role", "staff")
+            
+            user_info = {
+                "user_id": user_doc.id,
+                "name": user_data.get("name"),
+                "email": user_data.get("email"),
+                "role": user_role,
+                "is_active": user_data.get("is_active", True),
+                "manager_id": user_data.get("manager_id"),
+                "created_at": user_data.get("created_at")
+            }
+            
+            if user_role == "staff":
+                staff_list.append(user_info)
+            elif user_role in ["manager", "director", "hr", "admin"]:
+                manager_list.append(user_info)
+        
+        return jsonify({
+            "staff": staff_list,
+            "managers": manager_list,
+            "total_staff": len(staff_list),
+            "total_managers": len(manager_list)
+        }), 200
+        
+    except Exception as e:
+        print(f"Error getting all users: {e}")
+        return jsonify({"error": str(e)}), 500
+
 
 @manager_bp.delete("/projects/<project_id>/members/<user_id>")
 def remove_team_member(project_id, user_id):
@@ -768,4 +1005,358 @@ def update_task_priority(task_id):
         "message": "Task priority updated",
         "task_id": task_id,
         "new_priority": new_priority
+    }), 200
+
+
+# Add these endpoints after your existing endpoints (around line 718)
+
+# ========== MANAGER-STAFF RELATIONSHIP ENDPOINTS ==========
+
+@manager_bp.post("/staff/<staff_id>/assign-manager")
+def assign_manager_to_staff(staff_id):
+    """
+    POST /api/manager/staff/<staff_id>/assign-manager
+    
+    Assign a manager ID to a staff member's document.
+    
+    Headers:
+        X-User-Id: Manager's user ID (the manager assigning themselves)
+    
+    Body:
+        {
+            "manager_id": "mgr123"  // Optional, defaults to X-User-Id
+        }
+    
+    Returns:
+        {
+            "success": true,
+            "message": "Manager assigned to staff member",
+            "staff_id": "staff123",
+            "manager_id": "mgr123"
+        }
+    """
+    db = firestore.client()
+    manager_id = _get_viewer_id()
+    
+    if not manager_id:
+        return jsonify({"error": "Manager ID required via X-User-Id header"}), 401
+    
+    # Verify manager access
+    manager_data, error_response, status_code = _verify_manager_access(manager_id)
+    if error_response:
+        return error_response, status_code
+    
+    # Get optional manager_id from body (defaults to current manager)
+    data = request.get_json() or {}
+    target_manager_id = data.get("manager_id", manager_id)
+    
+    # Verify target manager exists and has manager role
+    target_manager_doc = db.collection("users").document(target_manager_id).get()
+    if not target_manager_doc.exists:
+        return jsonify({"error": "Target manager not found"}), 404
+    
+    target_manager_data = target_manager_doc.to_dict()
+    if not _is_manager_role(target_manager_data.get("role", "staff")):
+        return jsonify({"error": "Target user is not a manager"}), 400
+    
+    # Verify staff exists
+    staff_ref = db.collection("users").document(staff_id)
+    staff_doc = staff_ref.get()
+    
+    if not staff_doc.exists:
+        return jsonify({"error": "Staff member not found"}), 404
+    
+    staff_data = staff_doc.to_dict()
+    
+    # Verify staff is actually staff role
+    if staff_data.get("role") != "staff":
+        return jsonify({"error": "User is not a staff member"}), 400
+    
+    # Update staff document with manager_id
+    staff_ref.update({
+        "manager_id": target_manager_id,
+        "manager_name": target_manager_data.get("name"),
+        "manager_email": target_manager_data.get("email"),
+        "manager_assigned_at": now_iso(),
+        "updated_at": now_iso()
+    })
+    
+    return jsonify({
+        "success": True,
+        "message": "Manager assigned to staff member",
+        "staff_id": staff_id,
+        "staff_name": staff_data.get("name"),
+        "manager_id": target_manager_id,
+        "manager_name": target_manager_data.get("name")
+    }), 200
+
+
+@manager_bp.post("/assign-staff")
+def assign_staff_to_manager():
+    """
+    POST /api/manager/assign-staff
+    
+    Add multiple staff IDs to a manager's document (team list).
+    
+    Headers:
+        X-User-Id: Manager's user ID
+    
+    Body:
+        {
+            "staff_ids": ["staff1", "staff2", "staff3"],
+            "manager_id": "mgr123"  // Optional, defaults to X-User-Id
+        }
+    
+    Returns:
+        {
+            "success": true,
+            "message": "5 staff members assigned to manager",
+            "manager_id": "mgr123",
+            "staff_assigned": [
+                {"user_id": "staff1", "name": "John Doe"},
+                {"user_id": "staff2", "name": "Jane Smith"}
+            ],
+            "failed": []
+        }
+    """
+    db = firestore.client()
+    manager_id = _get_viewer_id()
+    
+    if not manager_id:
+        return jsonify({"error": "Manager ID required via X-User-Id header"}), 401
+    
+    # Verify manager access
+    manager_data, error_response, status_code = _verify_manager_access(manager_id)
+    if error_response:
+        return error_response, status_code
+    
+    # Get request data
+    data = request.get_json()
+    staff_ids = data.get("staff_ids", [])
+    target_manager_id = data.get("manager_id", manager_id)
+    
+    if not staff_ids or not isinstance(staff_ids, list):
+        return jsonify({"error": "staff_ids must be a non-empty array"}), 400
+    
+    # Verify target manager
+    target_manager_ref = db.collection("users").document(target_manager_id)
+    target_manager_doc = target_manager_ref.get()
+    
+    if not target_manager_doc.exists:
+        return jsonify({"error": "Target manager not found"}), 404
+    
+    target_manager_data = target_manager_doc.to_dict()
+    if not _is_manager_role(target_manager_data.get("role", "staff")):
+        return jsonify({"error": "Target user is not a manager"}), 400
+    
+    # Get existing team_staff_ids array (if any)
+    existing_staff_ids = target_manager_data.get("team_staff_ids", [])
+    
+    # Process each staff member
+    staff_assigned = []
+    failed = []
+    
+    for staff_id in staff_ids:
+        try:
+            # Verify staff exists
+            staff_ref = db.collection("users").document(staff_id)
+            staff_doc = staff_ref.get()
+            
+            if not staff_doc.exists:
+                failed.append({
+                    "user_id": staff_id,
+                    "error": "Staff member not found"
+                })
+                continue
+            
+            staff_data = staff_doc.to_dict()
+            
+            # Verify is staff role
+            if staff_data.get("role") != "staff":
+                failed.append({
+                    "user_id": staff_id,
+                    "error": "User is not a staff member"
+                })
+                continue
+            
+            # Update staff document with manager_id
+            staff_ref.update({
+                "manager_id": target_manager_id,
+                "manager_name": target_manager_data.get("name"),
+                "manager_email": target_manager_data.get("email"),
+                "manager_assigned_at": now_iso(),
+                "updated_at": now_iso()
+            })
+            
+            # Add to assigned list
+            staff_assigned.append({
+                "user_id": staff_id,
+                "name": staff_data.get("name"),
+                "email": staff_data.get("email")
+            })
+            
+            # Add to team list if not already present
+            if staff_id not in existing_staff_ids:
+                existing_staff_ids.append(staff_id)
+        
+        except Exception as e:
+            failed.append({
+                "user_id": staff_id,
+                "error": str(e)
+            })
+    
+    # Update manager document with team_staff_ids array
+    target_manager_ref.update({
+        "team_staff_ids": existing_staff_ids,
+        "team_size": len(existing_staff_ids),
+        "updated_at": now_iso()
+    })
+    
+    return jsonify({
+        "success": True,
+        "message": f"{len(staff_assigned)} staff member(s) assigned to manager",
+        "manager_id": target_manager_id,
+        "manager_name": target_manager_data.get("name"),
+        "staff_assigned": staff_assigned,
+        "failed": failed,
+        "total_team_size": len(existing_staff_ids)
+    }), 200
+
+
+@manager_bp.delete("/staff/<staff_id>/remove-manager")
+def remove_manager_from_staff(staff_id):
+    """
+    DELETE /api/manager/staff/<staff_id>/remove-manager
+    
+    Remove manager assignment from a staff member.
+    
+    Headers:
+        X-User-Id: Manager's user ID
+    
+    Returns:
+        {
+            "success": true,
+            "message": "Manager removed from staff member"
+        }
+    """
+    db = firestore.client()
+    manager_id = _get_viewer_id()
+    
+    if not manager_id:
+        return jsonify({"error": "Manager ID required"}), 401
+    
+    # Verify manager access
+    manager_data, error_response, status_code = _verify_manager_access(manager_id)
+    if error_response:
+        return error_response, status_code
+    
+    # Get staff document
+    staff_ref = db.collection("users").document(staff_id)
+    staff_doc = staff_ref.get()
+    
+    if not staff_doc.exists:
+        return jsonify({"error": "Staff member not found"}), 404
+    
+    staff_data = staff_doc.to_dict()
+    current_manager_id = staff_data.get("manager_id")
+    
+    # Verify current user is the assigned manager (or admin)
+    if current_manager_id != manager_id and manager_data.get("role") not in ["admin", "director"]:
+        return jsonify({"error": "You are not assigned to this staff member"}), 403
+    
+    # Remove manager fields from staff document
+    staff_ref.update({
+        "manager_id": firestore.DELETE_FIELD,
+        "manager_name": firestore.DELETE_FIELD,
+        "manager_email": firestore.DELETE_FIELD,
+        "manager_assigned_at": firestore.DELETE_FIELD,
+        "updated_at": now_iso()
+    })
+    
+    # Remove from manager's team_staff_ids array
+    if current_manager_id:
+        manager_ref = db.collection("users").document(current_manager_id)
+        manager_doc = manager_ref.get()
+        
+        if manager_doc.exists:
+            manager_team_data = manager_doc.to_dict()
+            team_staff_ids = manager_team_data.get("team_staff_ids", [])
+            
+            if staff_id in team_staff_ids:
+                team_staff_ids.remove(staff_id)
+                manager_ref.update({
+                    "team_staff_ids": team_staff_ids,
+                    "team_size": len(team_staff_ids),
+                    "updated_at": now_iso()
+                })
+    
+    return jsonify({
+        "success": True,
+        "message": "Manager removed from staff member",
+        "staff_id": staff_id
+    }), 200
+
+
+@manager_bp.get("/my-team")
+def get_my_team():
+    """
+    GET /api/manager/my-team
+    
+    Get all staff members assigned to this manager.
+    
+    Headers:
+        X-User-Id: Manager's user ID
+    
+    Returns:
+        {
+            "manager": {...},
+            "team_staff": [
+                {
+                    "user_id": "staff1",
+                    "name": "John Doe",
+                    "email": "john@example.com",
+                    "assigned_at": "2025-01-01T00:00:00Z"
+                }
+            ],
+            "team_size": 5
+        }
+    """
+    db = firestore.client()
+    manager_id = _get_viewer_id()
+    
+    if not manager_id:
+        return jsonify({"error": "Manager ID required"}), 401
+    
+    # Verify manager access
+    manager_data, error_response, status_code = _verify_manager_access(manager_id)
+    if error_response:
+        return error_response, status_code
+    
+    # Query all staff where manager_id matches
+    staff_query = db.collection("users")\
+        .where("manager_id", "==", manager_id)\
+        .stream()
+    
+    team_staff = []
+    for staff_doc in staff_query:
+        staff_data = staff_doc.to_dict()
+        team_staff.append({
+            "user_id": staff_doc.id,
+            "name": staff_data.get("name"),
+            "email": staff_data.get("email"),
+            "role": staff_data.get("role", "staff"),
+            "is_active": staff_data.get("is_active", True),
+            "assigned_at": staff_data.get("manager_assigned_at"),
+            "created_at": staff_data.get("created_at")
+        })
+    
+    return jsonify({
+        "manager": {
+            "user_id": manager_id,
+            "name": manager_data.get("name"),
+            "email": manager_data.get("email"),
+            "role": manager_data.get("role")
+        },
+        "team_staff": team_staff,
+        "team_size": len(team_staff)
     }), 200
