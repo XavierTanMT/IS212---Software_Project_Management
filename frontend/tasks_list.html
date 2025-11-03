@@ -53,6 +53,7 @@
       <thead>
         <tr>
           <th>Title</th>
+          <th>Progress</th>
           <th>Status</th>
           <th>Priority</th>
           <th>Due</th>
@@ -217,8 +218,13 @@
               + "<a href='attachments.html?task_id=" + encodeURIComponent(t.task_id) + "'>Files</a>"
             );
 
+      // compute progress percentage from subtask counts (no decimals)
+      const total = Number(t.subtask_count || 0);
+      const done = Number(t.subtask_completed_count || 0);
+      const pct = total > 0 ? Math.round((done / total) * 100) : 0;
       tr.innerHTML = ""
-        + "<td>" + (t.title || "") + "</td>"
+        + "<td><a href='task_detail.html?task_id=" + encodeURIComponent(t.task_id) + "'>" + (t.title || "") + "</a></td>"
+        + "<td>" + (total > 0 ? (pct + '%') : '0%') + "</td>"
         + "<td><span class='pill'>" + (t.status || "") + "</span></td>"
         + "<td>" + (t.priority || "") + "</td>"
         + "<td>" + (t.due_date || "") + "</td>"

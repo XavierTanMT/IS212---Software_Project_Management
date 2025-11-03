@@ -30,6 +30,9 @@ def task_to_json(d):
         "is_recurring": data.get("is_recurring", False),
         "recurrence_interval_days": data.get("recurrence_interval_days"),
         "parent_recurring_task_id": data.get("parent_recurring_task_id"),
+        # subtask counts (maintained by subtask endpoints)
+        "subtask_count": data.get("subtask_count", 0),
+        "subtask_completed_count": data.get("subtask_completed_count", 0),
     }
 
 def _viewer_id():
@@ -41,6 +44,57 @@ def _ensure_creator_or_404(task_doc):
     data = task_doc.to_dict() or {}
     creator = (data.get("created_by") or {}).get("user_id")
     return bool(viewer and creator and viewer == creator)
+
+
+def _can_view_task_doc(db, task_doc):
+    """Return True if current viewer can view the given task_doc."""
+    viewer = _viewer_id()
+    if not viewer:
+        return False
+    data = task_doc.to_dict() or {}
+    creator_id = (data.get("created_by") or {}).get("user_id")
+    assignee_id = (data.get("assigned_to") or {}).get("user_id")
+    if viewer == creator_id or viewer == assignee_id:
+        return True
+
+    # Allow if viewer is a member of the task's project
+    try:
+        project_id = data.get("project_id")
+        if project_id and _require_membership(db, project_id, viewer):
+            return True
+    except Exception:
+        pass
+
+    # Check viewer role
+    try:
+        viewer_doc = db.collection("users").document(viewer).get()
+        viewer_data = (viewer_doc.to_dict() or {}) if viewer_doc.exists else {}
+        viewer_role = (viewer_data.get("role") or "staff").lower()
+    except Exception:
+        viewer_role = 'staff'
+
+    if viewer_role == 'admin':
+        return True
+
+    manager_roles = ["manager", "director", "hr"]
+    if viewer_role in manager_roles:
+        # Allow if the creator or assignee report to this manager
+        try:
+            def is_managed_by(user_id, manager_id):
+                if not user_id or not manager_id:
+                    return False
+                u = db.collection("users").document(user_id).get()
+                if not u.exists:
+                    return False
+                ud = u.to_dict() or {}
+                return ud.get("manager_id") == manager_id
+
+            if is_managed_by(creator_id, viewer) or is_managed_by(assignee_id, viewer):
+                return True
+        except Exception:
+            pass
+
+    return False
 
 def _can_edit_task(task_doc):
     """Check if user can edit task (creator OR assignee)"""
@@ -498,38 +552,9 @@ def get_task(task_id):
     viewer = _viewer_id()
     if not viewer:
         return jsonify({"error": "viewer_id required via X-User-Id header or ?viewer_id"}), 401
-
-    data = doc.to_dict() or {}
-    creator_id = (data.get("created_by") or {}).get("user_id")
-    assignee_id = (data.get("assigned_to") or {}).get("user_id")
-
-    if viewer == creator_id or viewer == assignee_id:
+    # Use centralized view check (includes creator/assignee/admin/manager/member rules)
+    if _can_view_task_doc(db, doc):
         return jsonify(task_to_json(doc)), 200
-
-    # Check viewer role
-    viewer_doc = db.collection("users").document(viewer).get()
-    viewer_data = (viewer_doc.to_dict() or {}) if viewer_doc.exists else {}
-    viewer_role = (viewer_data.get("role") or "staff").lower()
-    if viewer_role == 'admin':
-        return jsonify(task_to_json(doc)), 200
-
-    manager_roles = ["manager", "director", "hr"]
-    if viewer_role in manager_roles:
-        # Allow if the creator or assignee report to this manager
-        try:
-            def is_managed_by(user_id, manager_id):
-                if not user_id or not manager_id:
-                    return False
-                u = db.collection("users").document(user_id).get()
-                if not u.exists:
-                    return False
-                ud = u.to_dict() or {}
-                return ud.get("manager_id") == manager_id
-
-            if is_managed_by(creator_id, viewer) or is_managed_by(assignee_id, viewer):
-                return jsonify(task_to_json(doc)), 200
-        except Exception:
-            pass
 
     return jsonify({"error": "Not found"}), 404
 
@@ -743,4 +768,222 @@ def reassign_task(task_id):
         },
         "message": "Task reassigned successfully"
     }), 200
+
+
+@tasks_bp.get("/<task_id>/subtasks")
+def list_subtasks(task_id):
+    db = firestore.client()
+    task_ref = db.collection("tasks").document(task_id)
+    task_doc = task_ref.get()
+    if not task_doc.exists:
+        return jsonify({"error": "Task not found"}), 404
+
+    # Viewer required and must be able to view the task
+    viewer = _viewer_id()
+    if not viewer:
+        return jsonify({"error": "viewer_id required"}), 401
+
+    if not _can_view_task_doc(db, task_doc):
+        return jsonify({"error": "Not found"}), 404
+
+    # Query subtasks for this task
+    subs_q = db.collection("subtasks").where(filter=FieldFilter("task_id", "==", task_id))
+    subs = []
+    try:
+        for s in subs_q.stream():
+            sd = s.to_dict() or {}
+            subs.append({
+                "subtask_id": s.id,
+                "task_id": sd.get("task_id"),
+                "title": sd.get("title"),
+                "description": sd.get("description"),
+                "created_at": sd.get("created_at"),
+                "created_by": sd.get("created_by"),
+                "completed": bool(sd.get("completed", False)),
+                "completed_at": sd.get("completed_at"),
+                "completed_by": sd.get("completed_by"),
+            })
+    except Exception:
+        pass
+
+    return jsonify(subs), 200
+
+
+@tasks_bp.post("/<task_id>/subtasks")
+def create_subtask(task_id):
+    db = firestore.client()
+    viewer = _viewer_id()
+    if not viewer:
+        return jsonify({"error": "viewer_id required"}), 401
+
+    task_ref = db.collection("tasks").document(task_id)
+    task_doc = task_ref.get()
+    if not task_doc.exists:
+        return jsonify({"error": "Task not found"}), 404
+
+    # Only the task creator may create subtasks
+    if not _ensure_creator_or_404(task_doc):
+        return jsonify({"error": "forbidden"}), 403
+
+    payload = request.get_json(force=True) or {}
+    title = (payload.get("title") or "").strip()
+    description = (payload.get("description") or "").strip()
+    if not title or len(title) < 1:
+        return jsonify({"error": "Subtask title required"}), 400
+
+    # get creator details
+    creator_doc = db.collection("users").document(viewer).get()
+    creator = (creator_doc.to_dict() or {}) if creator_doc.exists else {}
+
+    sub_ref = db.collection("subtasks").document()
+    sub_doc = {
+        "task_id": task_id,
+        "title": title,
+        "description": description,
+        "created_at": now_iso(),
+        "created_by": {
+            "user_id": viewer,
+            "name": creator.get("name"),
+            "email": creator.get("email"),
+        },
+        "completed": False,
+        "completed_at": None,
+        "completed_by": None,
+    }
+    sub_ref.set(sub_doc)
+
+    # Increment subtask count on task document
+    try:
+        task_ref.update({"subtask_count": firestore.Increment(1)})
+    except Exception:
+        # ignore failures but continue
+        pass
+
+    return jsonify({"subtask_id": sub_ref.id, **sub_doc}), 201
+
+
+@tasks_bp.put("/<task_id>/subtasks/<subtask_id>")
+def update_subtask(task_id, subtask_id):
+    db = firestore.client()
+    viewer = _viewer_id()
+    if not viewer:
+        return jsonify({"error": "viewer_id required"}), 401
+
+    task_ref = db.collection("tasks").document(task_id)
+    task_doc = task_ref.get()
+    if not task_doc.exists:
+        return jsonify({"error": "Task not found"}), 404
+
+    # Only task creator can update subtasks
+    if not _ensure_creator_or_404(task_doc):
+        return jsonify({"error": "forbidden"}), 403
+
+    sub_ref = db.collection("subtasks").document(subtask_id)
+    sub = sub_ref.get()
+    if not sub.exists:
+        return jsonify({"error": "Subtask not found"}), 404
+
+    payload = request.get_json(force=True) or {}
+    updates = {}
+    if "title" in payload:
+        updates["title"] = (payload.get("title") or "").strip()
+    if "description" in payload:
+        updates["description"] = payload.get("description")
+    if not updates:
+        return jsonify({"error": "No fields to update"}), 400
+
+    updates["updated_at"] = now_iso()
+    sub_ref.update(updates)
+    return jsonify({"subtask_id": subtask_id, **(sub_ref.get().to_dict() or {})}), 200
+
+
+@tasks_bp.delete("/<task_id>/subtasks/<subtask_id>")
+def delete_subtask(task_id, subtask_id):
+    db = firestore.client()
+    viewer = _viewer_id()
+    if not viewer:
+        return jsonify({"error": "viewer_id required"}), 401
+
+    task_ref = db.collection("tasks").document(task_id)
+    task_doc = task_ref.get()
+    if not task_doc.exists:
+        return jsonify({"error": "Task not found"}), 404
+
+    # Only task creator can delete subtasks
+    if not _ensure_creator_or_404(task_doc):
+        return jsonify({"error": "forbidden"}), 403
+
+    sub_ref = db.collection("subtasks").document(subtask_id)
+    sub = sub_ref.get()
+    if not sub.exists:
+        return jsonify({"error": "Subtask not found"}), 404
+
+    sd = sub.to_dict() or {}
+    was_completed = bool(sd.get("completed", False))
+
+    # Delete subtask
+    try:
+        sub_ref.delete()
+    except Exception:
+        return jsonify({"error": "Failed to delete subtask"}), 500
+
+    # Decrement counts on task
+    try:
+        task_ref.update({"subtask_count": firestore.Increment(-1)})
+        if was_completed:
+            task_ref.update({"subtask_completed_count": firestore.Increment(-1)})
+    except Exception:
+        pass
+
+    return jsonify({"ok": True, "subtask_id": subtask_id}), 200
+
+
+@tasks_bp.patch("/<task_id>/subtasks/<subtask_id>/complete")
+def complete_subtask(task_id, subtask_id):
+    db = firestore.client()
+    viewer = _viewer_id()
+    if not viewer:
+        return jsonify({"error": "viewer_id required"}), 401
+
+    task_ref = db.collection("tasks").document(task_id)
+    task_doc = task_ref.get()
+    if not task_doc.exists:
+        return jsonify({"error": "Task not found"}), 404
+
+    # viewer must be able to view the task
+    if not _can_view_task_doc(db, task_doc):
+        return jsonify({"error": "Not found"}), 404
+
+    sub_ref = db.collection("subtasks").document(subtask_id)
+    sub = sub_ref.get()
+    if not sub.exists:
+        return jsonify({"error": "Subtask not found"}), 404
+
+    payload = request.get_json(force=True) or {}
+    new_completed = payload.get("completed")
+    if new_completed is None:
+        # toggle if not provided
+        new_completed = not bool((sub.to_dict() or {}).get("completed", False))
+
+    old_completed = bool((sub.to_dict() or {}).get("completed", False))
+    updates = {"completed": bool(new_completed)}
+    if new_completed and not old_completed:
+        updates["completed_at"] = now_iso()
+        updates["completed_by"] = {"user_id": viewer}
+    if not new_completed:
+        updates["completed_at"] = None
+        updates["completed_by"] = None
+
+    sub_ref.update(updates)
+
+    # Update counters on task
+    try:
+        if not old_completed and new_completed:
+            task_ref.update({"subtask_completed_count": firestore.Increment(1)})
+        elif old_completed and not new_completed:
+            task_ref.update({"subtask_completed_count": firestore.Increment(-1)})
+    except Exception:
+        pass
+
+    return jsonify({"subtask_id": subtask_id, **(sub_ref.get().to_dict() or {})}), 200
 
