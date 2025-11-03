@@ -644,7 +644,11 @@ def delete_task(task_id):
     doc = doc_ref.get()
     if not doc.exists:
         return jsonify({"error": "Task not found"}), 404
-    # Disallow staff users from deleting (even if they are the creator) — require higher role
+    # If viewer is not the creator, hide the task (404) regardless of role
+    if not _ensure_creator_or_404(doc):
+        return jsonify({"error": "Not found"}), 404
+
+    # Disallow staff users from deleting even if they are the creator — require higher role
     viewer = _viewer_id()
     if not viewer:
         return jsonify({"error": "viewer_id required"}), 401
@@ -656,9 +660,6 @@ def delete_task(task_id):
         vrole = 'staff'
     if vrole == 'staff':
         return jsonify({"error": "Permission denied"}), 403
-
-    if not _ensure_creator_or_404(doc):
-        return jsonify({"error": "Not found"}), 404
 
     # Soft delete → archive
     viewer = _viewer_id() or ((doc.to_dict() or {}).get("created_by") or {}).get("user_id")

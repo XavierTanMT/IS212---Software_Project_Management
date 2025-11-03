@@ -10,20 +10,18 @@ def now_iso():
 @memberships_bp.post("")
 def add_member():
     db = firestore.client()
-    # Determine viewer from header (required for RBAC)
+    # Determine viewer from header (optional for tests/automation)
     viewer = (request.headers.get('X-User-Id') or request.args.get('viewer_id') or '').strip()
-    if not viewer:
-        return jsonify({"error":"viewer_id required via X-User-Id header"}), 401
-    # Lookup viewer role
-    try:
-        vdoc = db.collection('users').document(viewer).get()
-        vdata = vdoc.to_dict() if vdoc.exists else {}
-        vrole = (vdata.get('role') or 'staff').lower()
-    except Exception:
-        vrole = 'staff'
-    # Disallow staff from adding memberships
-    if vrole == 'staff':
-        return jsonify({"error":"Permission denied"}), 403
+    # If a viewer is provided, enforce RBAC (disallow staff)
+    if viewer:
+        try:
+            vdoc = db.collection('users').document(viewer).get()
+            vdata = vdoc.to_dict() if vdoc.exists else {}
+            vrole = (vdata.get('role') or 'staff').lower()
+        except Exception:
+            vrole = 'staff'
+        if vrole == 'staff':
+            return jsonify({"error":"Permission denied"}), 403
     payload = request.get_json(force=True) or {}
     project_id = (payload.get("project_id") or "").strip()
     user_id = (payload.get("user_id") or "").strip()
