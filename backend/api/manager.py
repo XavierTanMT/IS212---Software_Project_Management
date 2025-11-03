@@ -253,6 +253,18 @@ def manager_dashboard():
     
     # Get team member IDs
     team_member_ids = _get_manager_team_member_ids(manager_id)
+
+    # Fallback: If no memberships found, also consider users who have manager_id set
+    if not team_member_ids:
+        try:
+            users_q = db.collection("users").where(filter=FieldFilter("manager_id", "==", manager_id)).stream()
+            for udoc in users_q:
+                uid = udoc.id
+                if uid != manager_id:
+                    team_member_ids.add(uid)
+        except Exception:
+            # Ignore fallback errors and continue with whatever we have
+            pass
     
     # Get team member details
     team_members = []

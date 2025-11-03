@@ -1602,8 +1602,10 @@ async function loadDashboardData() {
                 const statusClass = `status-${task.status.toLowerCase().replace(' ', '-')}`;
                 const priorityClass = `priority-${task.priority.toLowerCase()}`;
 
-                // Only show delete button for tasks created by current user
-                const showDelete = task.created_by && task.created_by.user_id === currentUser.user_id;
+                // Only show delete button for tasks created by current user and for non-staff roles
+                const role = (currentUser && (currentUser.role || '')).toLowerCase();
+                const canDeleteRoles = ['manager','director','hr','admin'];
+                const showDelete = task.created_by && task.created_by.user_id === currentUser.user_id && canDeleteRoles.includes(role);
 
                 tasksHTML += `
                     <div class="task-item">

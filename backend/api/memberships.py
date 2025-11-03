@@ -10,6 +10,20 @@ def now_iso():
 @memberships_bp.post("")
 def add_member():
     db = firestore.client()
+    # Determine viewer from header (required for RBAC)
+    viewer = (request.headers.get('X-User-Id') or request.args.get('viewer_id') or '').strip()
+    if not viewer:
+        return jsonify({"error":"viewer_id required via X-User-Id header"}), 401
+    # Lookup viewer role
+    try:
+        vdoc = db.collection('users').document(viewer).get()
+        vdata = vdoc.to_dict() if vdoc.exists else {}
+        vrole = (vdata.get('role') or 'staff').lower()
+    except Exception:
+        vrole = 'staff'
+    # Disallow staff from adding memberships
+    if vrole == 'staff':
+        return jsonify({"error":"Permission denied"}), 403
     payload = request.get_json(force=True) or {}
     project_id = (payload.get("project_id") or "").strip()
     user_id = (payload.get("user_id") or "").strip()
@@ -27,3 +41,41 @@ def list_project_members(project_id):
     q = db.collection("memberships").where(filter=FieldFilter("project_id", "==", project_id)).stream()
     res = [d.to_dict() for d in q]
     return jsonify(res), 200
+
+
+@memberships_bp.delete("/<project_id>/<user_id>")
+def remove_member(project_id, user_id):
+    db = firestore.client()
+    # Determine viewer from header (required for RBAC)
+    viewer = (request.headers.get('X-User-Id') or request.args.get('viewer_id') or '').strip()
+    if not viewer:
+        return jsonify({"error":"viewer_id required via X-User-Id header"}), 401
+    # Lookup viewer role
+    try:
+        vdoc = db.collection('users').document(viewer).get()
+        vdata = vdoc.to_dict() if vdoc.exists else {}
+        vrole = (vdata.get('role') or 'staff').lower()
+    except Exception:
+        vrole = 'staff'
+    # Disallow staff from removing memberships
+    if vrole == 'staff':
+        return jsonify({"error":"Permission denied"}), 403
+    doc_id = f"{project_id}_{user_id}"
+    ref = db.collection("memberships").document(doc_id)
+    if not ref.get().exists:
+        return jsonify({"error": "Membership not found"}), 404
+
+    # Prevent removing the project's owner via the membership endpoint
+    proj_ref = db.collection("projects").document(project_id).get()
+    try:
+        if proj_ref.exists:
+            proj = proj_ref.to_dict() or {}
+            owner_id = proj.get("owner_id")
+            if owner_id and owner_id == user_id:
+                return jsonify({"error": "Cannot remove the project owner"}), 400
+    except Exception:
+        # If any error occurs resolving the project, fall back to deletion behavior below
+        pass
+
+    ref.delete()
+    return jsonify({"ok": True, "project_id": project_id, "user_id": user_id}), 200

@@ -21,15 +21,17 @@
   <div class="page">
     <h1>Projects</h1>
 
-    <div class="card">
+    <div id="createCard" class="card">
       <h3>Create Project</h3>
       <form id="createForm">
         <label>Name</label>
         <input id="name" placeholder="e.g., Team Task Manager" required />
-        <label>Key (short code)</label>
-        <input id="key" placeholder="e.g., TMS" />
-        <label>Owner ID</label>
-        <input id="owner_id" placeholder="e.g., u123" data-autofill="true" />
+  <!-- Key removed per UX: not needed on create -->
+  <input id="key" type="hidden" />
+  <!-- Owner is auto-filled to current user -->
+  <input id="owner_id" type="hidden" />
+  <label>Team members</label>
+  <select id="member_select" multiple style="height:120px"></select>
         <label>Description</label>
         <textarea id="description" placeholder="Optional..."></textarea>
         <button type="submit">Create</button>
@@ -59,8 +61,8 @@ async function createProject(e){
   // owner_id can be a UID, email, or public handle; no forced autofill
   const payload = {
     name: document.getElementById("name").value.trim(),
-    key: document.getElementById("key").value.trim(),
-    owner_id: ownerInput ? ownerInput.value.trim() : (current ? current.user_id : ""),
+    // Do not send key from UI (backend accepts optional key)
+    owner_id: current ? (current.user_id || current.user_id) : (ownerInput ? ownerInput.value.trim() : ""),
     description: document.getElementById("description").value.trim()
   };
   if (!payload.name){ alert("Name is required"); return; }
@@ -81,9 +83,24 @@ async function createProject(e){
     alert("Project created");
     setCurrentProject({ project_id: data.project_id, name: data.name });
     form.reset();
-    
-// Autofill owner if needed
-load();
+    // If the creator selected initial team members, add memberships
+    try{
+      const sel = document.getElementById('member_select');
+      if (sel){
+        const selected = Array.from(sel.selectedOptions).map(o=>o.value).filter(Boolean);
+        for (const user_id of selected){
+          try{
+            await fetch(API_BASE + '/api/memberships', {
+              method: 'POST', headers: {'Content-Type':'application/json'},
+              body: JSON.stringify({ project_id: data.project_id, user_id })
+            });
+          }catch(e){ console.warn('failed to add membership', e); }
+        }
+      }
+    }catch(e){ console.warn('add members error', e); }
+
+    // Autofill owner if needed
+    load();
 }catch(err){
     console.error(err);
     alert("Create project failed: " + (err.message || err));
@@ -115,32 +132,298 @@ load();
     if(!Array.isArray(data) || !data.length){ host.innerHTML = "<p>No projects yet</p>"; return; }
     data.forEach(p=>{
       const row = document.createElement("div");
+      // Show project name, owner (placeholder) and created date. Removed key/pill and 'Use' button.
       row.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
           <div>
             <strong>${p.name || ""}</strong>
-            <span class="pill">${p.key || "—"}</span>
-            <div>Owner: ${p.owner_id || "—"} | Created: ${p.created_at || ""}</div>
+            <div>Owner: <span class="owner" data-owner-id="${p.owner_id || ''}">${p.owner_id || "—"}</span> | Created: ${p.created_at || ""}</div>
           </div>
           <div class="actions" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-            <button data-act="select">Use</button>
-            <a href="project_members.html?project_id=${encodeURIComponent(p.project_id)}">Members</a>
+            <button type="button" data-act="members" data-project-id="${encodeURIComponent(p.project_id)}">Members</button>
             <a href="tasks_list.html" title="See tasks list (filtered by selected project)">Tasks</a>
             <a href="create_task.html" title="Create task under selected project">Create Task</a>
             <button data-act="delete" style="background:#dc3545;color:#fff;border:none;border-radius:6px;padding:6px 10px">Delete</button>
           </div>
         </div>`;
-      const btn = row.querySelector('[data-act="select"]');
-      const delBtn = row.querySelector('[data-act="delete"]');
-      btn.addEventListener("click", ()=>chooseProject(p));
-      delBtn.addEventListener("click", ()=>deleteProject(p));
+  const membersBtn = row.querySelector('[data-act="members"]');
+  const delBtn = row.querySelector('[data-act="delete"]');
+  if (membersBtn) membersBtn.addEventListener('click', ()=>openMembersModal(p.project_id, p.name));
+  // Hide delete button for staff users (UI-level)
+  try{
+    const currentUser = (getCurrentUser && getCurrentUser()) || null;
+    if (currentUser && (currentUser.role || '').toLowerCase() === 'staff'){
+      // hide the delete control for staff
+      if (delBtn) delBtn.style.display = 'none';
+    } else {
+      if (delBtn) delBtn.addEventListener("click", ()=>deleteProject(p));
+    }
+  }catch(e){ if (delBtn) delBtn.addEventListener("click", ()=>deleteProject(p)); }
       host.appendChild(row);
+
+      (async function fillOwner(span, ownerId){
+        if (!ownerId) return;
+        try{
+          const res = await fetch(API_BASE + '/api/users/' + encodeURIComponent(ownerId));
+          if (!res.ok) return; // leave id displayed
+          const user = await res.json();
+          const name = user.name || '';
+          const email = user.email || '';
+          span.textContent = name ? `${name} <${email}>` : (email || ownerId);
+        }catch(e){ /* ignore */ }
+      })(row.querySelector('.owner'), p.owner_id);
     });
   }
 
   document.getElementById("createForm").addEventListener("submit", createProject);
   document.getElementById("refresh").addEventListener("click", load);
   
+// Role-based UI: hide create form for staff users (client-side convenience)
+(function(){
+  try{
+    const u = (getCurrentUser && getCurrentUser()) || null;
+    const card = document.getElementById('createCard');
+    const memberSelect = document.getElementById('member_select');
+    const ownerInput = document.getElementById('owner_id');
+    const allowed = ['manager','director','hr','admin'];
+
+    // Auto-fill owner_id when possible
+    if (ownerInput && u){
+      ownerInput.value = u.user_id || u.uid || u.id || "";
+    }
+
+  // Members modal: create on demand
+  window.ensureMembersModal = function(){
+    if (document.getElementById('membersModal')) return;
+    const modal = document.createElement('div');
+    modal.id = 'membersModal';
+    modal.style.position = 'fixed'; modal.style.left = 0; modal.style.top = 0; modal.style.right = 0; modal.style.bottom = 0;
+    modal.style.background = 'rgba(0,0,0,0.4)'; modal.style.display = 'flex'; modal.style.alignItems = 'center'; modal.style.justifyContent = 'center';
+    modal.innerHTML = `
+      <div id="membersModalContent" style="background:#fff;padding:16px;border-radius:8px;max-width:700px;width:100%;max-height:80vh;overflow:auto">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <h3 id="membersModalTitle">Project Members</h3>
+          <button id="membersCloseBtn" type="button" style="background:#eee;border:none;padding:6px 10px;border-radius:6px;cursor:pointer">Close</button>
+        </div>
+        <div>
+          <div style="margin-bottom:8px"><strong>Current members</strong></div>
+          <div id="membersList" style="margin-bottom:12px"></div>
+
+          <div style="margin-top:8px"><strong>Add member</strong></div>
+          <div style="display:flex;gap:8px;align-items:center;margin-top:6px">
+            <select id="membersAddSelect" style="flex:1"></select>
+            <button id="membersAddBtn" type="button" style="padding:6px 10px">Add</button>
+          </div>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    const closeBtn = document.getElementById('membersCloseBtn');
+    if (closeBtn) closeBtn.addEventListener('click', ()=>{ modal.style.display = 'none'; });
+    // Close when clicking backdrop
+    modal.addEventListener('click', ()=>{ modal.style.display = 'none'; });
+    // Prevent clicks inside modal content from closing
+    const content = document.getElementById('membersModalContent');
+    if (content) content.addEventListener('click', e=>e.stopPropagation());
+  }
+
+  window.openMembersModal = async function openMembersModal(project_id, project_name){
+    ensureMembersModal();
+    const modal = document.getElementById('membersModal');
+    modal.style.display = 'flex';
+    document.getElementById('membersModalTitle').textContent = 'Members — ' + (project_name || project_id);
+    const listHost = document.getElementById('membersList'); listHost.innerHTML = 'Loading...';
+    const addSelect = document.getElementById('membersAddSelect'); addSelect.innerHTML = '<option>Loading...</option>';
+
+    // Resolve project owner to prevent owner removal in UI
+    let projectOwner = null;
+    try{
+      const pr = await fetch(API_BASE + '/api/projects/' + encodeURIComponent(project_id));
+      if (pr.ok){
+        const proj = await pr.json();
+        projectOwner = proj.owner_id || proj.owner || null;
+      }
+    }catch(e){ console.warn('project fetch failed', e); }
+
+    // Fetch current memberships
+    let members = [];
+    try{
+      const res = await fetch(API_BASE + '/api/memberships/by-project/' + encodeURIComponent(project_id));
+      if (res.ok) members = await res.json();
+    }catch(e){ console.warn('members fetch failed', e); }
+
+    // Render current members (with remove buttons)
+    listHost.innerHTML = '';
+    const memberIds = new Set();
+    // Current user (to enforce UI-level permissions)
+    const currentUser = (getCurrentUser && getCurrentUser()) || null;
+    for (const m of members){
+      const uid = m.user_id;
+      memberIds.add(uid);
+      const row = document.createElement('div');
+      row.style.display = 'flex'; row.style.justifyContent='space-between'; row.style.alignItems='center'; row.style.padding='6px 0';
+      const title = document.createElement('div'); title.textContent = uid;
+      const actions = document.createElement('div');
+      const removeBtn = document.createElement('button');
+      // If this member is the project owner, do not allow removal in UI
+      if (projectOwner && uid === projectOwner){
+        removeBtn.textContent = 'Owner';
+        removeBtn.disabled = true;
+        removeBtn.style.background = '#ddd';
+        removeBtn.style.color = '#444';
+        removeBtn.style.border = 'none';
+        removeBtn.style.padding = '6px 8px';
+        removeBtn.style.borderRadius = '6px';
+        removeBtn.style.cursor = 'default';
+      } else {
+        // Disallow staff users from removing members at the UI level
+        if (currentUser && currentUser.role === 'staff'){
+          removeBtn.textContent = 'No permission';
+          removeBtn.disabled = true;
+          removeBtn.title = 'Staff users cannot remove members';
+          removeBtn.style.background = '#ddd';
+          removeBtn.style.color = '#444';
+          removeBtn.style.border = 'none';
+          removeBtn.style.padding = '6px 8px';
+          removeBtn.style.borderRadius = '6px';
+          removeBtn.style.cursor = 'default';
+        } else {
+          removeBtn.textContent = 'Remove'; removeBtn.style.background='#dc3545'; removeBtn.style.color='#fff'; removeBtn.style.border='none'; removeBtn.style.padding='6px 8px'; removeBtn.style.borderRadius='6px'; removeBtn.style.cursor='pointer';
+          removeBtn.addEventListener('click', async ()=>{
+            if (!confirm('Remove this member?')) return;
+            try{
+              const r = await fetch(API_BASE + '/api/memberships/' + encodeURIComponent(project_id) + '/' + encodeURIComponent(uid), { method: 'DELETE' });
+              if (!r.ok){
+                // try to show server error message when available
+                let errText = 'Remove failed';
+                try{ const dd = await r.json(); if (dd && dd.error) errText = 'Remove failed: ' + dd.error; }catch(e){}
+                alert(errText);
+                return;
+              }
+              // remove from DOM
+              row.remove();
+              // refresh add select options
+              await populateMembersAddSelect(project_id, memberIds);
+            }catch(e){ console.warn('remove failed', e); alert('Remove failed'); }
+          });
+        }
+      }
+      actions.appendChild(removeBtn);
+      row.appendChild(title); row.appendChild(actions);
+      listHost.appendChild(row);
+
+      // Replace uid with name/email if possible
+      (async function(el, uid){
+        try{
+          const r = await fetch(API_BASE + '/api/users/' + encodeURIComponent(uid));
+          if (!r.ok) return;
+          const u = await r.json();
+          el.textContent = (u.name ? u.name + ' ' : '') + (u.email ? '<' + u.email + '>' : uid);
+        }catch(e){}
+      })(title, uid);
+    }
+
+    // Populate add select excluding existing members
+    await populateMembersAddSelect(project_id, memberIds);
+
+    // Disable Add button/select for staff users (UI-level) — enforce when modal opens
+    try{
+      const mab = document.getElementById('membersAddBtn');
+      const msel = document.getElementById('membersAddSelect');
+      if (mab && msel && currentUser && (currentUser.role || '').toLowerCase() === 'staff'){
+        mab.disabled = true;
+        mab.textContent = 'No permission';
+        mab.title = 'Staff users cannot add members';
+        mab.style.background = '#ddd'; mab.style.color = '#444'; mab.style.cursor = 'default';
+        if (msel){ msel.disabled = true; msel.innerHTML = '<option disabled>Staff cannot add users</option>'; }
+      }
+    }catch(e){ /* ignore */ }
+
+    document.getElementById('membersAddBtn').onclick = async function(){
+      const sel = document.getElementById('membersAddSelect');
+      const user_id = sel.value;
+      if (!user_id) return alert('Select a user to add');
+      try{
+        const r = await fetch(API_BASE + '/api/memberships', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ project_id, user_id }) });
+        if (!r.ok){ const d = await r.json().catch(()=>null); alert('Add failed: ' + (d && d.error ? d.error : r.status)); return; }
+        // refresh
+        await openMembersModal(project_id, project_name);
+      }catch(e){ console.warn('add failed', e); alert('Add failed'); }
+    };
+  }
+
+    // (Removed global disable block — handled inside modal when it opens)
+
+  window.populateMembersAddSelect = async function populateMembersAddSelect(project_id, excludeSet){
+    const addSelect = document.getElementById('membersAddSelect'); if (!addSelect) return;
+    addSelect.innerHTML = '<option>Loading...</option>';
+    const u = (getCurrentUser && getCurrentUser()) || null;
+    let options = [];
+    try{
+      if (u && u.role === 'admin'){
+        const res = await fetch(API_BASE + '/api/admin/users'); if (!res.ok) throw new Error('fail');
+        const d = await res.json(); options = d.users || [];
+      } else {
+        const res = await fetch(API_BASE + '/api/manager/dashboard'); if (!res.ok) throw new Error('fail');
+        const d = await res.json(); options = d.team_members || [];
+      }
+    }catch(e){ console.warn('populate add select failed', e); addSelect.innerHTML = '<option disabled>Unable to load users</option>'; return; }
+
+    addSelect.innerHTML = '';
+    const filtered = options.filter(opt => !excludeSet.has(opt.user_id));
+    if (!filtered.length){ addSelect.innerHTML = '<option disabled>No available users</option>'; return; }
+    filtered.forEach(u => {
+      const opt = document.createElement('option'); opt.value = u.user_id || u.user_id || '';
+      opt.textContent = `${u.name || ''} <${u.email || ''}>`;
+      addSelect.appendChild(opt);
+    });
+  }
+
+    // If no user info or user role is not allowed, replace the create card with a notice
+    if (card && (!u || !u.role || !allowed.includes(u.role))){
+      card.innerHTML = `<h3>Create Project</h3><div style="padding:10px;color:#666">Only managers or administrators can create projects. If you need a project created, please contact your manager or an administrator.</div>`;
+      return;
+    }
+
+    // Populate team members: managers see their team, admins see all users
+    (async function populateMembers(){
+      try{
+        if (!memberSelect) return;
+        memberSelect.innerHTML = '<option>Loading...</option>';
+
+        if (u.role === 'admin'){
+          const res = await fetch(API_BASE + '/api/admin/users');
+          if (!res.ok) throw new Error('Failed to load users');
+          const data = await res.json();
+          const users = data.users || [];
+          if (!users.length){ memberSelect.innerHTML = '<option disabled>No users</option>'; return; }
+          memberSelect.innerHTML = '';
+          users.forEach(us => {
+            const opt = document.createElement('option');
+            opt.value = us.user_id || us.user_id || us.firebase_uid || us.id || '';
+            opt.textContent = `${us.name || ''} <${us.email || ''}>`;
+            memberSelect.appendChild(opt);
+          });
+        } else {
+          // manager or hr/director: use manager dashboard team_members
+          const res = await fetch(API_BASE + '/api/manager/dashboard');
+          if (!res.ok) throw new Error('Failed to load team members');
+          const data = await res.json();
+          const members = data.team_members || data.team_members || [];
+          if (!members.length){ memberSelect.innerHTML = '<option disabled>No team members</option>'; return; }
+          memberSelect.innerHTML = '';
+          members.forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m.user_id || m.user_id || '';
+            opt.textContent = `${m.name || ''} <${m.email || ''}>`;
+            memberSelect.appendChild(opt);
+          });
+        }
+      }catch(e){ console.warn('populate members failed', e); if(memberSelect) memberSelect.innerHTML = '<option disabled>Unable to load members</option>'; }
+    })();
+
+  }catch(e){ console.warn('role check failed', e); }
+})();
+
 // Autofill owner if needed
 load();
 </script>

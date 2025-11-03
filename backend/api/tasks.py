@@ -327,6 +327,7 @@ def list_tasks():
     project_id = (request.args.get("project_id") or "").strip()
     assigned_to_id = (request.args.get("assigned_to_id") or "").strip()
     label_id = (request.args.get("label_id") or "").strip()
+    debug_mode = (request.args.get("debug") or "0") == "1"
     try:
         limit = int(request.args.get("limit") or 50)
     except Exception:
@@ -342,6 +343,8 @@ def list_tasks():
 
     # We'll collect matching docs from multiple queries and dedupe by id
     docs_by_id = {}
+    # diagnostics
+    diag = {"viewer": viewer, "project_id": project_id, "proj_ids_from_memberships": [], "steps": []}
 
     def add_docs(q):
         try:
@@ -360,6 +363,75 @@ def list_tasks():
         if label_id:
             q = q.where(filter=FieldFilter("labels", "array_contains", label_id))
         return q
+
+    # If no explicit project_id filter is provided, include tasks from projects
+    # where the viewer is a member. This makes "All my tasks" include project
+    # work for project members.
+    if not project_id:
+        try:
+            mem_q = db.collection("memberships").where(filter=FieldFilter("user_id", "==", viewer)).stream()
+            proj_ids = [m.to_dict().get("project_id") for m in mem_q if (m.to_dict() or {}).get("project_id")]
+            diag["proj_ids_from_memberships"] = proj_ids
+            # Query tasks for these projects (Firestore 'in' supports up to 10 items)
+            if proj_ids:
+                def chunks(lst, n):
+                    for i in range(0, len(lst), n):
+                        yield lst[i:i+n]
+                for chunk in chunks(proj_ids, 10):
+                    diag["steps"].append({"query_projects_chunk": chunk})
+                    q_proj = apply_filters(db.collection("tasks").where(filter=FieldFilter("project_id", "in", chunk)))
+                    add_docs(q_proj.limit(limit_fetch))
+        except Exception:
+            diag["steps"].append("memberships_query_failed")
+            pass
+
+    # If a project_id is supplied and the viewer is a member (or admin),
+    # include all tasks for that project. This allows project owners/members
+    # to see project tasks even if they are not the creator/assignee.
+    if project_id:
+        try:
+            # Admins see everything already; for others check membership
+            if viewer_role == 'admin':
+                diag["steps"].append("viewer_is_admin_including_project_tasks")
+                q_proj = apply_filters(db.collection("tasks").where(filter=FieldFilter("project_id", "==", project_id)))
+                add_docs(q_proj.limit(limit_fetch))
+            else:
+                mem_doc = db.collection("memberships").document(f"{project_id}_{viewer}").get()
+                if mem_doc.exists:
+                    diag["steps"].append("viewer_has_membership_for_project")
+                    q_proj = apply_filters(db.collection("tasks").where(filter=FieldFilter("project_id", "==", project_id)))
+                    add_docs(q_proj.limit(limit_fetch))
+                else:
+                    diag["steps"].append("no_membership_for_viewer_checking_owner_and_manager")
+                    # If no explicit membership exists, allow visibility when the viewer reports to the
+                    # project owner (i.e., viewer.manager_id == project.owner_id). This lets staff see
+                    # project tasks when their manager owns the project.
+                    try:
+                        proj_doc = db.collection("projects").document(project_id).get()
+                        if proj_doc.exists:
+                            proj = proj_doc.to_dict() or {}
+                            owner_id = proj.get("owner_id")
+                            diag["proj_owner"] = owner_id
+                            if owner_id:
+                                # allow if viewer is the owner or viewer reports to the owner
+                                if viewer == owner_id:
+                                    diag["steps"].append("viewer_is_owner")
+                                    q_proj = apply_filters(db.collection("tasks").where(filter=FieldFilter("project_id", "==", project_id)))
+                                    add_docs(q_proj.limit(limit_fetch))
+                                else:
+                                    vdoc = db.collection("users").document(viewer).get()
+                                    if vdoc.exists:
+                                        vdata = vdoc.to_dict() or {}
+                                        if vdata.get("manager_id") == owner_id:
+                                            diag["steps"].append("viewer_reports_to_owner")
+                                            q_proj = apply_filters(db.collection("tasks").where(filter=FieldFilter("project_id", "==", project_id)))
+                                            add_docs(q_proj.limit(limit_fetch))
+                    except Exception:
+                        diag["steps"].append("owner_check_failed")
+                        pass
+        except Exception:
+            # On any error here, continue with default visibility rules below
+            pass
 
     # Admins see everything
     if viewer_role == 'admin':
@@ -410,8 +482,11 @@ def list_tasks():
 
     docs.sort(key=_key, reverse=True)
     docs = docs[:limit]
-
-    return jsonify([task_to_json(d) for d in docs]), 200
+    tasks_out = [task_to_json(d) for d in docs]
+    if debug_mode:
+        diag["total_returned"] = len(tasks_out)
+        return jsonify({"tasks": tasks_out, "_diag": diag}), 200
+    return jsonify(tasks_out), 200
 
 @tasks_bp.get("/<task_id>")
 def get_task(task_id):
@@ -544,6 +619,19 @@ def delete_task(task_id):
     doc = doc_ref.get()
     if not doc.exists:
         return jsonify({"error": "Task not found"}), 404
+    # Disallow staff users from deleting (even if they are the creator) — require higher role
+    viewer = _viewer_id()
+    if not viewer:
+        return jsonify({"error": "viewer_id required"}), 401
+    try:
+        vdoc = db.collection('users').document(viewer).get()
+        vdata = vdoc.to_dict() if vdoc.exists else {}
+        vrole = (vdata.get('role') or 'staff').lower()
+    except Exception:
+        vrole = 'staff'
+    if vrole == 'staff':
+        return jsonify({"error": "Permission denied"}), 403
+
     if not _ensure_creator_or_404(doc):
         return jsonify({"error": "Not found"}), 404
 

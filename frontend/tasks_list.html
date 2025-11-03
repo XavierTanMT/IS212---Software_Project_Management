@@ -104,6 +104,12 @@
     if(label_id) p.set("label_id", label_id);
     if(limit) p.set("limit", limit);
     if(includeArchived) p.set("include_archived", "true");
+    // Include viewer id as a fallback for servers that accept ?viewer_id
+    try{
+      const cu = (getCurrentUser && getCurrentUser()) || {};
+      const vid = cu.user_id || cu.uid || cu.id || '';
+      if (vid) p.set('viewer_id', vid);
+    }catch(e){}
     return p.toString();
   }
 
@@ -129,10 +135,16 @@
 
   async function load(){
     const qs = paramsFromUI();
-    const res = await fetch(API_BASE + "/api/tasks" + (qs ? "?" + qs : ""));
+    // Ensure server sees the viewer id via header as well as querystring
+    const current = (getCurrentUser && getCurrentUser()) || {};
+    const viewerId = current.user_id || current.uid || current.id || '';
+    const url = API_BASE + "/api/tasks" + (qs ? "?" + qs : "");
+    console.debug('[tasks] fetching', { url, viewerId, qs });
+    const res = await fetch(url, { headers: viewerId ? { 'X-User-Id': viewerId } : {} });
     const list = await res.json();
     const tbody = document.getElementById("rows"); tbody.innerHTML = "";
     if(!res.ok){ tbody.innerHTML = "<tr><td colspan='7'>"+ (list.error || "Failed to load") +"</td></tr>"; return; }
+    console.debug('[tasks] fetched', Array.isArray(list) ? list.length : 'non-array', (Array.isArray(list) ? list.slice(0,5) : list));
     if(!Array.isArray(list) || !list.length){
       tbody.innerHTML = "<tr><td colspan='7'>No tasks</td></tr>";
       return;
@@ -141,9 +153,10 @@
     // Role-aware filtering: staff -> see tasks assigned to them OR created by them
     // manager/director/hr -> see tasks belonging to their team (assigned to or created by team members) or tasks assigned to the manager
     // admin -> see everything
-  const user = getCurrentUser() || {};
-  const role = (user.role || '').toLowerCase();
-  const isManager = ['manager','director','hr','admin'].includes(role);
+    const user = getCurrentUser() || {};
+    const userId = user.user_id || user.uid || user.id || '';
+    const role = (user.role || '').toLowerCase();
+    const isManager = ['manager','director','hr','admin'].includes(role);
 
     // helper checks
     function taskHasAssignee(task, id){
@@ -167,7 +180,7 @@
 
     async function getManagerTeamIds(){
       try{
-        const resp = await fetch(`${API_BASE}/api/manager/my-team`, { headers: { 'X-User-Id': user.user_id } });
+        const resp = await fetch(`${API_BASE}/api/manager/my-team`, { headers: { 'X-User-Id': userId } });
         if(!resp.ok) return [];
         const data = await resp.json();
         return (Array.isArray(data.team_staff)?data.team_staff:[]).map(s=>s.user_id).filter(Boolean);
@@ -176,27 +189,10 @@
       }
     }
 
-    let filtered = list;
-    if(role === 'admin'){
-      // keep all
-    } else if (['manager','director','hr'].includes(role)){
-      // attempt to get team member ids and filter
-      const teamIds = await getManagerTeamIds();
-      // include tasks assigned to manager as well
-      const managerId = user.user_id;
-      filtered = list.filter(t => {
-        if(taskHasAssignee(t, managerId)) return true; // tasks assigned to manager
-        // any assignee is one of the team
-        if(teamIds.some(id=>taskHasAssignee(t, id))) return true;
-        // created by a team member
-        if(teamIds.some(id=>createdByIs(t, id))) return true;
-        return false;
-      });
-    } else {
-      // default: staff (and any other roles) -> show tasks assigned to them or created by them
-      const myId = user.user_id;
-      filtered = list.filter(t => taskHasAssignee(t, myId) || createdByIs(t, myId));
-    }
+    // The server enforces visibility rules (members, owners, managers, admins).
+    // Show whatever the server returned rather than applying another client-side filter.
+    const selectedProjectId = (document.getElementById('project_id') && document.getElementById('project_id').value || '').trim();
+    let filtered = list; // server-returned tasks are authoritative
 
     filtered.forEach(t=>{
       const tr = document.createElement("tr");
@@ -232,6 +228,7 @@
 
       tbody.appendChild(tr);
     });
+    console.debug('[tasks] rendered', { total: list.length, filtered: filtered.length });
   }
 
   document.getElementById("refresh").addEventListener("click", load);
@@ -255,8 +252,8 @@
     const sel = document.getElementById("project_select");
     sel.innerHTML = '<option value="">(all my tasks)</option>';
     (Array.isArray(list)?list:[]).forEach(p=>{
-      const opt = document.createElement("option");
-      opt.value = p.project_id; opt.textContent = p.name + " (" + p.project_id + ")";
+      const opt = document.createElement('option');
+      opt.value = p.project_id; opt.textContent = p.name || p.project_id;
       sel.appendChild(opt);
       projectMap[p.project_id] = p.name || p.project_id; // populate map
     });
@@ -278,12 +275,13 @@
     if (!confirm('Mark this task as completed?')) return;
     
     try {
-      const user = getCurrentUser();
+      const user = getCurrentUser() || {};
+      const uid = user.user_id || user.uid || user.id || '';
       const response = await fetch(API_BASE + "/api/tasks/" + taskId, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'X-User-Id': user.user_id
+          'X-User-Id': uid
         },
         body: JSON.stringify({ status: 'Completed' })
       });
@@ -327,16 +325,17 @@
   }
 
   async function loadTeamMembers() {
-      const user = getCurrentUser();
+    const user = getCurrentUser() || {};
       const listDiv = document.getElementById('teamMembersList');
       
       listDiv.innerHTML = '<p style="padding:20px;text-align:center;color:#666">Loading team members...</p>';
       
       try {
           // ✅ Step 1: Get team members
-          const response = await fetch(`${API_BASE}/api/manager/my-team`, {
-              headers: { 'X-User-Id': user.user_id }
-          });
+      const uid = user.user_id || user.uid || user.id || '';
+      const response = await fetch(`${API_BASE}/api/manager/my-team`, {
+        headers: { 'X-User-Id': uid }
+      });
           
           if (!response.ok) {
               throw new Error('Failed to load team members');
@@ -395,7 +394,7 @@
   }
 
   async function assignSelectedMembers() {
-      const user = getCurrentUser();
+    const user = getCurrentUser() || {};
       const selectedIds = Array.from(document.querySelectorAll('.team-member-checkbox:checked'))
           .map(cb => cb.value);
       
@@ -405,14 +404,15 @@
       }
       
       try {
-          const response = await fetch(`${API_BASE}/api/manager/tasks/${currentAssignTaskId}/assign`, {
-              method: 'POST',
-              headers: {
-                  'Content-Type': 'application/json',
-                  'X-User-Id': user.user_id
-              },
-              body: JSON.stringify({ assignee_ids: selectedIds })
-          });
+      const uid = user.user_id || user.uid || user.id || '';
+      const response = await fetch(`${API_BASE}/api/manager/tasks/${currentAssignTaskId}/assign`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-Id': uid
+        },
+        body: JSON.stringify({ assignee_ids: selectedIds })
+      });
           
           const result = await response.json();
           
