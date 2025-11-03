@@ -533,9 +533,9 @@ async function buildNavbar() {
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         ${navLinks}
       </div>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12px;color:#333">
-        <span>Project: <em>${p ? (p.name || p.project_id || "selected") : "none"}</em></span>
-        <span>User: <em>${u ? (u.name || u.user_id || u.email || "signed-in") : "guest"}</em>${u ? getRoleBadge(userRole) : ''}${loginStatus}</span>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12px;color:#333">
+                ${p ? `<span style="font-size:12px;color:#666">Project selected <button id=\"clearProjectBtnSmall\" style=\"margin-left:6px;padding:4px 6px;border-radius:6px;border:1px solid #eaeaea;background:#fff;font-size:11px;cursor:pointer\">Clear</button></span>` : ''}
+                <span>User: <em>${u ? (u.name || u.user_id || u.email || "signed-in") : "guest"}</em>${u ? getRoleBadge(userRole) : ''}${loginStatus}</span>
         ${u ? '<button id="logoutBtn" style="cursor:pointer;padding:6px 12px;background:#dc3545;color:white;border:none;border-radius:4px">Sign out</button>' : '<a href="login.html" style="padding:6px 12px;background:#667eea;color:white;border-radius:4px;text-decoration:none">Login</a>'}
       </div>
     </div>
@@ -546,3 +546,9 @@ async function buildNavbar() {
 }
 
 document.addEventListener("DOMContentLoaded", buildNavbar);
+// Attach clear control handler (if present) after DOM ready
+document.addEventListener('click', function(e){
+    if (e.target && e.target.id === 'clearProjectBtnSmall'){
+        try{ sessionStorage.removeItem('currentProject'); window.location.reload(); }catch(e){}
+    }
+});

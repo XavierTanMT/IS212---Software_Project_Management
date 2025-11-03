@@ -1459,41 +1459,6 @@ const loadTimelineView = window.loadTimelineView;
 const setupAutoRefresh = window.setupAutoRefresh;
 const clearAutoRefresh = window.clearAutoRefresh;
 </script>
-<script>
-(function(){
-  const current = getCurrentUser();
-  if(!current){ window.location.href = "login.html"; return; }
-  async function load(){
-    const res = await fetch(`${API_BASE}/api/users/${encodeURIComponent(current.user_id)}/dashboard`);
-    const data = await res.json();
-    if(!res.ok){ alert(data.error || "Failed to load dashboard"); return; }
-    let host = document.getElementById("api-output");
-    if(!host){ host = document.createElement("div"); host.id="api-output"; document.body.appendChild(host); }
-    let html = "";
-    const s = data.statistics || {};
-    html += `<h3>Stats</h3>
-      <ul>
-        <li>Total Created: ${s.total_created || 0}</li>
-        <li>Total Assigned: ${s.total_assigned || 0}</li>
-        <li>Overdue: ${s.overdue_count || 0}</li>
-      </ul>`;
-    function list(title, items){
-      html += `<h4>${title}</h4>`;
-      if(!items || !items.length){ html += "<p>None</p>"; return; }
-      html += "<ol>";
-      items.forEach(t=>{
-        html += `<li><a href="edit_task.html?id=${encodeURIComponent(t.task_id)}">${t.title}</a> — ${t.status} (${t.priority})</li>`;
-      });
-      html += "</ol>";
-    }
-    list("Recent Created Tasks", data.recent_created_tasks);
-    list("Recent Assigned Tasks", data.recent_assigned_tasks);
-    host.innerHTML = html;
-  }
-  load();
-})();
-</script>
-</body> -->
     <!-- Delete Confirmation Modal -->
     <div id="deleteModal" class="modal">
         <div class="modal-content">
@@ -1925,106 +1890,31 @@ async function loadDashboardData() {
         // Using shared setCurrentUser from common.js
     </script>
     <script>
-        (function () {
+        (function(){
             const current = getCurrentUser();
-            if (!current) { window.location.href = "login.html"; return; }
-            async function load() {
-                const res = await fetch(`${API_BASE}/api/users/${encodeURIComponent(current.user_id)}/dashboard`);
-                const data = await res.json();
-                if (!res.ok) { alert(data.error || "Failed to load dashboard"); return; }
-                let host = document.getElementById("api-output");
-                if (!host) { host = document.createElement("div"); host.id = "api-output"; document.body.appendChild(host); }
-                let html = "";
-                const s = data.statistics || {};
-                html += `<h3>Stats</h3>
-      <ul>
-        <li>Total Created: ${s.total_created || 0}</li>
-        <li>Total Assigned: ${s.total_assigned || 0}</li>
-        <li>Overdue: ${s.overdue_count || 0}</li>
-      </ul>`;
-                function list(title, items) {
-                    html += `<h4>${title}</h4>`;
-                    if (!items || !items.length) { html += "<p>None</p>"; return; }
-                    html += "<ol>";
-                    items.forEach(t => {
-                        html += `<li><a href="edit_task.html?id=${encodeURIComponent(t.task_id)}">${t.title}</a> — ${t.status} (${t.priority})</li>`;
-                    });
-                    html += "</ol>";
+            if(!current){ window.location.href = "login.html"; return; }
+            // Simplified: fetch dashboard data and render via the shared renderer.
+            async function load(){
+                try{
+                    const res = await fetch(`${API_BASE}/api/users/${encodeURIComponent(current.user_id)}/dashboard`);
+                    const data = await res.json();
+                    if(!res.ok){ alert(data.error || "Failed to load dashboard"); return; }
+                    // Use the shared renderDashboard function defined later in this file
+                    if (typeof renderDashboard === 'function') {
+                        renderDashboard(data);
+                    } else {
+                        console.warn('renderDashboard not available yet');
+                    }
+                }catch(e){
+                    console.error('Failed to load dashboard:', e);
                 }
-                list("Recent Created Tasks", data.recent_created_tasks);
-                list("Recent Assigned Tasks", data.recent_assigned_tasks);
-                host.innerHTML = html;
             }
             load();
         })();
     </script>
-
-<script>
-// --- PATCH: empty states + correct dashboard fetch --- //
-(function(){
-  if (window.__dashboardPatchApplied) return; window.__dashboardPatchApplied = true;
-  const u = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
-  const userId = u && (u.user_id || u.uid);
-  const api = (typeof API_BASE !== 'undefined') ? API_BASE : '';
-
-  async function loadDashboard(){
-    if (!userId){ showEmptyState('#dashboardRoot, .dashboard-root', 'You are not signed in.'); return; }
-    try{
-      const res = await fetch(`${api}/api/users/${userId}/dashboard`);
-      if (!res.ok){
-        if (res.status === 404){
-          // Treat as empty state
-          render({
-            statistics: { total_created: 0, total_assigned: 0, status_breakdown: {}, priority_breakdown: {}, overdue_count: 0 },
-            recent_created_tasks: [], recent_assigned_tasks: []
-          });
-          return;
-        }
-        const err = await res.json().catch(()=>({error:`HTTP ${res.status}`}));
-        throw new Error(err.error || `HTTP ${res.status}`);
-      }
-      const data = await res.json();
-      render(data);
-    }catch(e){
-      console.error('Dashboard load failed:', e);
-      render({
-        statistics: { total_created: 0, total_assigned: 0, status_breakdown: {}, priority_breakdown: {}, overdue_count: 0 },
-        recent_created_tasks: [], recent_assigned_tasks: []
-      });
-    }
-  }
-
-  function render(d){
-    const root = document.querySelector('#dashboardRoot, .dashboard-root, main, body');
-    if (!root) return;
-    const stats = d.statistics || {};
-    const created = d.recent_created_tasks || [];
-    const assigned = d.recent_assigned_tasks || [];
-    const list = (items, title)=>{
-      if (!items.length) return `<div style="padding:12px;color:#666">No ${title} yet.</div>`;
-      return '<ul>' + items.map(t=>`<li>${t.title || '(untitled)'} — <em>${t.status||'To Do'}</em></li>`).join('') + '</ul>';
-    };
-    root.querySelectorAll('.loading, .spinner').forEach(el=>el.remove());
-    const panel = document.createElement('div');
-    panel.innerHTML = `
-      <section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:12px 0">
-        <div style="padding:12px;border:1px solid #eee;border-radius:10px"><div>Total created</div><h2>${stats.total_created||0}</h2></div>
-        <div style="padding:12px;border:1px solid #eee;border-radius:10px"><div>Total assigned</div><h2>${stats.total_assigned||0}</h2></div>
-        <div style="padding:12px;border:1px solid #eee;border-radius:10px"><div>Overdue</div><h2>${stats.overdue_count||0}</h2></div>
-      </section>
-      <section style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
-        <div><h3>Recent you created</h3>${list(created, 'created tasks')}</div>
-        <div><h3>Recent assigned to you</h3>${list(assigned, 'assigned tasks')}</div>
-      </section>
-    `;
-    const host = root.querySelector('#dashboardPanel') || root;
-    host.appendChild(panel);
-  }
-
-  document.addEventListener('DOMContentLoaded', loadDashboard);
-})();
-
-// Timeline View Functions (variables and main functions defined earlier, full implementation here)
+    
+    <script>
+    // Timeline View Functions (variables and main functions defined earlier, full implementation here)
 // Re-implement toggleView with full logic
 window.toggleView = async function(viewType) {
     window.currentView = viewType;

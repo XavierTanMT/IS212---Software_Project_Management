@@ -102,6 +102,7 @@
                         <th>Name</th>
                         <th>Email</th>
                         <th>User ID</th>
+                        <th>Department</th>
                         <th>Role</th>
                         <th>Status</th>
                         <th>Created</th>
@@ -109,7 +110,7 @@
                     </tr>
                 </thead>
                 <tbody id="usersTableBody">
-                    <tr><td colspan="7">Loading users...</td></tr>
+                    <tr><td colspan="8">Loading users...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -269,6 +270,22 @@
                     </select>
                     <small>Determines user permissions and dashboard access</small>
                 </div>
+
+                <div class="form-group">
+                    <label for="department">Department:</label>
+                    <select id="department">
+                        <option value="">-- Select Department --</option>
+                        <option value="Finance &amp; Accounting">Finance &amp; Accounting</option>
+                        <option value="Operations">Operations</option>
+                        <option value="Customer Service (Support)">Customer Service (Support)</option>
+                        <option value="Sales &amp; Marketing">Sales &amp; Marketing</option>
+                        <option value="Product Management">Product Management</option>
+                        <option value="Quality Assurance (QA)">Quality Assurance (QA)</option>
+                        <option value="IT / Data / Infrastructure">IT / Data / Infrastructure</option>
+                        <option value="Legal &amp; Compliance">Legal &amp; Compliance</option>
+                    </select>
+                    <small>Optional: assign a department to the user</small>
+                </div>
                 
                 <button type="submit" class="btn btn-success" style="width: 100%; margin-top: 10px;">
                     Create User
@@ -398,7 +415,7 @@
             const tbody = document.getElementById('usersTableBody');
             
             if (!users || users.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7">No users found</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8">No users found</td></tr>';
                 return;
             }
             
@@ -407,11 +424,13 @@
                     <td>${user.name || 'N/A'}</td>
                     <td>${user.email || 'N/A'}</td>
                     <td><code>${user.user_id || 'N/A'}</code></td>
+                    <td>${user.department || 'N/A'}</td>
                     <td><span class="badge badge-${user.role || 'staff'}">${(user.role || 'staff').toUpperCase()}</span></td>
                     <td><span class="badge badge-${user.is_active !== false ? 'active' : 'inactive'}">${user.is_active !== false ? 'Active' : 'Inactive'}</span></td>
                     <td>${user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}</td>
                     <td>
                         <button class="btn btn-primary" onclick="changeUserRole('${user.user_id}')">Change Role</button>
+                        <button class="btn btn-primary" onclick="changeUserDepartment('${user.user_id}')">Set Dept</button>
                         ${user.is_active !== false ? 
                             `<button class="btn btn-danger" onclick="deactivateUser('${user.user_id}')">Deactivate</button>` :
                             `<button class="btn btn-success" onclick="activateUser('${user.user_id}')">Activate</button>`
@@ -482,7 +501,8 @@
                 email: document.getElementById('email').value.trim(),
                 password: document.getElementById('password').value,
                 role: document.getElementById('role').value,
-                manager_type: document.getElementById('role').value  // For backend compatibility
+                manager_type: document.getElementById('role').value,  // For backend compatibility
+                department: document.getElementById('department').value || ''
             };
             
             try {
@@ -505,6 +525,7 @@
                             <p><strong>Email:</strong> ${result.user.email}</p>
                             <p><strong>Password:</strong> ${userData.password}</p>
                             <p><strong>Role:</strong> ${result.user.role}</p>
+                            <p><strong>Department:</strong> ${result.user.department || userData.department || 'N/A'}</p>
                             <p><strong>Login URL:</strong> <a href="login.html" target="_blank">login.html</a></p>
                         </div>
                     `;
@@ -733,6 +754,53 @@
             
             // Show message
             messageDiv.innerHTML = `<div class="message info">📋 Quick report configured for: <strong>${type.replace('_', ' ')}</strong>. Click "Generate & Download Report" to export.</div>`;
+        }
+
+        // ==================== CHANGE DEPARTMENT ====================
+
+        async function changeUserDepartment(userId) {
+            // Allowed departments - must match backend
+            const departments = [
+                'Finance & Accounting',
+                'Operations',
+                'Customer Service (Support)',
+                'Sales & Marketing',
+                'Product Management',
+                'Quality Assurance (QA)',
+                'IT / Data / Infrastructure',
+                'Legal & Compliance'
+            ];
+
+            // Show a prompt with options (admin must type exact value)
+            const list = departments.map(d => `- ${d}`).join('\n');
+            let newDept = prompt(`Enter new department for user ${userId}:\n(Enter empty to clear)\n\nAvailable departments:\n${list}`);
+            if (newDept === null) return; // cancelled
+
+            newDept = newDept.trim();
+
+            if (newDept !== '' && !departments.includes(newDept)) {
+                alert('Invalid department. Please enter one of the listed departments exactly.');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/users/${userId}/department`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'X-User-Id': currentUser.uid },
+                    body: JSON.stringify({ department: newDept })
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    alert('Department updated successfully');
+                    loadUsers();
+                } else {
+                    alert('Failed to update department: ' + (result.error || JSON.stringify(result)));
+                }
+            } catch (err) {
+                console.error('Error updating department:', err);
+                alert('Error updating department');
+            }
         }
     </script>
 </body>

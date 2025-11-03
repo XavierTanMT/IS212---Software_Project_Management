@@ -138,11 +138,67 @@
       return;
     }
 
-    // Check if user is manager
-    const user = getCurrentUser();
-    const isManager = user && ['manager', 'director', 'hr', 'admin'].includes(user.role);
+    // Role-aware filtering: staff -> see tasks assigned to them OR created by them
+    // manager/director/hr -> see tasks belonging to their team (assigned to or created by team members) or tasks assigned to the manager
+    // admin -> see everything
+  const user = getCurrentUser() || {};
+  const role = (user.role || '').toLowerCase();
+  const isManager = ['manager','director','hr','admin'].includes(role);
 
-    list.forEach(t=>{
+    // helper checks
+    function taskHasAssignee(task, id){
+      if(!task || !id) return false;
+      const a = task.assigned_to;
+      if(!a) return false;
+      if(Array.isArray(a)) return a.some(x => (x && x.user_id && x.user_id === id) || x === id || (typeof x === 'string' && x === id));
+      if(typeof a === 'object') return a.user_id === id || a === id;
+      return a === id;
+    }
+    function createdByIs(task, id){
+      if(!task || !id) return false;
+      if(task.created_by){
+        if(typeof task.created_by === 'object') return task.created_by.user_id === id || task.created_by.user_id === id;
+        if(typeof task.created_by === 'string') return task.created_by === id;
+      }
+      if(task.created_by_id) return task.created_by_id === id;
+      if(task.creator_id) return task.creator_id === id;
+      return false;
+    }
+
+    async function getManagerTeamIds(){
+      try{
+        const resp = await fetch(`${API_BASE}/api/manager/my-team`, { headers: { 'X-User-Id': user.user_id } });
+        if(!resp.ok) return [];
+        const data = await resp.json();
+        return (Array.isArray(data.team_staff)?data.team_staff:[]).map(s=>s.user_id).filter(Boolean);
+      }catch(e){
+        return [];
+      }
+    }
+
+    let filtered = list;
+    if(role === 'admin'){
+      // keep all
+    } else if (['manager','director','hr'].includes(role)){
+      // attempt to get team member ids and filter
+      const teamIds = await getManagerTeamIds();
+      // include tasks assigned to manager as well
+      const managerId = user.user_id;
+      filtered = list.filter(t => {
+        if(taskHasAssignee(t, managerId)) return true; // tasks assigned to manager
+        // any assignee is one of the team
+        if(teamIds.some(id=>taskHasAssignee(t, id))) return true;
+        // created by a team member
+        if(teamIds.some(id=>createdByIs(t, id))) return true;
+        return false;
+      });
+    } else {
+      // default: staff (and any other roles) -> show tasks assigned to them or created by them
+      const myId = user.user_id;
+      filtered = list.filter(t => taskHasAssignee(t, myId) || createdByIs(t, myId));
+    }
+
+    filtered.forEach(t=>{
       const tr = document.createElement("tr");
       const showCompleteBtn = t.status !== 'Completed';
 

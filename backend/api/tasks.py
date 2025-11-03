@@ -333,29 +333,77 @@ def list_tasks():
         limit = 50
     limit_fetch = max(limit, 200)
 
-    # Base query: tasks created by the viewer
-    query = db.collection("tasks").where(filter=FieldFilter("created_by.user_id", "==", viewer))
-
-    if project_id:
-        query = query.where(filter=FieldFilter("project_id", "==", project_id))
-    if assigned_to_id:
-        query = query.where(filter=FieldFilter("assigned_to.user_id", "==", assigned_to_id))
-    if label_id:
-        query = query.where(filter=FieldFilter("labels", "array_contains", label_id))
+    # Determine viewer role
+    viewer_doc = db.collection("users").document(viewer).get()
+    viewer_data = (viewer_doc.to_dict() or {}) if viewer_doc.exists else {}
+    viewer_role = (viewer_data.get("role") or "staff").lower()
 
     include_archived = (request.args.get("include_archived") or "").lower() in ("1", "true", "yes")
 
-    docs = list(query.limit(limit_fetch).stream())
+    # We'll collect matching docs from multiple queries and dedupe by id
+    docs_by_id = {}
 
-    # Post-filter archived unless explicitly included
+    def add_docs(q):
+        try:
+            for d in q.stream():
+                docs_by_id[d.id] = d
+        except Exception:
+            pass
+
+    # Helper to apply optional server-side narrow filters (project/label/assigned_to)
+    def apply_filters(query_obj):
+        q = query_obj
+        if project_id:
+            q = q.where(filter=FieldFilter("project_id", "==", project_id))
+        if assigned_to_id:
+            q = q.where(filter=FieldFilter("assigned_to.user_id", "==", assigned_to_id))
+        if label_id:
+            q = q.where(filter=FieldFilter("labels", "array_contains", label_id))
+        return q
+
+    # Admins see everything
+    if viewer_role == 'admin':
+        q = db.collection("tasks")
+        q = apply_filters(q)
+        add_docs(q.limit(limit_fetch))
+    else:
+        # Everyone can see tasks they created
+        q1 = apply_filters(db.collection("tasks").where(filter=FieldFilter("created_by.user_id", "==", viewer)))
+        add_docs(q1.limit(limit_fetch))
+
+        # Everyone can see tasks assigned to them
+        q2 = apply_filters(db.collection("tasks").where(filter=FieldFilter("assigned_to.user_id", "==", viewer)))
+        add_docs(q2.limit(limit_fetch))
+
+        # Managers (and similar roles) can see team members' tasks
+        manager_roles = ["manager", "director", "hr"]
+        if viewer_role in manager_roles:
+            # Find team members (users who have manager_id == viewer)
+            try:
+                team_q = db.collection("users").where(filter=FieldFilter("manager_id", "==", viewer)).stream()
+                team_ids = [u.id for u in team_q if u.exists]
+            except Exception:
+                team_ids = []
+
+            # If we have team ids, query tasks created_by or assigned_to any of them
+            if team_ids:
+                # Firestore 'in' supports up to 10 items; chunk if necessary
+                def chunks(lst, n):
+                    for i in range(0, len(lst), n):
+                        yield lst[i:i+n]
+
+                for chunk in chunks(team_ids, 10):
+                    q3 = apply_filters(db.collection("tasks").where(filter=FieldFilter("created_by.user_id", "in", chunk)))
+                    add_docs(q3.limit(limit_fetch))
+                    q4 = apply_filters(db.collection("tasks").where(filter=FieldFilter("assigned_to.user_id", "in", chunk)))
+                    add_docs(q4.limit(limit_fetch))
+
+    # Convert to list and post-filter archived unless explicitly included
+    docs = [d for d in docs_by_id.values()]
     if not include_archived:
-        _tmp = []
-        for d in docs:
-            data = d.to_dict() or {}
-            if not data.get("archived", False):
-                _tmp.append(d)
-        docs = _tmp
+        docs = [d for d in docs if not ((d.to_dict() or {}).get("archived", False))]
 
+    # Sort by created_at desc and limit
     def _key(d):
         v = (d.to_dict() or {}).get("created_at") or ""
         return v
@@ -371,9 +419,44 @@ def get_task(task_id):
     doc = db.collection("tasks").document(task_id).get()
     if not doc.exists:
         return jsonify({"error": "Task not found"}), 404
-    if not _ensure_creator_or_404(doc):
-        return jsonify({"error": "Not found"}), 404
-    return jsonify(task_to_json(doc)), 200
+    # Allow creator or assignee, or manager/admin visibility
+    viewer = _viewer_id()
+    if not viewer:
+        return jsonify({"error": "viewer_id required via X-User-Id header or ?viewer_id"}), 401
+
+    data = doc.to_dict() or {}
+    creator_id = (data.get("created_by") or {}).get("user_id")
+    assignee_id = (data.get("assigned_to") or {}).get("user_id")
+
+    if viewer == creator_id or viewer == assignee_id:
+        return jsonify(task_to_json(doc)), 200
+
+    # Check viewer role
+    viewer_doc = db.collection("users").document(viewer).get()
+    viewer_data = (viewer_doc.to_dict() or {}) if viewer_doc.exists else {}
+    viewer_role = (viewer_data.get("role") or "staff").lower()
+    if viewer_role == 'admin':
+        return jsonify(task_to_json(doc)), 200
+
+    manager_roles = ["manager", "director", "hr"]
+    if viewer_role in manager_roles:
+        # Allow if the creator or assignee report to this manager
+        try:
+            def is_managed_by(user_id, manager_id):
+                if not user_id or not manager_id:
+                    return False
+                u = db.collection("users").document(user_id).get()
+                if not u.exists:
+                    return False
+                ud = u.to_dict() or {}
+                return ud.get("manager_id") == manager_id
+
+            if is_managed_by(creator_id, viewer) or is_managed_by(assignee_id, viewer):
+                return jsonify(task_to_json(doc)), 200
+        except Exception:
+            pass
+
+    return jsonify({"error": "Not found"}), 404
 
 @tasks_bp.put("/<task_id>")
 def update_task(task_id):

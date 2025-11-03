@@ -14,6 +14,7 @@ function setFirebaseToken(token){ sessionStorage.setItem("firebaseToken", token)
 
 function getCurrentProject(){ try { return JSON.parse(sessionStorage.getItem("currentProject") || "null"); } catch(e){ return null; } }
 function setCurrentProject(p){ sessionStorage.setItem("currentProject", JSON.stringify(p)); }
+function clearCurrentProject(){ sessionStorage.removeItem("currentProject"); }
 
 function requireAuth(){
   const u = getCurrentUser();
@@ -105,7 +106,13 @@ function injectNavbar(){
   const logoutBtn = document.getElementById("logoutBtn");
   const loginLink = document.getElementById("loginLink");
 
-  navProj.textContent = "Project: " + (p ? (p.name || p.project_id || "selected") : "none");
+ 
+  navProj.textContent = "";
+  if (p) {
+    navProj.innerHTML = `<span style="font-size:12px;color:#666">Project selected</span> <button id="clearProjectBtn" style="margin-left:6px;padding:4px 6px;border-radius:6px;border:1px solid #eaeaea;background:#fff;font-size:11px;cursor:pointer">Clear</button>`;
+    const btn = document.getElementById('clearProjectBtn');
+    if (btn) btn.onclick = function(){ clearCurrentProject(); navProj.textContent = ''; window.location.reload(); };
+  }
 
   // Prefer email if present, then name, never show raw uid unless nothing else exists
   let who = "guest";

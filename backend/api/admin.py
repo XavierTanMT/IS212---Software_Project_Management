@@ -259,6 +259,7 @@ def add_staff():
             "user_id": firebase_user.uid,
             "name": name,
             "email": email,
+            "department": data.get("department", ""),
             "role": "staff",
             "created_at": now_iso(),
             "created_by": admin_id,
@@ -331,6 +332,7 @@ def add_manager():
             "user_id": firebase_user.uid,
             "name": name,
             "email": email,
+            "department": data.get("department", ""),
             "role": manager_type,
             "created_at": now_iso(),
             "created_by": admin_id,
@@ -608,6 +610,73 @@ def change_user_status(user_id):
         "message": f"User {'activated' if is_active else 'deactivated'}",
         "user_id": user_id,
         "is_active": is_active
+    }), 200
+
+
+@admin_bp.put("/users/<user_id>/department")
+def change_user_department(user_id):
+    """
+    Update a user's department.
+
+    Body: { "department": "..." }
+    """
+    db = firestore.client()
+    admin_id = _get_admin_id()
+
+    if not admin_id:
+        return jsonify({"error": "admin_id required via X-User-Id header or ?admin_id"}), 401
+
+    # Verify admin access
+    admin_data, error_response, status_code = _verify_admin_access(admin_id)
+    if error_response:
+        return error_response, status_code
+
+    data = request.get_json() or {}
+    department = data.get("department")
+
+    # Allowed departments (must match frontend list)
+    valid_departments = [
+        "Finance & Accounting",
+        "Operations",
+        "Customer Service (Support)",
+        "Sales & Marketing",
+        "Product Management",
+        "Quality Assurance (QA)",
+        "IT / Data / Infrastructure",
+        "Legal & Compliance"
+    ]
+
+    # Allow clearing department with empty string
+    if department is None:
+        return jsonify({"error": "department is required in request body"}), 400
+
+    if department != "" and department not in valid_departments:
+        return jsonify({"error": "Invalid department. Must be one of the predefined departments."}), 400
+
+    # Get user
+    user_ref = db.collection("users").document(user_id)
+    user_doc = user_ref.get()
+
+    if not user_doc.exists:
+        return jsonify({"error": "User not found"}), 404
+
+    # Update department
+    try:
+        user_ref.update({
+            "department": department,
+            "updated_at": now_iso(),
+            "updated_by": admin_id
+        })
+    except Exception as e:
+        return jsonify({"error": f"Failed to update department: {str(e)}"}), 500
+
+    updated_doc = user_ref.get().to_dict()
+
+    return jsonify({
+        "success": True,
+        "message": "Department updated",
+        "user_id": user_id,
+        "department": updated_doc.get("department", "")
     }), 200
 
 # ========== SYSTEM OVERVIEW (Read-only for Admin) ==========
