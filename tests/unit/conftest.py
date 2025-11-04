@@ -87,6 +87,8 @@ def _firestore_getattr(name):
         return _array_remove_mock
     elif name == "Query":
         return QueryMock
+    elif name == "DELETE_FIELD":
+        return "DELETE_FIELD_SENTINEL"
     raise AttributeError(f"module 'firebase_admin.firestore' has no attribute '{name}'")
 
 fake_firestore.__getattr__ = _firestore_getattr
@@ -95,6 +97,7 @@ fake_firestore.__getattr__ = _firestore_getattr
 fake_firestore.ArrayUnion = _array_union_mock
 fake_firestore.ArrayRemove = _array_remove_mock
 fake_firestore.Query = QueryMock
+fake_firestore.DELETE_FIELD = "DELETE_FIELD_SENTINEL"
 
 fake_firebase.firestore = fake_firestore
 

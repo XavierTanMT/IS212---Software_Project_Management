@@ -97,8 +97,10 @@ class TestAppInitialization:
         """Test Firebase when already initialized"""
         from backend.app import init_firebase
         
-        with patch.dict(os.environ, {'DEV_MODE': 'false'}):
-            with patch('firebase_admin._apps', {'default': Mock()}):
+        # Mock that Firebase is already initialized
+        mock_app = Mock()
+        with patch.dict(os.environ, {'DEV_MODE': 'false', 'FIRESTORE_EMULATOR_HOST': 'localhost:8080'}):
+            with patch('firebase_admin._apps', {'default': mock_app}):
                 result = init_firebase()
         
         assert result is True
@@ -259,24 +261,34 @@ class TestAppInitialization:
         """Test Firebase emulator sets GCLOUD_PROJECT when missing"""
         from backend.app import init_firebase
         
-        # Ensure GCLOUD_PROJECT is not set
+        # Ensure GCLOUD_PROJECT is not set initially
         env = {
             'FIRESTORE_EMULATOR_HOST': 'localhost:8080',
             'DEV_MODE': 'false'
         }
         
-        with patch.dict(os.environ, env, clear=False):
-            # Remove GCLOUD_PROJECT
-            if 'GCLOUD_PROJECT' in os.environ:
-                os.environ.pop('GCLOUD_PROJECT')
-            
-            with patch('firebase_admin._apps', {}):
-                with patch('firebase_admin.initialize_app'):
-                    result = init_firebase()
+        # Save original value
+        original_gcloud = os.environ.get('GCLOUD_PROJECT')
         
-        assert result is True
-        # GCLOUD_PROJECT should be set
-        assert os.getenv('GCLOUD_PROJECT') is not None
+        try:
+            with patch.dict(os.environ, env, clear=False):
+                # Remove GCLOUD_PROJECT
+                if 'GCLOUD_PROJECT' in os.environ:
+                    os.environ.pop('GCLOUD_PROJECT')
+                
+                with patch('firebase_admin._apps', {}):
+                    with patch('firebase_admin.initialize_app'):
+                        result = init_firebase()
+                
+                # Check GCLOUD_PROJECT inside the patched context
+                assert result is True
+                assert os.getenv('GCLOUD_PROJECT') == 'demo-no-project'
+        finally:
+            # Restore original value
+            if original_gcloud is not None:
+                os.environ['GCLOUD_PROJECT'] = original_gcloud
+            elif 'GCLOUD_PROJECT' in os.environ:
+                os.environ.pop('GCLOUD_PROJECT')
     
     def test_init_firebase_emulator_dummy_creds_not_found(self):
         """Test Firebase emulator when dummy credentials don't exist"""
