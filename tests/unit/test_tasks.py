@@ -622,8 +622,9 @@ class TestListTasks:
         where_calls = []
         def track_where(field=None, op=None, value=None, filter=None):
             if filter is not None:
+                # FieldFilterMock has 'op' not 'op_string'
                 field = getattr(filter, "field_path", field)
-                op = getattr(filter, "op_string", op)
+                op = getattr(filter, "op", op)  # Changed from op_string to op
                 value = getattr(filter, "value", value)
             where_calls.append((field, op, value))
             return mock_query
@@ -646,7 +647,7 @@ class TestListTasks:
         def track_where(field=None, op=None, value=None, filter=None):
             if filter is not None:
                 field = getattr(filter, "field_path", field)
-                op = getattr(filter, "op_string", op)
+                op = getattr(filter, "op", op)  # Changed from op_string to op
                 value = getattr(filter, "value", value)
             where_calls.append((field, op, value))
             return mock_query
@@ -669,7 +670,7 @@ class TestListTasks:
         def track_where(field=None, op=None, value=None, filter=None):
             if filter is not None:
                 field = getattr(filter, "field_path", field)
-                op = getattr(filter, "op_string", op)
+                op = getattr(filter, "op", op)  # Changed from op_string to op
                 value = getattr(filter, "value", value)
             where_calls.append((field, op, value))
             return mock_query
