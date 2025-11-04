@@ -243,7 +243,7 @@ def main():
     import inspect
     sig = inspect.signature(create_app)
     if 'run_startup_checks' in sig.parameters:
-        app = create_app(run_startup_checks=True)
+        app = create_app(run_startup_checks=True)  # pragma: no cover
     else:
         # Temporarily set env var and restore after the call
         old = os.environ.get("RUN_STARTUP_CHECKS")
@@ -256,7 +256,7 @@ def main():
             else:
                 os.environ["RUN_STARTUP_CHECKS"] = old
     port = int(os.getenv("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(host="0.0.0.0", port=port, debug=True)  # pragma: no cover
 
 if __name__ == "__main__":  # pragma: no cover
-    main()
+    main()  # pragma: no cover

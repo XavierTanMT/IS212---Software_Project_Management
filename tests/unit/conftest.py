@@ -98,6 +98,30 @@ fake_firestore.Query = QueryMock
 
 fake_firebase.firestore = fake_firestore
 
+# Mock google.cloud.firestore_v1 for FieldFilter
+fake_google = types.ModuleType("google")
+fake_google_cloud = types.ModuleType("google.cloud")
+fake_google_cloud_firestore = types.ModuleType("google.cloud.firestore_v1")
+fake_google_cloud_firestore_base_query = types.ModuleType("google.cloud.firestore_v1.base_query")
+
+# Create FieldFilter mock - it's a callable that creates filter objects
+class FieldFilterMock:
+    def __init__(self, field_path, op, value):
+        self.field_path = field_path
+        self.op = op
+        self.value = value
+
+fake_google_cloud_firestore_base_query.FieldFilter = FieldFilterMock
+
+fake_google_cloud_firestore.base_query = fake_google_cloud_firestore_base_query
+fake_google_cloud.firestore_v1 = fake_google_cloud_firestore
+fake_google.cloud = fake_google_cloud
+
+sys.modules["google"] = fake_google
+sys.modules["google.cloud"] = fake_google_cloud
+sys.modules["google.cloud.firestore_v1"] = fake_google_cloud_firestore
+sys.modules["google.cloud.firestore_v1.base_query"] = fake_google_cloud_firestore_base_query
+
 sys.modules["firebase_admin"] = fake_firebase
 sys.modules["firebase_admin.credentials"] = fake_credentials
 sys.modules["firebase_admin.auth"] = fake_auth
@@ -600,31 +624,36 @@ def app():
 
         reports_mod._is_admin_or_hr = _safe_is_admin
 
-        # Wrap parse_date to be slightly more permissive for tests
-        orig_parse = getattr(reports_mod, 'parse_date', None)
-        def _safe_parse_date(s):
-            try:
-                if orig_parse is not None:
-                    res = orig_parse(s)
-                    if res is not None:
-                        return res
-            except Exception:
-                pass
-            # Fallback: try simple ISO parsing without timezone
-            try:
-                from datetime import datetime, timezone
-                if not s:
-                    return None
-                # Try common formats
-                try:
-                    return datetime.fromisoformat(s.replace('Z', '+00:00'))
-                except Exception:
-                    dt = datetime.strptime(s[:19], '%Y-%m-%dT%H:%M:%S')
-                    return dt.replace(tzinfo=timezone.utc)
-            except Exception:
-                return None
+        # Don't wrap parse_date - the original implementation is robust enough
+        # The wrapping was causing issues when tests run in different orders
+        # orig_parse = getattr(reports_mod, 'parse_date', None)
+        # def _safe_parse_date(s):
+        #     try:
+        #         if orig_parse is not None:
+        #             res = orig_parse(s)
+        #             if res is not None:
+        #                 return res
+        #     except Exception as e:
+        #         # If original parse fails, try fallback
+        #         pass
+        #     # Fallback: try simple ISO parsing without timezone
+        #     try:
+        #         from datetime import datetime, timezone
+        #         if not s:
+        #             return None
+        #         # Try common formats
+        #         try:
+        #             return datetime.fromisoformat(s.replace('Z', '+00:00'))
+        #         except Exception:
+        #             try:
+        #                 dt = datetime.strptime(s[:19], '%Y-%m-%dT%H:%M:%S')
+        #                 return dt.replace(tzinfo=timezone.utc)
+        #             except Exception:
+        #                 return None
+        #     except Exception:
+        #         return None
 
-        reports_mod.parse_date = _safe_parse_date
+        # reports_mod.parse_date = _safe_parse_date
     except Exception:
         # If importing reports fails, log the exception for debugging
         try:

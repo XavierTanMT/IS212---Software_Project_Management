@@ -39,8 +39,14 @@ def parse_date(date_str):
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=timezone.utc)
         return dt
-    except:
-        return None
+    except Exception:
+        # Fallback: try parsing with strptime for additional formats
+        try:
+            # Try parsing without microseconds
+            dt = datetime.strptime(date_str[:19], '%Y-%m-%dT%H:%M:%S')
+            return dt.replace(tzinfo=timezone.utc)
+        except Exception:
+            return None
 
 def safe_get_user_info(user_data, field, default=""):
     """Safely extract user info from various data structures"""
@@ -446,6 +452,8 @@ def weekly_summary_report():
     week_start_str = request.args.get("week_start", "").strip()
     if week_start_str:
         week_start = parse_date(week_start_str)
+        if week_start is None:
+            return jsonify({"error": "Invalid week_start date format"}), 400
     else:
         # Default to current week (Monday)
         today = datetime.now(timezone.utc)
