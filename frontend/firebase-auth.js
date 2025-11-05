@@ -80,7 +80,7 @@ function clearCurrentUser() {
     sessionStorage.removeItem("currentUser");
     sessionStorage.removeItem("firebaseToken");
     sessionStorage.removeItem("currentProject");
-    
+
     // Clear verification cache
     lastVerifyTime = 0;
     verifyPromise = null;
@@ -151,7 +151,7 @@ function redirectToRoleDashboard() {
         window.location.href = 'login.html';
         return;
     }
-    
+
     const dashboardUrl = getRoleDashboard(user.role);
     window.location.href = dashboardUrl;
 }
@@ -163,23 +163,23 @@ function redirectToRoleDashboard() {
  */
 function requireRole(allowedRoles, redirectTo = null) {
     const user = requireAuth(); // First check if authenticated
-    
+
     const roles = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];
     const userRole = user.role || 'staff';
-    
+
     if (!roles.includes(userRole)) {
         console.warn(`Access denied. Required: ${roles.join(' or ')}, User has: ${userRole}`);
-        
+
         if (redirectTo) {
             window.location.href = redirectTo;
         } else {
             // Redirect to appropriate dashboard
             redirectToRoleDashboard();
         }
-        
+
         throw new Error(`Insufficient permissions. Required: ${roles.join(' or ')}`);
     }
-    
+
     return user;
 }
 
@@ -225,7 +225,7 @@ function setCurrentProject(p) {
 function requireAuth() {
     const u = getCurrentUser();
     const token = getFirebaseToken();
-    
+
     if (!u || !token) {
         if (!isRedirecting) {
             isRedirecting = true;
@@ -234,7 +234,7 @@ function requireAuth() {
         }
         throw new Error("Not authenticated");
     }
-    
+
     return u;
 }
 
@@ -251,7 +251,7 @@ async function signOut() {
             console.warn("Firebase client signout not available:", e);
         }
     }
-    
+
     // Always clear session storage
     clearCurrentUser();
     isRedirecting = false; // Reset redirect flag
@@ -266,16 +266,16 @@ async function signOut() {
  */
 async function registerWithFirebase(userData) {
     const { user_id, name, email, password, role = 'staff' } = userData;
-    
+
     // Validate inputs
     if (!user_id || !name || !email || !password) {
         throw new Error("All fields are required");
     }
-    
+
     if (password.length < 6) {
         throw new Error("Password must be at least 6 characters");
     }
-    
+
     try {
         // Call backend to create user - backend handles Firebase Auth creation
         const response = await fetch(`${API_BASE}/api/users/auth/register`, {
@@ -283,18 +283,18 @@ async function registerWithFirebase(userData) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ user_id, name, email, password, role })
         });
-        
+
         const result = await response.json();
-        
+
         if (!response.ok) {
             throw new Error(result.error || 'Registration failed');
         }
-        
+
         // Store user data and JWT token from backend
         setCurrentUser(result.user, result.firebaseToken);
-        
+
         return { user: result.user, token: result.firebaseToken };
-        
+
     } catch (error) {
         console.error("Registration error:", error);
         throw error;
@@ -312,7 +312,7 @@ async function loginWithFirebase(email, password) {
     if (!email || !password) {
         throw new Error("Email and password are required");
     }
-    
+
     try {
         // Call backend login endpoint - backend handles Firebase Auth
         const response = await fetch(`${API_BASE}/api/users/auth/login`, {
@@ -320,23 +320,23 @@ async function loginWithFirebase(email, password) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password })
         });
-        
+
         const result = await response.json();
-        
+
         if (!response.ok) {
             // Extract error message from backend response
             const errorMessage = result.error || 'Login failed';
             throw new Error(errorMessage);
         }
-        
+
         // Store user data and JWT token from backend
         setCurrentUser(result.user, result.firebaseToken);
-        
+
         return { user: result.user, token: result.firebaseToken };
-        
+
     } catch (error) {
         console.error("Login error:", error);
-        
+
         // Provide user-friendly error messages
         if (error.message.includes('not found') || error.message.includes('User not found')) {
             throw new Error("No account found with this email");
@@ -356,23 +356,23 @@ async function loginWithFirebase(email, password) {
  */
 async function verifySession() {
     const token = getFirebaseToken();
-    
+
     if (!token) {
         return false;
     }
-    
+
     const now = Date.now();
-    
+
     // If we're already verifying or recently verified, return the existing promise or cached result
     if (verifyPromise) {
         return verifyPromise;
     }
-    
+
     if (now - lastVerifyTime < VERIFY_THROTTLE_MS) {
         // Return cached result if recently verified
         return true; // Assume valid if recently checked
     }
-    
+
     // Create new verification promise
     verifyPromise = (async () => {
         try {
@@ -381,18 +381,18 @@ async function verifySession() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ firebase_token: token })
             });
-            
+
             const result = await response.json();
-            
+
             if (response.ok && result.valid) {
                 // Update user data if changed
                 setCurrentUser(result.user, token);
                 lastVerifyTime = now;
                 return true;
             }
-            
+
             return false;
-            
+
         } catch (error) {
             console.error("Session verification error:", error);
             return false;
@@ -401,7 +401,7 @@ async function verifySession() {
             verifyPromise = null;
         }
     })();
-    
+
     return verifyPromise;
 }
 
@@ -415,10 +415,10 @@ async function verifySession() {
     window.fetch = function (resource, init) {
         init = init || {};
         init.headers = init.headers || {};
-        
+
         const token = getFirebaseToken();
         const u = getCurrentUser();
-        
+
         // Add Firebase token to Authorization header
         if (token) {
             if (init.headers instanceof Headers) {
@@ -427,7 +427,7 @@ async function verifySession() {
                 init.headers["Authorization"] = `Bearer ${token}`;
             }
         }
-        
+
         // Add X-User-Id header for backward compatibility
         if (u && u.user_id) {
             if (init.headers instanceof Headers) {
@@ -436,7 +436,7 @@ async function verifySession() {
                 init.headers["X-User-Id"] = u.user_id;
             }
         }
-        
+
         return _fetch(resource, init);
     };
 })();
@@ -472,11 +472,11 @@ function getRoleBadge(role) {
 async function buildNavbar() {
     const host = document.getElementById("nav");
     if (!host) return;
-    
+
     const u = getCurrentUser();
     const p = getCurrentProject();
     const userRole = u?.role || 'staff';
-    
+
     // Show login status badge
     let loginStatus = '';
     if (u) {
@@ -487,21 +487,14 @@ async function buildNavbar() {
             loginStatus = '<span style="background:#ffc107;color:black;padding:2px 8px;border-radius:12px;font-size:10px;margin-left:8px">⚠️ Session</span>';
         }
     }
-    
+
     // Build navigation links based on role
     let navLinks = '';
-    
-    // Common links for all users
-    navLinks += `
-        <a href="index.html"><strong>🔥 TaskMgr</strong></a>
-    `;
-    
+
     // Role-specific dashboard links
     if (userRole === 'admin') {
         navLinks += `
             <a href="admin_dashboard.html">Admin Dashboard</a>
-            <a href="manager_dashboard.html">Manager View</a>
-            <a href="dashboard.html">Staff View</a>
         `;
     } else if (['manager', 'director', 'hr'].includes(userRole)) {
         navLinks += `
@@ -513,21 +506,21 @@ async function buildNavbar() {
             <a href="dashboard.html">Dashboard</a>
         `;
     }
-    
+
     // Common task/project links
     navLinks += `
         <a href="projects.html">Projects</a>
         <a href="tasks_list.html">Tasks</a>
         <a href="create_task.html">Create Task</a>
     `;
-    
+
     // Manager-only link
-    if (['manager', 'director', 'hr', 'admin'].includes(userRole)) {
+    if (['manager', 'director', 'hr'].includes(userRole)) {
         navLinks += `
             <a href="manager_team_view.html">Team View</a>
         `;
     }
-    
+
     host.innerHTML = `
     <div style="display:flex;gap:12px;align-items:center;justify-content:space-between;padding:10px;border-bottom:1px solid #eee;background:white">
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -540,15 +533,15 @@ async function buildNavbar() {
       </div>
     </div>
   `;
-    
+
     const btn = document.getElementById("logoutBtn");
     if (btn) btn.addEventListener("click", signOut);
 }
 
 document.addEventListener("DOMContentLoaded", buildNavbar);
 // Attach clear control handler (if present) after DOM ready
-document.addEventListener('click', function(e){
-    if (e.target && e.target.id === 'clearProjectBtnSmall'){
-        try{ sessionStorage.removeItem('currentProject'); window.location.reload(); }catch(e){}
+document.addEventListener('click', function (e) {
+    if (e.target && e.target.id === 'clearProjectBtnSmall') {
+        try { sessionStorage.removeItem('currentProject'); window.location.reload(); } catch (e) { }
     }
 });

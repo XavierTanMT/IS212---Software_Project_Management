@@ -70,10 +70,74 @@ def create_project():
 @projects_bp.get("")
 def list_projects():
     db = firestore.client()
-    q = db.collection("projects") \
-          .order_by("created_at", direction=firestore.Query.DESCENDING) \
-          .stream()
-    res = [{"project_id": d.id, **d.to_dict()} for d in q]
+    
+    # Get current user from header
+    viewer_id = request.headers.get("X-User-Id", "").strip()
+    if not viewer_id:
+        return jsonify({"error": "Authentication required"}), 401
+    
+    # Get user info to check role
+    user_doc = db.collection("users").document(viewer_id).get()
+    if not user_doc.exists:
+        return jsonify({"error": "User not found"}), 404
+    
+    user_data = user_doc.to_dict()
+    user_role = (user_data.get("role") or "").lower()
+    
+    # Admin/HR: see all projects
+    if user_role in ["admin", "hr"]:
+        q = db.collection("projects") \
+              .order_by("created_at", direction=firestore.Query.DESCENDING) \
+              .stream()
+        res = [{"project_id": d.id, **d.to_dict()} for d in q]
+        return jsonify(res), 200
+    
+    # Manager/Director: see projects they own + projects where their team members are assigned
+    if user_role in ["manager", "director"]:
+        # Get projects where user is owner
+        owned_projects = set()
+        q_owned = db.collection("projects").where(filter=FieldFilter("owner_id", "==", viewer_id)).stream()
+        for doc in q_owned:
+            owned_projects.add(doc.id)
+        
+        # Get team members
+        team_member_ids = set()
+        q_team = db.collection("users").where(filter=FieldFilter("manager_id", "==", viewer_id)).stream()
+        for doc in q_team:
+            team_member_ids.add(doc.id)
+        
+        # Get projects where team members are assigned
+        team_projects = set()
+        for member_id in team_member_ids:
+            q_memberships = db.collection("memberships").where(filter=FieldFilter("user_id", "==", member_id)).stream()
+            for mem in q_memberships:
+                team_projects.add(mem.to_dict().get("project_id"))
+        
+        # Combine owned and team projects
+        visible_project_ids = owned_projects | team_projects
+        
+        # Fetch all these projects
+        all_projects = []
+        q_all = db.collection("projects").order_by("created_at", direction=firestore.Query.DESCENDING).stream()
+        for doc in q_all:
+            if doc.id in visible_project_ids:
+                all_projects.append({"project_id": doc.id, **doc.to_dict()})
+        
+        return jsonify(all_projects), 200
+    
+    # Staff: only see projects they are assigned to
+    memberships = db.collection("memberships").where(filter=FieldFilter("user_id", "==", viewer_id)).stream()
+    project_ids = set()
+    for mem in memberships:
+        project_ids.add(mem.to_dict().get("project_id"))
+    
+    # Fetch these projects
+    res = []
+    q = db.collection("projects").order_by("created_at", direction=firestore.Query.DESCENDING).stream()
+    for doc in q:
+        if doc.id in project_ids:
+            res.append({"project_id": doc.id, **doc.to_dict()})
+    
     return jsonify(res), 200
 
 @projects_bp.get("/<project_id>")

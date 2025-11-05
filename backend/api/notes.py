@@ -50,10 +50,16 @@ def add_note():
 
 @notes_bp.get("/by-task/<task_id>")
 def list_notes(task_id):
-    """List all notes for a task."""
+    """List all notes for a task (excluding archived)."""
     db = firestore.client()
     q = db.collection("notes").where(filter=FieldFilter("task_id", "==", task_id)).order_by("created_at").limit(100).stream()
-    res = [{"note_id": d.id, **d.to_dict()} for d in q]
+    res = []
+    for d in q:
+        note_data = d.to_dict() or {}
+        # Skip archived notes
+        if note_data.get("archived"):
+            continue
+        res.append({"note_id": d.id, **note_data})
     return jsonify(res), 200
 
 @notes_bp.patch("/<note_id>")

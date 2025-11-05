@@ -352,7 +352,55 @@ def create_task():
         "recurrence_interval_days": recurrence_interval_days if is_recurring else None,
         "parent_recurring_task_id": None,
     }
-    task_ref.set(task_doc)
+    # If client provided subtasks, create task + subtasks atomically in a batch
+    subtasks_payload = payload.get("subtasks")
+    try:
+        if isinstance(subtasks_payload, list) and len(subtasks_payload) > 0:
+            batch = db.batch()
+            # stage task write
+            batch.set(task_ref, task_doc)
+
+            created = 0
+            for s in subtasks_payload:
+                if not isinstance(s, dict):
+                    continue
+                st_title = (s.get("title") or "").strip()
+                if not st_title:
+                    continue
+                sub_ref = db.collection("subtasks").document()
+                sub_doc = {
+                    "task_id": task_ref.id,
+                    "title": st_title,
+                    "description": (s.get("description") or "").strip() or None,
+                    "due_date": s.get("due_date") or None,
+                    "created_at": now_iso(),
+                    "created_by": {
+                        "user_id": created_by.get("user_id"),
+                        "name": created_by.get("name"),
+                        "email": created_by.get("email"),
+                    },
+                    "completed": False,
+                    "completed_at": None,
+                    "completed_by": None,
+                }
+                batch.set(sub_ref, sub_doc)
+                created += 1
+
+            if created:
+                # set initial counters on the task doc
+                batch.update(task_ref, {"subtask_count": created, "subtask_completed_count": 0})
+
+            batch.commit()
+        else:
+            # no subtasks, simple write
+            task_ref.set(task_doc)
+    except Exception as e:
+        # don't block task creation if subtask batch fails; attempt to at least create the task
+        try:
+            task_ref.set(task_doc)
+        except Exception:
+            print("Failed to create task (and subtasks):", e)
+            return jsonify({"error": "Failed to create task"}), 500
     # Notify assignee if present
     if assigned_to_id:
         try:
@@ -661,14 +709,102 @@ def delete_task(task_id):
     if vrole == 'staff':
         return jsonify({"error": "Permission denied"}), 403
 
-    # Soft delete → archive
+    # Soft delete → archive task and cascade to related data
     viewer = _viewer_id() or ((doc.to_dict() or {}).get("created_by") or {}).get("user_id")
-    doc_ref.update({
+    task_data = doc.to_dict() or {}
+    archive_timestamp = now_iso()
+    
+    # Use batch for atomic cascade archiving
+    batch = db.batch()
+    
+    # 1. Archive the task itself
+    batch.update(doc_ref, {
         "archived": True,
-        "archived_at": now_iso(),
+        "archived_at": archive_timestamp,
         "archived_by": viewer
     })
-    return jsonify({"ok": True, "task_id": task_id, "archived": True}), 200
+    
+    # 2. Cascade archive all subtasks
+    try:
+        subtasks = db.collection("subtasks").where(
+            filter=FieldFilter("task_id", "==", task_id)
+        ).stream()
+        for sub in subtasks:
+            batch.update(sub.reference, {
+                "archived": True,
+                "archived_at": archive_timestamp
+            })
+    except Exception as e:
+        print(f"Error archiving subtasks: {e}")
+    
+    # 3. Cascade archive all notes/comments
+    try:
+        notes = db.collection("notes").where(
+            filter=FieldFilter("task_id", "==", task_id)
+        ).stream()
+        for note in notes:
+            batch.update(note.reference, {
+                "archived": True,
+                "archived_at": archive_timestamp
+            })
+    except Exception as e:
+        print(f"Error archiving notes: {e}")
+    
+    # 4. Cascade archive all attachments
+    try:
+        attachments = db.collection("attachments").where(
+            filter=FieldFilter("task_id", "==", task_id)
+        ).stream()
+        for att in attachments:
+            batch.update(att.reference, {
+                "archived": True,
+                "archived_at": archive_timestamp
+            })
+    except Exception as e:
+        print(f"Error archiving attachments: {e}")
+    
+    # 5. Delete task-label mappings (these are just junction records)
+    try:
+        task_labels = db.collection("task_labels").where(
+            filter=FieldFilter("task_id", "==", task_id)
+        ).stream()
+        for tl in task_labels:
+            batch.delete(tl.reference)
+    except Exception as e:
+        print(f"Error deleting task-label mappings: {e}")
+    
+    # 6. If this is a parent recurring task, archive future (non-completed) occurrences
+    if task_data.get("is_recurring") and not task_data.get("parent_recurring_task_id"):
+        try:
+            # Find child occurrences that are not completed
+            child_tasks = db.collection("tasks").where(
+                filter=FieldFilter("parent_recurring_task_id", "==", task_id)
+            ).where(
+                filter=FieldFilter("status", "!=", "Completed")
+            ).stream()
+            
+            for child in child_tasks:
+                batch.update(child.reference, {
+                    "archived": True,
+                    "archived_at": archive_timestamp,
+                    "archived_by": viewer
+                })
+        except Exception as e:
+            print(f"Error archiving recurring task occurrences: {e}")
+    
+    # Commit all changes atomically
+    try:
+        batch.commit()
+    except Exception as e:
+        print(f"Error committing cascade archive batch: {e}")
+        return jsonify({"error": "Failed to archive task and related data"}), 500
+    
+    return jsonify({
+        "ok": True, 
+        "task_id": task_id, 
+        "archived": True,
+        "cascade_archived": True
+    }), 200
 
 
 @tasks_bp.patch("/<task_id>/reassign")
@@ -787,17 +923,21 @@ def list_subtasks(task_id):
     if not _can_view_task_doc(db, task_doc):
         return jsonify({"error": "Not found"}), 404
 
-    # Query subtasks for this task
+    # Query subtasks for this task (exclude archived)
     subs_q = db.collection("subtasks").where(filter=FieldFilter("task_id", "==", task_id))
     subs = []
     try:
         for s in subs_q.stream():
             sd = s.to_dict() or {}
+            # Skip archived subtasks
+            if sd.get("archived"):
+                continue
             subs.append({
                 "subtask_id": s.id,
                 "task_id": sd.get("task_id"),
                 "title": sd.get("title"),
                 "description": sd.get("description"),
+                "due_date": sd.get("due_date"),
                 "created_at": sd.get("created_at"),
                 "created_by": sd.get("created_by"),
                 "completed": bool(sd.get("completed", False)),
@@ -829,6 +969,7 @@ def create_subtask(task_id):
     payload = request.get_json(force=True) or {}
     title = (payload.get("title") or "").strip()
     description = (payload.get("description") or "").strip()
+    due_date = payload.get("due_date") or None
     if not title or len(title) < 1:
         return jsonify({"error": "Subtask title required"}), 400
 
@@ -841,6 +982,7 @@ def create_subtask(task_id):
         "task_id": task_id,
         "title": title,
         "description": description,
+        "due_date": due_date,
         "created_at": now_iso(),
         "created_by": {
             "user_id": viewer,

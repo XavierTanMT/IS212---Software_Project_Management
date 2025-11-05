@@ -2,48 +2,48 @@
 const API_BASE = "http://localhost:5000";
 
 // Firebase Auth - Use sessionStorage for better security
-function getCurrentUser(){ try { return JSON.parse(sessionStorage.getItem("currentUser") || "null"); } catch(e){ return null; } }
-function setCurrentUser(u){ sessionStorage.setItem("currentUser", JSON.stringify(u)); }
-function clearCurrentUser(){ 
-  sessionStorage.removeItem("currentUser"); 
+function getCurrentUser() { try { return JSON.parse(sessionStorage.getItem("currentUser") || "null"); } catch (e) { return null; } }
+function setCurrentUser(u) { sessionStorage.setItem("currentUser", JSON.stringify(u)); }
+function clearCurrentUser() {
+  sessionStorage.removeItem("currentUser");
   sessionStorage.removeItem("firebaseToken");
 }
 
-function getFirebaseToken(){ return sessionStorage.getItem("firebaseToken"); }
-function setFirebaseToken(token){ sessionStorage.setItem("firebaseToken", token); }
+function getFirebaseToken() { return sessionStorage.getItem("firebaseToken"); }
+function setFirebaseToken(token) { sessionStorage.setItem("firebaseToken", token); }
 
-function getCurrentProject(){ try { return JSON.parse(sessionStorage.getItem("currentProject") || "null"); } catch(e){ return null; } }
-function setCurrentProject(p){ sessionStorage.setItem("currentProject", JSON.stringify(p)); }
-function clearCurrentProject(){ sessionStorage.removeItem("currentProject"); }
+function getCurrentProject() { try { return JSON.parse(sessionStorage.getItem("currentProject") || "null"); } catch (e) { return null; } }
+function setCurrentProject(p) { sessionStorage.setItem("currentProject", JSON.stringify(p)); }
+function clearCurrentProject() { sessionStorage.removeItem("currentProject"); }
 
-function requireAuth(){
+function requireAuth() {
   const u = getCurrentUser();
-  if(!u){ window.location.href = "login.html"; throw new Error("not authed"); }
+  if (!u) { window.location.href = "login.html"; throw new Error("not authed"); }
   return u;
 }
-function signOut(){ clearCurrentUser(); window.location.href = "login.html"; }
-function el(id){ return document.getElementById(id); }
+function signOut() { clearCurrentUser(); window.location.href = "login.html"; }
+function el(id) { return document.getElementById(id); }
 
 // Patch fetch to add Authorization and viewer header
-;(function(){
+; (function () {
   const _fetch = window.fetch;
-  window.fetch = function(resource, init){
+  window.fetch = function (resource, init) {
     init = init || {};
     init.headers = init.headers || {};
     const u = getCurrentUser();
-    if (u && u.idToken){
-      if (init.headers instanceof Headers){
+    if (u && u.idToken) {
+      if (init.headers instanceof Headers) {
         init.headers.set("Authorization", "Bearer " + u.idToken);
-      } else if (typeof init.headers === "object"){
+      } else if (typeof init.headers === "object") {
         init.headers["Authorization"] = "Bearer " + u.idToken;
       }
     }
     // Always provide viewer id for backend convenience
     const viewerId = u && (u.user_id || u.uid);
-    if (viewerId){
-      if (init.headers instanceof Headers){
+    if (viewerId) {
+      if (init.headers instanceof Headers) {
         if (!init.headers.has("X-User-Id")) init.headers.set("X-User-Id", viewerId);
-      } else if (typeof init.headers === "object"){
+      } else if (typeof init.headers === "object") {
         if (!init.headers["X-User-Id"]) init.headers["X-User-Id"] = viewerId;
       }
     }
@@ -52,8 +52,8 @@ function el(id){ return document.getElementById(id); }
 })();
 
 // Sticky navbar at top of every page
-function injectNavbar(){
-  if (!document.getElementById("app-navbar-style")){
+function injectNavbar() {
+  if (!document.getElementById("app-navbar-style")) {
     const style = document.createElement("style");
     style.id = "app-navbar-style";
     style.textContent = `
@@ -70,17 +70,42 @@ function injectNavbar(){
     `;
     document.head.appendChild(style);
   }
-  if (!document.getElementById("app-navbar")){
+  if (!document.getElementById("app-navbar")) {
     const wrap = document.createElement("header");
     wrap.id = "app-navbar";
+
+    // Get user role for role-based navigation
+    const user = getCurrentUser();
+    const userRole = user?.role || 'staff';
+
+    // Build role-specific dashboard links
+    let dashboardLinks = '';
+    if (userRole === 'admin') {
+      dashboardLinks = `
+        <a href="admin_dashboard.html" data-route="admin_dashboard.html">Admin Dashboard</a>
+      `;
+    } else if (['manager', 'director', 'hr'].includes(userRole)) {
+      dashboardLinks = `
+        <a href="manager_dashboard.html" data-route="manager_dashboard.html">Manager Dashboard</a>
+        <a href="dashboard.html" data-route="dashboard.html">My Dashboard</a>
+      `;
+    } else {
+      dashboardLinks = `<a href="dashboard.html" data-route="dashboard.html">Dashboard</a>`;
+    }
+
+    // Build team view link for managers only
+    const teamViewLink = ['manager', 'director', 'hr'].includes(userRole)
+      ? '<a href="manager_team_view.html" data-route="manager_team_view.html">Team View</a>'
+      : '';
+
     wrap.innerHTML = `
       <div class="row">
         <div class="links">
-          <a href="index.html"><strong>TaskMgr</strong></a>
-          <a href="dashboard.html" data-route="dashboard.html">Dashboard</a>
+          ${dashboardLinks}
           <a href="projects.html" data-route="projects.html">Projects</a>
           <a href="tasks_list.html" data-route="tasks_list.html">Tasks</a>
           <a href="create_task.html" data-route="create_task.html">Create Task</a>
+          ${teamViewLink}
         </div>
         <div class="right">
           <span id="navProject"></span>
@@ -106,22 +131,22 @@ function injectNavbar(){
   const logoutBtn = document.getElementById("logoutBtn");
   const loginLink = document.getElementById("loginLink");
 
- 
+
   navProj.textContent = "";
   if (p) {
     navProj.innerHTML = `<span style="font-size:12px;color:#666">Project selected</span> <button id="clearProjectBtn" style="margin-left:6px;padding:4px 6px;border-radius:6px;border:1px solid #eaeaea;background:#fff;font-size:11px;cursor:pointer">Clear</button>`;
     const btn = document.getElementById('clearProjectBtn');
-    if (btn) btn.onclick = function(){ clearCurrentProject(); navProj.textContent = ''; window.location.reload(); };
+    if (btn) btn.onclick = function () { clearCurrentProject(); navProj.textContent = ''; window.location.reload(); };
   }
 
   // Prefer email if present, then name, never show raw uid unless nothing else exists
   let who = "guest";
-  if (u){
+  if (u) {
     who = u.email ? u.email : (u.name ? u.name : "signed-in");
   }
   navUser.textContent = "User: " + who;
 
-  if (u){
+  if (u) {
     logoutBtn.style.display = "inline-block";
     loginLink.style.display = "none";
     logoutBtn.onclick = signOut;
@@ -133,16 +158,16 @@ function injectNavbar(){
 document.addEventListener("DOMContentLoaded", injectNavbar);
 
 // UI helpers
-function showEmptyState(hostSelector, text){
-  try{
+function showEmptyState(hostSelector, text) {
+  try {
     const host = document.querySelector(hostSelector);
     if (!host) return;
     host.innerHTML = `<div style="padding:16px;color:#666">${text}</div>`;
-  }catch(e){}
+  } catch (e) { }
 }
-function stopLoading(selector){
-  try{
+function stopLoading(selector) {
+  try {
     const el = document.querySelector(selector);
-    if (el){ el.remove(); }
-  }catch(e){}
+    if (el) { el.remove(); }
+  } catch (e) { }
 }
