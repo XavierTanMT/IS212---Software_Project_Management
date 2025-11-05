@@ -1039,26 +1039,10 @@
 </head>
 
 <body>
-    <div id="nav"></div>
     <script src="common.js"></script>
     <script src="firebase-auth.js"></script>
 <script>try{requireAuth();}catch(e){}</script>
 
-    <!-- Header -->
-    <div class="header">
-        <h1>
-            <span>📋</span>
-            <span id="welcomeMessage">Task Manager</span>
-        </h1>
-        <div class="user-info">
-            <div class="user-avatar" id="userAvatar">U</div>
-            <div>
-                <div id="userName">Loading...</div>
-                <div style="font-size: 0.8rem; opacity: 0.8;" id="userEmail">loading...</div>
-            </div>
-            <button class="logout-btn" onclick="logout()">Logout</button>
-        </div>
-    </div>
     <!-- Notifications: reminder banner (inlined) -->
     <div id="reminderBannerContainer" style="position:relative;z-index:40"></div>
     <script>
