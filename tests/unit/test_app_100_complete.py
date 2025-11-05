@@ -710,7 +710,7 @@ class TestBlueprintRegistration:
         
         expected_blueprints = [
             'users', 'tasks', 'dashboard', 'manager', 'staff',
-            'projects', 'notes', 'labels', 'memberships', 
+            'projects', 'notes', 'tags', 'memberships', 
             'attachments', 'admin', 'notifications', 'reports'
         ]
         

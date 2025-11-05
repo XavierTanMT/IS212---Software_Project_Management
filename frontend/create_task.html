@@ -47,6 +47,13 @@
         <option value="">— None (standalone task) —</option>
       </select>
 
+      <label>Tags (optional, max 3, max 12 chars each)</label>
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <input id="tag1" maxlength="12" placeholder="Tag 1" style="flex:1"/>
+        <input id="tag2" maxlength="12" placeholder="Tag 2" style="flex:1"/>
+        <input id="tag3" maxlength="12" placeholder="Tag 3" style="flex:1"/>
+      </div>
+
       <div style="border:1px solid #ddd;padding:12px;margin:12px 0;border-radius:6px;background:#f9f9f9">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
           <input type="checkbox" id="is_recurring" style="width:auto;margin:0" />

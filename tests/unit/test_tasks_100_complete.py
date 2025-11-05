@@ -77,7 +77,7 @@ class TestHelperFunctions:
             "created_by": {"user_id": "creator123"},
             "assigned_to": {"user_id": "assignee456"},
             "project_id": "proj789",
-            "labels": ["label1", "label2"],
+            "tags": ["label1", "label2"],
             "archived": True,
             "archived_at": "2025-03-01",
             "archived_by": {"user_id": "archiver"},
@@ -90,7 +90,7 @@ class TestHelperFunctions:
         
         result = task_to_json(mock_doc)
         
-        assert result["labels"] == ["label1", "label2"]
+        assert result["tags"] == ["label1", "label2"]
         assert result["archived"] == True
         assert result["is_recurring"] == True
         assert result["recurrence_interval_days"] == 7

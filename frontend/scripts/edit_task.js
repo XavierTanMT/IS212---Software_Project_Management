@@ -97,6 +97,12 @@ try{requireAuth();}catch(e){}
             now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
             document.getElementById('due_date').min = now.toISOString().slice(0, 16);
             
+            // Populate tags
+            const tags = currentTask.tags || [];
+            if (tags.length > 0) document.getElementById('tag1').value = tags[0] || '';
+            if (tags.length > 1) document.getElementById('tag2').value = tags[1] || '';
+            if (tags.length > 2) document.getElementById('tag3').value = tags[2] || '';
+            
             // Populate recurring task fields
             const isRecurringCheckbox = document.getElementById('is_recurring');
             const recurringOptions = document.getElementById('recurring_options');
@@ -162,14 +168,18 @@ try{requireAuth();}catch(e){}
             }
             
             const taskData = {
-                ...currentTask, // Keep existing data
                 title: formData.get('title').trim(),
                 description: formData.get('description').trim(),
                 priority: formData.get('priority'),
                 status: formData.get('status'),
                 due_date: dueDate || null,
                 is_recurring: isRecurring,
-                recurrence_interval_days: isRecurring ? parseInt(recurrenceInterval) : null
+                recurrence_interval_days: isRecurring ? parseInt(recurrenceInterval) : null,
+                tags: [
+                    document.getElementById("tag1").value.trim(),
+                    document.getElementById("tag2").value.trim(),
+                    document.getElementById("tag3").value.trim()
+                ].filter(t => t.length > 0)
             };
             
             // Validation
@@ -187,6 +197,10 @@ try{requireAuth();}catch(e){}
             hideMessage();
             
             try {
+                console.log('Sending update request for task:', taskId);
+                console.log('Task data:', taskData);
+                console.log('Current user:', currentUser);
+                
                 const response = await fetch(`${API_BASE_URL}/api/tasks/${taskId}`, {
                     method: 'PUT',
                     headers: {
@@ -196,7 +210,9 @@ try{requireAuth();}catch(e){}
                     body: JSON.stringify(taskData)
                 });
                 
+                console.log('Response status:', response.status);
                 const result = await response.json();
+                console.log('Response data:', result);
                 
                 if (response.ok) {
                     let message = `✅ Task "${taskData.title}" updated successfully!`;
@@ -217,7 +233,8 @@ try{requireAuth();}catch(e){}
                     }, 2000);
                     
                 } else {
-                    showMessage(`❌ Error: ${result.error}`, 'error');
+                    console.error('Update failed:', result);
+                    showMessage(`❌ Error: ${result.error || 'Unknown error'}`, 'error');
                 }
                 
             } catch (error) {

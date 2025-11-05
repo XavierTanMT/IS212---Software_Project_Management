@@ -58,7 +58,12 @@ document.getElementById("form").addEventListener("submit", async (e)=>{
     created_by_id: current.user_id,
     project_id: document.getElementById("project_id").value || null,
     is_recurring: isRecurring,
-    recurrence_interval_days: isRecurring ? parseInt(recurrenceInterval) : null
+    recurrence_interval_days: isRecurring ? parseInt(recurrenceInterval) : null,
+    tags: [
+      document.getElementById("tag1").value.trim(),
+      document.getElementById("tag2").value.trim(),
+      document.getElementById("tag3").value.trim()
+    ].filter(t => t.length > 0)
   };
   if (!payload.title || payload.title.length < 3){
     alert("Title must be at least 3 characters"); return;

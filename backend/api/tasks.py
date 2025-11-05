@@ -21,7 +21,7 @@ def task_to_json(d):
         "created_by": data.get("created_by"),
         "assigned_to": data.get("assigned_to"),
         "project_id": data.get("project_id"),
-        "labels": data.get("labels", []),
+        "tags": data.get("tags", []),
         # archival flags
         "archived": data.get("archived", False),
         "archived_at": data.get("archived_at"),
@@ -125,7 +125,7 @@ def _notify_task_changes(db, task_id, old_data, updates, editor_id, notification
         "priority": "Priority",
         "status": "Status",
         "due_date": "Due Date",
-        "labels": "Labels"
+        "tags": "Tags"
     }
     
     for field, new_value in updates.items():
@@ -133,7 +133,7 @@ def _notify_task_changes(db, task_id, old_data, updates, editor_id, notification
             old_value = old_data.get(field)
             if old_value != new_value:
                 # Format the change message
-                if field == "labels":
+                if field == "tags":
                     old_str = ", ".join(old_value) if old_value else "None"
                     new_str = ", ".join(new_value) if new_value else "None"
                 else:
@@ -254,7 +254,7 @@ def _create_next_recurring_task(db, completed_task_doc):
         "created_at": now_iso(),
         "updated_at": None,
         "project_id": task_data.get("project_id"),
-        "labels": task_data.get("labels", []),
+        "tags": task_data.get("tags", []),
         "archived": False,
         "archived_at": None,
         "archived_by": None,
@@ -282,7 +282,7 @@ def create_task():
     project_id = (payload.get("project_id") or "").strip()
     created_by_id = (payload.get("created_by_id") or "").strip()
     assigned_to_id = (payload.get("assigned_to_id") or "").strip()
-    labels = payload.get("labels") or []
+    tags = payload.get("tags") or []
 
     if not title or len(title) < 3:
         return jsonify({"error": "Title must be at least 3 characters"}), 400
@@ -307,9 +307,15 @@ def create_task():
             return jsonify({"error": "assigned_to user not found"}), 404
         assigned_to = assigned_doc.to_dict()
 
-    if not isinstance(labels, list):
-        labels = []
-    labels = [str(x).strip() for x in labels if str(x).strip()]
+    # Validate tags: max 3 tags, each max 12 chars
+    if not isinstance(tags, list):
+        tags = []
+    tags = [str(x).strip() for x in tags if str(x).strip()]
+    if len(tags) > 3:
+        return jsonify({"error": "Maximum 3 tags allowed per task"}), 400
+    for tag in tags:
+        if len(tag) > 12:
+            return jsonify({"error": f"Tag '{tag}' exceeds 12 character limit"}), 400
 
     # Handle recurring task fields
     is_recurring = payload.get("is_recurring", False)
@@ -332,7 +338,7 @@ def create_task():
         "created_at": now_iso(),
         "updated_at": None,
         "project_id": (project_id or None),
-        "labels": labels,
+        "tags": tags,
         # archival defaults
         "archived": False,
         "archived_at": None,
@@ -407,7 +413,7 @@ def list_tasks():
         except Exception:
             pass
 
-    # Helper to apply optional server-side narrow filters (project/label/assigned_to)
+    # Helper to apply optional server-side narrow filters (project/tag/assigned_to)
     def apply_filters(query_obj):
         q = query_obj
         if project_id:
@@ -415,7 +421,7 @@ def list_tasks():
         if assigned_to_id:
             q = q.where(filter=FieldFilter("assigned_to.user_id", "==", assigned_to_id))
         if label_id:
-            q = q.where(filter=FieldFilter("labels", "array_contains", label_id))
+            q = q.where(filter=FieldFilter("tags", "array_contains", label_id))
         return q
 
     # If no explicit project_id filter is provided, include tasks from projects
@@ -579,9 +585,22 @@ def update_task(task_id):
     current_status = current_data.get("status")
     
     updates = {}
-    for field in ["title", "description", "priority", "status", "due_date", "labels"]:
+    for field in ["title", "description", "priority", "status", "due_date", "tags"]:
         if field in payload:
             updates[field] = payload[field]
+    
+    # Validate tags: max 3 tags, each max 12 chars
+    if "tags" in updates:
+        tags = updates["tags"]
+        if not isinstance(tags, list):
+            tags = []
+        tags = [str(x).strip() for x in tags if str(x).strip()]
+        if len(tags) > 3:
+            return jsonify({"error": "Maximum 3 tags allowed per task"}), 400
+        for tag in tags:
+            if len(tag) > 12:
+                return jsonify({"error": f"Tag '{tag}' exceeds 12 character limit"}), 400
+        updates["tags"] = tags
     
     # Handle recurring task fields
     if "is_recurring" in payload:
