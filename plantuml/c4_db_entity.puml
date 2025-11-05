@@ -1,40 +1,162 @@
 @startuml c4_db_entity
+!define Table(name,desc) entity name as "name\n<desc>"
+!define primary_key(x) <b>PK</b> x
+!define foreign_key(x) <b>FK</b> x
+!define not_null(x) <b>*</b> x
 
-title C4 - Database Entity Diagram
+title C4 - Firestore Database Collections (Entity Diagram)
 
-entity User {
-  * **PK** user_id
+entity users {
+  primary_key(user_id) : string
   --
-  Email VARCHAR
-  Password_Hash VARCHAR
-  Role ENUM('manager', 'staff', 'admin')
-  Name TEXT
+  not_null(name) : string
+  not_null(email) : string
+  role : string (staff|manager|director|hr|admin)
+  manager_id : string
+  handle : string
+  created_at : datetime
 }
 
-entity Task {
-  * **PK** task_id
+entity tasks {
+  primary_key(task_id) : string
   --
-  * **FK** Created_by User.user_id NULL
-  --
-  Title VARCHAR
-  Description TEXT
-  Status ENUM('todo', 'in_progress', 'done', 'review')
-  Due_Date DATETIME NULL
-  Updated_Date DATETIME NULL
+  not_null(title) : string
+  description : string
+  priority : string (Low|Medium|High)
+  status : string (To Do|In Progress|Done|Review|Blocked)
+  due_date : datetime
+  created_at : datetime
+  updated_at : datetime
+  foreign_key(created_by.user_id) : string
+  foreign_key(assigned_to.user_id) : string
+  foreign_key(project_id) : string
+  labels : array<string>
+  archived : boolean
+  archived_at : datetime
+  archived_by : string
+  is_recurring : boolean
+  recurrence_interval_days : integer
+  parent_recurring_task_id : string
+  subtask_count : integer
+  subtask_completed_count : integer
 }
 
-entity Attachment {
-  *PK attachment_id
-  -- 
-  file_name VARCHAR
-  file_path VARCHAR
-  uploaded_by FK User.user_id
-  task_id FK Task.task_id
-  upload_date DATETIME
+entity projects {
+  primary_key(project_id) : string
+  --
+  not_null(name) : string
+  key : string
+  description : string
+  foreign_key(owner_id) : string
+  created_at : datetime
+  updated_at : datetime
+  archived : boolean
 }
-Task ||--o{ Attachment : "has"
-User ||--o{ Attachment : "uploads"
 
-User ||--o{ Task : "creates"
+entity memberships {
+  primary_key(membership_id) : string
+  --
+  foreign_key(project_id) : string
+  foreign_key(user_id) : string
+  role : string (owner|member|viewer)
+  created_at : datetime
+}
+
+entity notes {
+  primary_key(note_id) : string
+  --
+  foreign_key(task_id) : string
+  foreign_key(author_id) : string
+  not_null(body) : string
+  mentions : array<string>
+  created_at : datetime
+  edited_at : datetime
+}
+
+entity labels {
+  primary_key(label_id) : string
+  --
+  not_null(name) : string
+  color : string
+}
+
+entity task_labels {
+  primary_key(doc_id) : string
+  --
+  foreign_key(task_id) : string
+  foreign_key(label_id) : string
+}
+
+entity attachments {
+  primary_key(attachment_id) : string
+  --
+  foreign_key(task_id) : string
+  not_null(file_name) : string
+  not_null(file_path) : string
+  foreign_key(uploaded_by) : string
+  upload_date : datetime
+}
+
+entity notifications {
+  primary_key(notification_id) : string
+  --
+  foreign_key(user_id) : string
+  not_null(title) : string
+  not_null(body) : string
+  foreign_key(task_id) : string
+  type : string
+  created_at : datetime
+  read : boolean
+  email_sent : boolean
+  email_sent_at : datetime
+}
+
+entity subtasks {
+  primary_key(subtask_id) : string
+  --
+  foreign_key(parent_task_id) : string
+  not_null(title) : string
+  description : string
+  completed : boolean
+  order : integer
+}
+
+' Relationships
+users ||--o{ tasks : "creates"
+users ||--o{ tasks : "assigned to"
+users ||--o{ notes : "authors"
+users ||--o{ attachments : "uploads"
+users ||--o{ notifications : "receives"
+users ||--o{ memberships : "member of"
+users ||--o{ projects : "owns"
+users ||--o{ users : "manages (manager_id)"
+
+projects ||--o{ tasks : "contains"
+projects ||--o{ memberships : "has members"
+
+tasks ||--o{ notes : "has"
+tasks ||--o{ attachments : "has"
+tasks ||--o{ task_labels : "tagged"
+tasks ||--o{ notifications : "triggers"
+tasks ||--o{ subtasks : "has"
+
+labels ||--o{ task_labels : "used in"
+
+memberships }o--|| projects
+memberships }o--|| users
+
+note right of users
+  **Firebase Firestore Collections**
+  
+  All entities are stored as 
+  documents in Firestore collections.
+  
+  Relationships are maintained via
+  document IDs (foreign keys stored
+  as string fields).
+  
+  Firebase Auth handles authentication,
+  user_id matches Firebase UID.
+end note
 
 @enduml

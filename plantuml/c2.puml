@@ -1,27 +1,31 @@
 
-@startuml c2.scale 1.5
-'scale 1.5 | scale 200 width | scale 100 height | scale [max] 200x100
+@startuml c2
 !include <C4/C4_Container>
 
-title C2 - Container
+title C2 - Container Diagram
 
-Person(employee, "Employee/staff member")
-Person(manager, "Manager/Director - Employee with managerial rights") 
-Person(admin, "Admin - HR and Senior Leadership")
+Person(staff, "Staff Member", "Regular employee")
+Person(manager, "Manager/Director", "Team leader")
+Person(admin, "Admin", "System administrator")
+
+System_Ext(firebaseAuth, "Firebase Authentication", "Google's auth service")
+System_Ext(emailService, "Email Service", "SMTP server")
 
 System_Boundary(taskSystem, "Task Management System") {
-    Container(frontend, "Frontend", "Web Application", "User interface for task management")
-    Container(backend, "Backend", "Application Server", "Business logic and API")
-    ContainerDb(db, "DB", "Database", "Stores task data and user information")
+    Container(webApp, "Web Application", "HTML/CSS/JavaScript", "Provides task management UI, handles user interactions, integrates Firebase auth")
+    Container(apiServer, "API Server", "Python Flask", "Handles business logic, REST API endpoints for tasks, projects, users, notifications")
+    ContainerDb(firestore, "Firestore Database", "Firebase Firestore (NoSQL)", "Stores users, tasks, projects, notes, labels, memberships, notifications, attachments metadata")
+    Container(fileStorage, "File Storage", "Local File System", "Stores task attachment files in /uploads/task_{id}/ structure")
 }
 
-Rel(employee, frontend, "Uses")
-Rel(manager, frontend, "Uses")
-Rel(admin, frontend, "Uses")
+Rel(staff, webApp, "Creates tasks, views assignments", "HTTPS")
+Rel(manager, webApp, "Manages team, assigns tasks", "HTTPS")
+Rel(admin, webApp, "Administers system, manages users", "HTTPS")
 
-Rel(frontend, backend, "API calls")
-Rel(backend, frontend, "API responses")
-Rel(backend, db, "Reads/Writes")
-Rel(db, backend, "Returns data")
+Rel(webApp, firebaseAuth, "Authenticates users, manages sessions", "Firebase SDK/HTTPS")
+Rel(webApp, apiServer, "Makes API calls (tasks, projects, users, etc.)", "JSON/HTTPS")
+Rel(apiServer, firestore, "Reads/writes data", "Firebase Admin SDK")
+Rel(apiServer, fileStorage, "Stores/retrieves attachment files", "File I/O")
+Rel(apiServer, emailService, "Sends notification emails", "SMTP")
 
 @enduml

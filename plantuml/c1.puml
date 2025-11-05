@@ -1,17 +1,22 @@
 @startuml c1
-!define RECTANGLE class
+!include <C4/C4_Context>
 
-title C1 - Context
+title C1 - System Context Diagram
 
-actor "Employee/staff member" as Employee
-actor "Manager/Director - Employee with managerial rights" as Manager
-actor "Admin - HR and Senior Leadership" as Admin
+Person(staff, "Staff Member", "Regular employee who creates and manages their own tasks")
+Person(manager, "Manager/Director", "Team leader who manages staff and assigns tasks to team members")
+Person(admin, "Admin", "HR and Senior Leadership who manage users and have system-wide access")
 
-cloud "Task System" as TaskSystem {
-}
+System(taskMgmtSystem, "Task Management System", "Web-based task management system with project tracking, assignments, notifications, and reporting")
 
-Employee --> TaskSystem
-Manager --> TaskSystem
-Admin --> TaskSystem
+System_Ext(firebaseAuth, "Firebase Authentication", "Google's authentication service for user login and identity management")
+System_Ext(emailService, "Email Service (SMTP)", "External email service for sending notifications and alerts")
+
+Rel(staff, taskMgmtSystem, "Creates and manages tasks, views assignments", "HTTPS")
+Rel(manager, taskMgmtSystem, "Manages team tasks, assigns work, views team reports", "HTTPS")
+Rel(admin, taskMgmtSystem, "Manages users, views all data, generates reports", "HTTPS")
+
+Rel(taskMgmtSystem, firebaseAuth, "Authenticates users", "HTTPS/Firebase SDK")
+Rel(taskMgmtSystem, emailService, "Sends notification emails", "SMTP")
 
 @enduml

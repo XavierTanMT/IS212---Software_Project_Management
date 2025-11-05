@@ -1,37 +1,12 @@
 @startuml c4_class
-!include <C4/C4_Context>
+title C4 - Code Level Class Diagram
 
-title C4 - Code
-
-class Employee {
-  - id: int
-  - name: string
-  - username: string
-  - email: string
-  - password: string
-  - manager: Manager
-  + changePassword(): Bool
-  + createTask(): void
-  + deleteTask(Task): void
-  + updateTask(Task): void
-  + viewTask(Task): void
-  + generateReport(Project): Report
-}
-
-class Admin {
-  - attribute: type
-  + addStaff(Employee): Bool
-  + addManager(Manager): Bool
-  + removeStaff(Employee): Bool
-  + removeManager(Manager): Bool
-  + method(): Type
-}
-
-class Manager {
-  - teamMembers: List<Employee>
-  - projects: List<Project>
-  + assignTask(Task, List<Employee>): Bool
-  + createProject(): Project
+enum Role {
+    staff
+    manager
+    director
+    hr
+    admin
 }
 
 enum Priority {
@@ -41,91 +16,168 @@ enum Priority {
 }
 
 enum Status {
-    ToDo
-    InProgress
-    Completed
+    To Do
+    In Progress
+    Done
+    Review
     Blocked
-}
-
-class Task {
-  - title: String
-  - description: String
-  - attachments: List<Attachment>
-  - subTasks: List<Task>
-  - priority: Priority
-  - dueDate: Date
-  - assignedTo: List<Employee>
-  - tags: List<String>
-  - status: Status
-  - isArchived: Bool
-  - archived_at: DateTime
-  - archived_by_id: String
-  + setTitle(title: String): Void
-  + setDescription(description: String): void
-  + setPriority(priority: Priority): void
-  + setDueDate(dueDate: Date): void
-  + setStatus(status: Status): void
-  + setTags(tags: List<String>): void
-}
-
-class Project {
-  - id: int
-  - name: String
-  - description: String
-  - tasks: List<Task>
-  - members: List<Employee>
-}
-
-class Attachment {
-  -fileName: String
-  -filePath: String
-  -uploadedBy: Employee
-  -uploadDate: DateTime
-}
-
-class Report {
-  - id: int
-  - project: Project
-  - generatedBy: Employee
-  - generatedOn: DateTime
-  - projectedTasks: List<Task>
-  - completedTasks: List<Task>
-  - inProgressTasks: List<Task>
-  - tasksUnderReview: List<Task>
-}
-
-class Notification {
-  - id: int
-  - recipient: Employee
-  - type: NotificationType
-  - title: String
-  - message: String
-  - relatedTask: Task
-  - relatedProject: Project
-  - relatedComment: Comment
 }
 
 enum NotificationType {
     APPROACHING_DEADLINE
+    TASK_ASSIGNED
     NEW_COMMENT
-    TASK_UPDATES
-    MENTIONS
+    MENTION
+    TASK_UPDATED
 }
 
-class Comment {
-  - id: int
-  - content: String
-  - author: Employee
-  - createdOn: DateTime
-  - relatedTask: Task
+class User {
+  - user_id: String
+  - name: String
+  - email: String
+  - role: Role
+  - manager_id: String
+  - handle: String
+  - created_at: DateTime
+  + getUserById(id: String): User
+  + getUserByEmail(email: String): User
+  + updateRole(role: Role): void
+  + getTeamMembers(): List<User>
 }
 
-Task "1" *-- "*" Attachment : has
-Employee "1" o-- "*" Attachment : uploads
+class Task {
+  - task_id: String
+  - title: String
+  - description: String
+  - priority: Priority
+  - status: Status
+  - due_date: DateTime
+  - created_at: DateTime
+  - updated_at: DateTime
+  - created_by: User
+  - assigned_to: User
+  - project_id: String
+  - labels: List<String>
+  - archived: Boolean
+  - archived_at: DateTime
+  - archived_by: String
+  - is_recurring: Boolean
+  - recurrence_interval_days: Integer
+  - parent_recurring_task_id: String
+  - subtask_count: Integer
+  - subtask_completed_count: Integer
+  + createTask(): Task
+  + updateTask(): void
+  + archiveTask(user_id: String): void
+  + assignTo(user: User): void
+  + addLabel(label_id: String): void
+  + addSubtask(subtask: Task): void
+}
 
-Admin --|> Employee : extends
-Manager --|> Employee : extends
+class Project {
+  - project_id: String
+  - name: String
+  - key: String
+  - description: String
+  - owner_id: String
+  - created_at: DateTime
+  - updated_at: DateTime
+  - archived: Boolean
+  + createProject(): Project
+  + updateProject(): void
+  + addMember(user: User, role: String): void
+  + getTasks(): List<Task>
+}
 
-Employee --> Task : creates/manages
+class Membership {
+  - membership_id: String
+  - project_id: String
+  - user_id: String
+  - role: String
+  - created_at: DateTime
+  + addMember(): Membership
+  + removeMember(): void
+  + updateRole(role: String): void
+}
+
+class Note {
+  - note_id: String
+  - task_id: String
+  - author_id: String
+  - body: String
+  - mentions: List<String>
+  - created_at: DateTime
+  - edited_at: DateTime
+  + addNote(): Note
+  + editNote(body: String): void
+  + deleteNote(): void
+  + extractMentions(body: String): List<String>
+}
+
+class Label {
+  - label_id: String
+  - name: String
+  - color: String
+  + createLabel(): Label
+  + assignToTask(task_id: String): void
+  + unassignFromTask(task_id: String): void
+}
+
+class Attachment {
+  - attachment_id: String
+  - task_id: String
+  - file_name: String
+  - file_path: String
+  - uploaded_by: String
+  - upload_date: DateTime
+  + uploadFile(task_id: String, file: File): Attachment
+  + downloadFile(): File
+  + deleteFile(): void
+}
+
+class Notification {
+  - notification_id: String
+  - user_id: String
+  - title: String
+  - body: String
+  - task_id: String
+  - type: NotificationType
+  - created_at: DateTime
+  - read: Boolean
+  - email_sent: Boolean
+  - email_sent_at: DateTime
+  + createNotification(): Notification
+  + markAsRead(): void
+  + sendEmail(): Boolean
+}
+
+class Report {
+  + generateTaskCompletionReport(start_date: DateTime, end_date: DateTime): Dict
+  + generateWeeklySummary(user_id: String): Dict
+  + getTeamPerformance(manager_id: String): Dict
+  + getTaskStatistics(): Dict
+}
+
+' Relationships
+User "1" -- "0..*" Task : creates
+User "1" -- "0..*" Task : assigned to
+User "1" -- "0..*" Note : authors
+User "1" -- "0..*" Attachment : uploads
+User "1" -- "0..*" Notification : receives
+User "1" -- "0..*" Membership : has
+User "1" -- "0..*" User : manages
+
+Project "1" -- "0..*" Task : contains
+Project "1" -- "0..*" Membership : has
+Project "1" -- "1" User : owned by
+
+Task "1" -- "0..*" Note : has
+Task "1" -- "0..*" Attachment : has
+Task "1" -- "0..*" Label : tagged with
+Task "1" -- "0..*" Task : has subtasks
+Task "1" -- "0..*" Notification : triggers
+
+Membership "*" -- "1" Project
+Membership "*" -- "1" User
 
 @enduml
