@@ -1,11 +1,9 @@
-
-    body{font-family:system-ui,Segoe UI,Arial;margin:0}
-    .page{max-width:1000px;margin:20px auto;padding:0 16px}
+body{font-family:system-ui,Segoe UI,Arial;margin:0}
+    
     .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
     .card{border:1px solid #ddd;border-radius:10px;padding:14px}
     a.btn{display:inline-block;padding:8px 12px;border:1px solid #888;border-radius:8px;text-decoration:none}
   
-
 
     body{
       font-family:system-ui,Segoe UI,Arial;
@@ -53,4 +51,3 @@
       font-weight: 500;
       margin-top: 15px;
     }
-  

@@ -1,29 +1,31 @@
 <!doctype html>
 <html>
 <head>
+  <link rel="stylesheet" href="css/common.css">
+
   <meta charset="utf-8"/>
   <title>Task Detail</title>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>  <link rel="stylesheet" href="css/task_detail.css">
 </head>
 <body>
-  <div id="nav"></div>
   <div class="page">
     <a href="tasks_list.html">← Back to tasks</a>
     <h1 id="title">Task</h1>
     <div id="taskMeta"></div>
     <h2>Subtasks <small id="subcounts"></small></h2>
-    <div id="subtasks"></div>
+    <div id="subtasks" style="margin-bottom:20px"></div>
 
     <div id="creatorActions" style="margin-top:16px;display:none">
       <h3>Add subtask</h3>
-      <div>
-        <input id="sub_title" placeholder="Subtask title" />
-        <textarea id="sub_description" placeholder="Description (optional)" rows="3"></textarea>
-        <button id="addSub">Add Subtask</button>
+      <div style="display:flex;flex-direction:column;gap:8px;max-width:500px">
+        <input id="sub_title" placeholder="Subtask title" style="padding:8px" />
+        <textarea id="sub_description" placeholder="Description (optional)" rows="3" style="padding:8px"></textarea>
+        <button id="addSub" style="width:fit-content">Add Subtask</button>
       </div>
     </div>
   </div>
 
-  <script src="scripts/common.js"></script>  <script src="scripts/task_detail.js"></script>
+  <script src="scripts/common.js"></script>
+  <script src="scripts/utils.js"></script>  <script src="scripts/task_detail.js"></script>
 </body>
 </html>

@@ -265,11 +265,16 @@ const clearAutoRefresh = window.clearAutoRefresh;
         });
 
         function initializeDashboard() {
-            // Update header with user info
-            document.getElementById('welcomeMessage').textContent = `Welcome, ${currentUser.name}!`;
-            document.getElementById('userName').textContent = currentUser.name;
-            document.getElementById('userEmail').textContent = currentUser.email;
-            document.getElementById('userAvatar').textContent = currentUser.name.charAt(0).toUpperCase();
+            // Update header with user info (only if elements exist)
+            const welcomeMsg = document.getElementById('welcomeMessage');
+            const userName = document.getElementById('userName');
+            const userEmail = document.getElementById('userEmail');
+            const userAvatar = document.getElementById('userAvatar');
+            
+            if (welcomeMsg) welcomeMsg.textContent = `Welcome, ${currentUser.name}!`;
+            if (userName) userName.textContent = currentUser.name;
+            if (userEmail) userEmail.textContent = currentUser.email;
+            if (userAvatar) userAvatar.textContent = currentUser.name.charAt(0).toUpperCase();
             document.title = `Dashboard - ${currentUser.name}`;
 
             // Fetch and show role chip, and toggle manager-only UI
@@ -320,6 +325,48 @@ async function loadDashboardData() {
         try { renderTaskList('createdTasksList', data.recent_created_tasks || [], 'created'); } catch(e) { console.warn('renderTaskList created failed', e); }
         try { renderTaskList('assignedTasksList', data.recent_assigned_tasks || [], 'assigned'); } catch(e) { console.warn('renderTaskList assigned failed', e); }
     }
+
+        function renderStatusChart(statusData) {
+            const chartContainer = document.getElementById('statusChart');
+
+            if (!chartContainer) {
+                console.warn('statusChart element not found');
+                return;
+            }
+
+            if (!statusData || Object.keys(statusData).length === 0) {
+                chartContainer.innerHTML = '<div class="empty-state">No status data available</div>';
+                return;
+            }
+
+            const statusColors = {
+                'To Do': '#3498db',
+                'In Progress': '#f39c12',
+                'Completed': '#27ae60',
+                'Blocked': '#e74c3c',
+                'Review': '#9b59b6'
+            };
+
+            const total = Object.values(statusData).reduce((sum, count) => sum + count, 0);
+
+            let chartHTML = '';
+            for (const [status, count] of Object.entries(statusData)) {
+                if (count > 0) {
+                    const percentage = total > 0 ? Math.round((count / total) * 100) : 0;
+                    chartHTML += `
+                        <div class="chart-item">
+                            <div class="chart-label">
+                                <div class="chart-dot" style="background: ${statusColors[status] || '#666'}"></div>
+                                <span>${status}</span>
+                            </div>
+                            <div class="chart-value">${count} (${percentage}%)</div>
+                        </div>
+                    `;
+                }
+            }
+
+            chartContainer.innerHTML = chartHTML || '<div class="empty-state">No status data</div>';
+        }
 
         function renderPriorityChart(priorityData) {
             const chartContainer = document.getElementById('priorityChart');

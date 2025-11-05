@@ -1,7 +1,5 @@
-
-    body{font-family:system-ui,Segoe UI,Arial;margin:0}
-    .page{max-width:800px;margin:20px auto;padding:0 16px}
+body{font-family:system-ui,Segoe UI,Arial;margin:0}
+    
     form{border:1px solid #ddd;border-radius:8px;padding:12px}
     input, textarea, select{padding:8px;width:100%;margin:6px 0}
     button{padding:8px 12px;cursor:pointer}
-  

@@ -1,154 +1,110 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit Task - Task Manager</title>  <link rel="stylesheet" href="css/edit_task.css">
+  <link rel="stylesheet" href="css/common.css">
+
+  <meta charset="utf-8"/>
+  <title>Edit Task</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>  <link rel="stylesheet" href="css/edit_task.css">
 </head>
 <body>
-  <div id="nav"></div>
-  <script src="scripts/common.js"></script><div class="container">
-        <div class="header">
-            <div class="logo">✏️</div>
-            <h1>Edit Task</h1>
-            <p>Update task details and track progress</p>
-        </div>
-        
-        <div class="message" id="message"></div>
-        
-        <!-- Task Info Display -->
-        <div class="task-info" id="taskInfo" style="display: none;">
-            <div class="task-meta">
-                <span><strong>Task ID:</strong> <span id="taskId">-</span></span>
-                <span><strong>Created:</strong> <span id="createdDate">-</span></span>
-                <span><strong>Created by:</strong> <span id="createdBy">-</span></span>
-            </div>
-        </div>
-        
-        <div class="loading" id="pageLoading">
-            Loading task details
-        </div>
-        
-        <form id="editTaskForm" style="display: none;" novalidate>
-            <div class="form-group">
-                <label for="title">
-                    Task Title <span class="required">*</span>
-                </label>
-                <input 
-                    type="text" 
-                    id="title" 
-                    name="title" 
-                    placeholder="e.g., Fix login bug or Design homepage" 
-                    required
-                    maxlength="100"
-                >
-                <div class="input-hint">Brief, descriptive title (3-100 characters)</div>
-            </div>
-            
-            <div class="form-group">
-                <label for="description">
-                    Description <span class="required">*</span>
-                </label>
-                <textarea 
-                    id="description" 
-                    name="description" 
-                    placeholder="Describe what needs to be done..."
-                    required
-                    maxlength="500"
-                ></textarea>
-                <div class="input-hint">Detailed description of the task (10-500 characters)</div>
-            </div>
-            
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="priority">Priority</label>
-                    <select id="priority" name="priority">
-                        <option value="Low">🟢 Low Priority</option>
-                        <option value="Medium">🟡 Medium Priority</option>
-                        <option value="High">🔴 High Priority</option>
-                        <option value="Urgent">🚨 Urgent</option>
-                    </select>
-                    <div class="input-hint">How urgent is this task?</div>
-                </div>
-                
-                <div class="form-group">
-                    <label for="status">Status</label>
-                    <select id="status" name="status">
-                        <option value="To Do">📋 To Do</option>
-                        <option value="In Progress">⏳ In Progress</option>
-                        <option value="Completed">✅ Completed</option>
-                        <option value="Blocked">🚫 Blocked</option>
-                    </select>
-                    <div class="input-hint">Current task status</div>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label for="due_date">Due Date (Optional)</label>
-                <input 
-                    type="datetime-local" 
-                    id="due_date" 
-                    name="due_date"
-                >
-                <div class="input-hint">When should this task be completed?</div>
-            </div>
-            
-            <div style="border:1px solid #e1e5e9;padding:1rem;margin:1.5rem 0;border-radius:8px;background:#f8f9fa">
-                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:500;margin-bottom:0">
-                    <input type="checkbox" id="is_recurring" style="width:auto;margin:0" />
-                    <span>🔄 Make this a recurring task</span>
-                </label>
-                <div id="recurring_options" style="display:none;margin-top:1rem">
-                    <div class="form-group" style="margin-bottom:0.5rem">
-                        <label for="recurrence_interval_days">Recurrence Interval (days)</label>
-                        <input type="number" id="recurrence_interval_days" min="1" placeholder="e.g., 1 for daily, 7 for weekly" />
-                    </div>
-                    <div class="input-hint" style="margin-top:0.5rem">
-                        📅 The task will automatically recur after completion. The next occurrence will be created with a due date calculated from the original due date + interval.
-                    </div>
-                    <div id="recurring_info" style="display:none;margin-top:0.5rem;padding:0.75rem;background:#e3f2fd;border-radius:6px;color:#1976d2;font-size:0.9rem">
-                        ℹ️ <span id="recurring_info_text"></span>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="loading" id="formLoading">
-                Updating task
-            </div>
-            
-            <div class="btn-group">
-                <button type="submit" class="btn btn-primary" id="updateBtn">
-                    Update Task
-                </button>
-                
-                <button type="button" class="btn btn-secondary" onclick="goToDashboard()">
-                    Cancel
-                </button>
-                
-                <button type="button" class="btn btn-danger" onclick="confirmDelete()" id="deleteBtn">
-                    Archive Task
-                </button>
-            </div>
-        </form>
-        
-        <div class="form-footer">
-            <a href="dashboard.html" class="back-link">← Back to Dashboard</a>
-            <span>|</span>
-            <a href="create_task.html" class="back-link">Create New Task</a>
-        </div>
+  <div class="page">
+    <h1>Edit Task</h1>
+    
+    <div id="message"></div>
+    
+    <div id="taskInfo" style="margin:12px 0;padding:12px;background:#f0f0f0;border-radius:4px;display:none;">
+      <div style="display:flex;gap:20px;flex-wrap:wrap;font-size:0.9em;color:#555;">
+        <span><strong>Task ID:</strong> <span id="taskId">-</span></span>
+        <span><strong>Created:</strong> <span id="createdDate">-</span></span>
+        <span><strong>Created by:</strong> <span id="createdBy">-</span></span>
+      </div>
     </div>
+    
+    <div id="pageLoading" style="padding:20px;text-align:center;color:#666;">
+      Loading task details...
+    </div>
+    
+    <form id="editTaskForm" style="display:none;">
+      <label>Title</label>
+      <input id="title" required maxlength="100" />
+      
+      <label>Description</label>
+      <textarea id="description" rows="4" required maxlength="500"></textarea>
 
-    <!-- Delete Confirmation Modal -->
-    <div id="deleteModal" class="modal">
-        <div class="modal-content">
-            <h3>🗑️ Archive Task</h3>
-            <p id="deleteMessage">Are you sure you want to Archive this task?</p>
-            <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeDeleteModal()">Cancel</button>
-                <button class="btn btn-danger" onclick="executeDelete()" id="confirmDeleteBtn">
-                    Archive Task
-                </button>
-            </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <div style="flex:1 1 180px">
+          <label>Priority</label>
+          <select id="priority">
+            <option value="Low">Low</option>
+            <option value="Medium">Medium</option>
+            <option value="High">High</option>
+            <option value="Urgent">Urgent</option>
+          </select>
         </div>
-    </div>  <script src="scripts/edit_task.js"></script>
-</body></html>
+        <div style="flex:1 1 180px">
+          <label>Status</label>
+          <select id="status">
+            <option value="To Do">To Do</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Completed">Completed</option>
+            <option value="Blocked">Blocked</option>
+          </select>
+        </div>
+        <div style="flex:1 1 180px">
+          <label>Due Date</label>
+          <input id="due_date" type="datetime-local"/>
+        </div>
+      </div>
+
+      <div style="border:1px solid #ddd;padding:12px;margin:12px 0;border-radius:6px;background:#f9f9f9">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="is_recurring" style="width:auto;margin:0" />
+          <strong>Make this a recurring task</strong>
+        </label>
+        <div id="recurring_options" style="display:none;margin-top:10px">
+          <label>Recurrence Interval (days)</label>
+          <input type="number" id="recurrence_interval_days" min="1" placeholder="e.g., 1 for daily, 7 for weekly" />
+          <p style="margin:6px 0;color:#666;font-size:0.9em">
+            The task will automatically recur after completion. The next occurrence will be created with a due date calculated from the original due date + interval.
+          </p>
+          <div id="recurring_info" style="display:none;margin-top:8px;padding:8px;background:#e3f2fd;border-radius:4px;color:#1976d2;font-size:0.9em">
+            <span id="recurring_info_text"></span>
+          </div>
+        </div>
+      </div>
+      
+      <div id="formLoading" style="display:none;padding:10px;text-align:center;color:#666;">
+        Updating task...
+      </div>
+      
+      <div style="display:flex;gap:10px;margin-top:16px;">
+        <button type="submit" id="updateBtn">Update Task</button>
+        <button type="button" onclick="goToDashboard()" style="background:#6c757d">Cancel</button>
+        <button type="button" onclick="confirmDelete()" id="deleteBtn" style="background:#dc3545">Archive Task</button>
+      </div>
+    </form>
+    
+    <div style="margin-top:16px;padding-top:16px;border-top:1px solid #ddd;">
+      <a href="dashboard.html">← Back to Dashboard</a>
+      <span style="margin:0 8px;color:#ccc">|</span>
+      <a href="create_task.html">Create New Task</a>
+    </div>
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  <div id="deleteModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000">
+    <div style="background:white; max-width:400px; margin:100px auto; padding:20px; border-radius:8px; box-shadow:0 4px 6px rgba(0,0,0,0.1)">
+      <h3 style="margin-top:0">Archive Task</h3>
+      <p id="deleteMessage">Are you sure you want to archive this task?</p>
+      <div style="display:flex;gap:10px;margin-top:20px;">
+        <button onclick="closeDeleteModal()" style="background:#6c757d;color:white;border:none;padding:10px 20px;border-radius:4px;cursor:pointer;">Cancel</button>
+        <button onclick="executeDelete()" id="confirmDeleteBtn" style="background:#dc3545;color:white;border:none;padding:10px 20px;border-radius:4px;cursor:pointer;">Archive Task</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="scripts/common.js"></script>
+  <script src="scripts/utils.js"></script>  <script src="scripts/edit_task.js"></script>
+</body>
+</html>

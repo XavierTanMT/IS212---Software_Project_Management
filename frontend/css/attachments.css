@@ -1,5 +1,4 @@
-
-    body {
+body {
       font-family: system-ui, Segoe UI, Arial;
       margin: 20px;
       max-width: 900px
@@ -32,4 +31,3 @@
       padding: 8px;
       border-bottom: 1px dashed #e3e3e3
     }
-  

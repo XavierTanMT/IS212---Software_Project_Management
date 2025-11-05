@@ -15,7 +15,22 @@
     var params = new URLSearchParams(location.search);
     var task_id = params.get("task_id");
     if (!task_id) { document.body.innerHTML = "<p>Missing ?task_id</p>"; throw new Error("no task_id"); }
-    q("#task").innerText = "Task ID: " + task_id;
+    
+    // Fetch and display task name
+    async function loadTaskInfo() {
+      try {
+        const res = await fetch(API_BASE + "/api/tasks/" + encodeURIComponent(task_id));
+        if (res.ok) {
+          const task = await res.json();
+          q("#task").innerHTML = '<strong>Task:</strong> ' + (task.title || task_id) + ' <span style="color:#666;font-size:0.9em">(ID: ' + task_id + ')</span>';
+        } else {
+          q("#task").innerText = "Task ID: " + task_id;
+        }
+      } catch (e) {
+        q("#task").innerText = "Task ID: " + task_id;
+      }
+    }
+    loadTaskInfo();
 
     var currentUserId = (getCurrentUser() && getCurrentUser().user_id) || "";
 
@@ -179,7 +194,11 @@
         // Create meta div
         var metaDiv = ce("div");
         metaDiv.className = "meta";
-        metaDiv.innerHTML = "by " + (n.author_id || "") + " • " + fmtDate(n.created_at) + " " + editedBadge;
+        
+        // Display author name if available, otherwise author_id
+        var authorDisplay = n.author_name || n.author?.name || n.author_id || "Unknown";
+        
+        metaDiv.innerHTML = "by " + authorDisplay + " • " + fmtDate(n.created_at) + " " + editedBadge;
         div.appendChild(metaDiv);
         
         // Add mentions info if exists

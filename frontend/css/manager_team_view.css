@@ -1,17 +1,4 @@
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f5f6fa;
-            min-height: 100vh;
-        }
-
-        /* Header */
+/* Header */
         .header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -85,25 +72,11 @@
         }
 
         /* Statistics Cards */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-bottom: 2rem;
-        }
+        
 
-        .stat-card {
-            background: white;
-            padding: 1.5rem;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-            border-left: 4px solid;
-            transition: transform 0.2s;
-        }
+        
 
-        .stat-card:hover {
-            transform: translateY(-2px);
-        }
+        
 
         .stat-card.total {
             border-left-color: #3498db;
@@ -454,10 +427,7 @@
             transition: all 0.3s;
         }
 
-        .btn-primary {
-            background: #667eea;
-            color: white;
-        }
+        
 
         .btn-primary:hover {
             background: #5a6fd8;
@@ -622,4 +592,3 @@
                 grid-template-columns: 1fr;
             }
         }
-    

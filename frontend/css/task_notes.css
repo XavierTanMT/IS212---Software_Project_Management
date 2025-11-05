@@ -1,16 +1,4 @@
-
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      font-family: system-ui, Segoe UI, Arial;
-      background: #f5f6fa;
-    }
-
-    .container {
+.container {
       max-width: 900px;
       margin: 20px auto;
       padding: 0 20px;
@@ -128,4 +116,3 @@
       background-color: #ff9800;
       color: white;
     }
-  

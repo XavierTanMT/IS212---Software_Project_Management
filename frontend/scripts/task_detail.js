@@ -66,9 +66,14 @@ requireAuth();
     const taskCreatorId = (getCurrentUser && getCurrentUser()).user_id; // may be used later
 
     list.forEach(s=>{
-      const div = document.createElement('div'); div.className = 'subtask';
-      const cb = document.createElement('input'); cb.type='checkbox'; cb.checked = !!s.completed;
-      cb.style.marginRight='10px';
+      const div = document.createElement('div'); 
+      div.className = 'subtask';
+      div.style.cssText = 'display:flex;align-items:flex-start;gap:12px;padding:12px;margin:8px 0;background:#f9f9f9;border-radius:6px;border-left:3px solid #3498db';
+      
+      const cb = document.createElement('input'); 
+      cb.type='checkbox'; 
+      cb.checked = !!s.completed;
+      cb.style.cssText = 'margin-top:4px;cursor:pointer;width:18px;height:18px;flex-shrink:0';
       cb.addEventListener('change', async ()=>{
         try{
           const r = await fetch(API + '/api/tasks/' + encodeURIComponent(taskId) + '/subtasks/' + encodeURIComponent(s.subtask_id) + '/complete', {
@@ -81,8 +86,10 @@ requireAuth();
         }catch(e){ console.error(e); cb.checked = !cb.checked; alert('Network error'); }
       });
 
-      const meta = document.createElement('div'); meta.className='meta';
-      meta.innerHTML = '<div style="font-weight:600">'+(s.title||'')+'</div>' + (s.description?('<div style="color:#666">'+s.description+'</div>'):'');
+      const meta = document.createElement('div'); 
+      meta.className='meta';
+      meta.style.cssText = 'flex:1;min-width:0';
+      meta.innerHTML = '<div style="font-weight:600;margin-bottom:4px;color:#333">'+(s.title||'')+'</div>' + (s.description?('<div style="color:#666;font-size:0.9em;line-height:1.4">'+s.description+'</div>'):'');
 
       div.appendChild(cb); div.appendChild(meta);
 
@@ -94,7 +101,12 @@ requireAuth();
         const vidNow = viewerNow.user_id || viewerNow.uid || viewerNow.id || '';
         const isCreator = vidNow && t.created_by && t.created_by.user_id === vidNow;
         if(isCreator){
-          const edit = document.createElement('button'); edit.textContent = 'Edit'; edit.style.marginLeft='8px';
+          const btnContainer = document.createElement('div');
+          btnContainer.style.cssText = 'display:flex;gap:6px;margin-left:auto;flex-shrink:0';
+          
+          const edit = document.createElement('button'); 
+          edit.textContent = 'Edit'; 
+          edit.style.cssText = 'padding:4px 12px;font-size:0.85em;background:#3498db;color:white;border:none;border-radius:4px;cursor:pointer';
           edit.addEventListener('click', ()=>{
             const newTitle = prompt('Title', s.title||''); if(newTitle===null) return;
             const newDesc = prompt('Description', s.description||'');
@@ -103,14 +115,18 @@ requireAuth();
               body: JSON.stringify({ title: newTitle, description: newDesc })
             }).then(r=>{ if(!r.ok) return r.json().then(js=>alert(js.error||'Failed')); else loadSubtasks(); });
           });
-          const del = document.createElement('button'); del.textContent = 'Delete'; del.style.marginLeft='8px';
+          const del = document.createElement('button'); 
+          del.textContent = 'Delete'; 
+          del.style.cssText = 'padding:4px 12px;font-size:0.85em;background:#e74c3c;color:white;border:none;border-radius:4px;cursor:pointer';
           del.addEventListener('click', ()=>{
             if(!confirm('Delete this subtask?')) return;
             fetch(API + '/api/tasks/' + encodeURIComponent(taskId) + '/subtasks/' + encodeURIComponent(s.subtask_id), {
               method: 'DELETE', headers: {...(vidNow?{'X-User-Id': vidNow}: {}) }
             }).then(async r=>{ if(!r.ok){ const j = await r.json().catch(()=>({})); alert(j.error||'Failed'); } else { await load(); } });
           });
-          div.appendChild(edit); div.appendChild(del);
+          btnContainer.appendChild(edit); 
+          btnContainer.appendChild(del);
+          div.appendChild(btnContainer);
         }
       })();
 
