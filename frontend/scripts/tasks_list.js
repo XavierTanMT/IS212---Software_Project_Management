@@ -9,12 +9,12 @@ requireAuth();
     const p = new URLSearchParams();
     const project_id = document.getElementById("project_id").value.trim();
     const assigned_to_id = document.getElementById("assigned_to_id").value.trim();
-    const label_id = document.getElementById("label_id").value.trim();
+    const tag_filter = document.getElementById("tag_filter").value.trim();
     const limit = document.getElementById("limit").value.trim();
     const includeArchived = (localStorage.getItem(ARCHIVE_PREF_KEY) === 'true');
     if(project_id) p.set("project_id", project_id);
     if(assigned_to_id) p.set("assigned_to_id", assigned_to_id);
-    if(label_id) p.set("label_id", label_id);
+    if(tag_filter) p.set("label_id", tag_filter);
     if(limit) p.set("limit", limit);
     if(includeArchived) p.set("include_archived", "true");
     // Include viewer id as a fallback for servers that accept ?viewer_id

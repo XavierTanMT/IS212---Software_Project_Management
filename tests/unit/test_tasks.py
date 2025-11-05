@@ -48,7 +48,7 @@ class TestTaskToJson:
             "created_by": {"user_id": "user1", "name": "John"},
             "assigned_to": {"user_id": "user2", "name": "Jane"},
             "project_id": "proj1",
-            "labels": ["bug", "urgent"]
+            "tags": ["bug", "urgent"]
         }
         
         result = tasks_module.task_to_json(mock_doc)
@@ -59,7 +59,7 @@ class TestTaskToJson:
         assert result["priority"] == "High"
         assert result["status"] == "In Progress"
         assert result["due_date"] == "2024-12-31"
-        assert result["labels"] == ["bug", "urgent"]
+        assert result["tags"] == ["bug", "urgent"]
         
     def test_task_to_json_with_defaults(self):
         """Test task_to_json with missing optional fields"""
@@ -75,7 +75,7 @@ class TestTaskToJson:
         assert result["task_id"] == "task456"
         assert result["priority"] == "Medium"  # default
         assert result["status"] == "To Do"  # default
-        assert result["labels"] == []  # default
+        assert result["tags"] == []  # default
 
 
 class TestViewerId:
@@ -300,7 +300,7 @@ class TestCreateTask:
             "project_id": "proj1",
             "created_by_id": "user1",
             "assigned_to_id": "user2",
-            "labels": ["bug", "urgent"]
+            "tags": ["bug", "urgent"]
         }
         response = client.post("/api/tasks", json=payload)
         
@@ -310,7 +310,7 @@ class TestCreateTask:
         assert data["priority"] == "High"
         assert data["status"] == "In Progress"
         assert data["assigned_to"]["user_id"] == "user2"
-        assert data["labels"] == ["bug", "urgent"]
+        assert data["tags"] == ["bug", "urgent"]
         
     def test_create_task_title_too_short(self, client, mock_db, monkeypatch):
         """Test error when title is less than 3 characters"""
@@ -484,8 +484,8 @@ class TestCreateTask:
         data = response.get_json()
         assert "assigned_to user not found" in data["error"]
         
-    def test_create_task_labels_not_list(self, client, mock_db, monkeypatch):
-        """Test that non-list labels are converted to empty list"""
+    def test_create_task_tags_not_list(self, client, mock_db, monkeypatch):
+        """Test that non-list tags are converted to empty list"""
         mock_task_ref = Mock()
         mock_task_ref.id = "task789"
         
@@ -514,16 +514,16 @@ class TestCreateTask:
             "title": "Test Task",
             "description": "Valid description",
             "created_by_id": "user1",
-            "labels": "not-a-list"
+            "tags": "not-a-list"
         }
         response = client.post("/api/tasks", json=payload)
         
         assert response.status_code == 201
         data = response.get_json()
-        assert data["labels"] == []
+        assert data["tags"] == []
         
-    def test_create_task_labels_cleaned(self, client, mock_db, monkeypatch):
-        """Test that labels are cleaned (trimmed and non-empty)"""
+    def test_create_task_tags_cleaned(self, client, mock_db, monkeypatch):
+        """Test that tags are cleaned (trimmed and non-empty)"""
         mock_task_ref = Mock()
         mock_task_ref.id = "task789"
         
@@ -552,13 +552,13 @@ class TestCreateTask:
             "title": "Test Task",
             "description": "Valid description",
             "created_by_id": "user1",
-            "labels": ["  bug  ", "", "urgent", "   "]
+            "tags": ["  bug  ", "", "urgent", "   "]
         }
         response = client.post("/api/tasks", json=payload)
         
         assert response.status_code == 201
         data = response.get_json()
-        assert data["labels"] == ["bug", "urgent"]
+        assert data["tags"] == ["bug", "urgent"]
 
 
 class TestListTasks:
@@ -682,7 +682,7 @@ class TestListTasks:
         response = client.get("/api/tasks?label_id=bug", headers={"X-User-Id": "user1"})
         
         assert response.status_code == 200
-        assert ("labels", "array_contains", "bug") in where_calls
+        assert ("tags", "array_contains", "bug") in where_calls
         
     def test_list_tasks_with_limit(self, client, mock_db, monkeypatch):
         """Test limiting number of tasks returned"""
@@ -1556,7 +1556,7 @@ class TestHelperFunctionsDirectly:
             "created_by": {"user_id": "user1"},
             "assigned_to": None,
             "project_id": "proj1",
-            "labels": []
+            "tags": []
         }
         
         mock_new_task_ref = Mock()

@@ -135,7 +135,6 @@ function injectNavbar(){
     navLinks += `<a href="projects.html" data-route="projects.html">Projects</a>`;
     navLinks += `<a href="tasks_list.html" data-route="tasks_list.html">Tasks</a>`;
     navLinks += `<a href="create_task.html" data-route="create_task.html">Create Task</a>`;
-    navLinks += `<a href="labels.html" data-route="labels.html">Labels</a>`;
   } else {
     // Not logged in - just show brand linking to index
     navLinks += `<a href="index.html" class="brand">📋 TaskMgr</a>`;

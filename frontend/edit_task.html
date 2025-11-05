@@ -27,15 +27,15 @@
     
     <form id="editTaskForm" style="display:none;">
       <label>Title</label>
-      <input id="title" required maxlength="100" />
+      <input id="title" name="title" required maxlength="100" />
       
       <label>Description</label>
-      <textarea id="description" rows="4" required maxlength="500"></textarea>
+      <textarea id="description" name="description" rows="4" required maxlength="500"></textarea>
 
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <div style="flex:1 1 180px">
           <label>Priority</label>
-          <select id="priority">
+          <select id="priority" name="priority">
             <option value="Low">Low</option>
             <option value="Medium">Medium</option>
             <option value="High">High</option>
@@ -44,7 +44,7 @@
         </div>
         <div style="flex:1 1 180px">
           <label>Status</label>
-          <select id="status">
+          <select id="status" name="status">
             <option value="To Do">To Do</option>
             <option value="In Progress">In Progress</option>
             <option value="Completed">Completed</option>
@@ -53,8 +53,15 @@
         </div>
         <div style="flex:1 1 180px">
           <label>Due Date</label>
-          <input id="due_date" type="datetime-local"/>
+          <input id="due_date" name="due_date" type="datetime-local"/>
         </div>
+      </div>
+
+      <label>Tags (optional, max 3, max 12 chars each)</label>
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <input id="tag1" maxlength="12" placeholder="Tag 1" style="flex:1"/>
+        <input id="tag2" maxlength="12" placeholder="Tag 2" style="flex:1"/>
+        <input id="tag3" maxlength="12" placeholder="Tag 3" style="flex:1"/>
       </div>
 
       <div style="border:1px solid #ddd;padding:12px;margin:12px 0;border-radius:6px;background:#f9f9f9">
