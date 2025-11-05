@@ -6,10 +6,21 @@
   <title>Task Notes</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
     body {
       font-family: system-ui, Segoe UI, Arial;
-      margin: 20px;
-      max-width: 900px
+      background: #f5f6fa;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 20px auto;
+      padding: 0 20px;
     }
 
     form,
@@ -131,6 +142,7 @@
   <div id="nav"></div>
   <script src="common.js"></script>
 
+  <div class="container">
   <h1>Task Notes</h1>
   <p id="task"></p>
 
@@ -379,6 +391,7 @@
     
     load();
   </script>
+  </div> <!-- Close container -->
 </body>
 
 </html>

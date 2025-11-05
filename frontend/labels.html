@@ -6,10 +6,21 @@
   <title>Labels</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
     body {
       font-family: system-ui, Segoe UI, Arial;
-      margin: 20px;
-      max-width: 900px
+      background: #f5f6fa;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 20px auto;
+      padding: 0 20px;
     }
 
     form,
@@ -39,7 +50,9 @@
       margin: 4px
     }
 
-    .row {
+    /* Scope row class to not affect navbar */
+    body > .row,
+    .card .row {
       display: flex;
       gap: 16px;
       flex-wrap: wrap
@@ -56,6 +69,7 @@
   <script src="common.js"></script>
 <script>try{requireAuth();}catch(e){}</script>
 
+  <div class="container">
   <h1>Labels</h1>
 
   <div class="card">
@@ -170,4 +184,5 @@
 })();
 </script>
 
+  </div> <!-- Close container -->
 </body></html>

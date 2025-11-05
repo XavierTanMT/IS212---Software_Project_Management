@@ -53,6 +53,11 @@ function el(id){ return document.getElementById(id); }
 
 // Sticky navbar at top of every page with role-based navigation
 function injectNavbar(){
+  // Skip navbar injection if page has skipNavbar flag
+  if (window.skipNavbar) {
+    return;
+  }
+  
   if (!document.getElementById("app-navbar-style")){
     const style = document.createElement("style");
     style.id = "app-navbar-style";
@@ -60,26 +65,34 @@ function injectNavbar(){
       :root { --nav-bg:#fff; --nav-border:#eaeaea; --nav-link:#333; --nav-accent:#667eea; }
       body { margin:0; }
       #app-navbar { position: sticky; top:0; z-index:9999; background:var(--nav-bg); border-bottom:1px solid var(--nav-border); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-      #app-navbar .row { max-width:1200px; margin:0 auto; padding:12px 20px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;}
-      #app-navbar .links { display:flex; align-items:center; gap:4px; flex-wrap:wrap; }
-      #app-navbar .links a { color:var(--nav-link); text-decoration:none; font-weight:500; padding:8px 12px; border-radius:6px; transition: all 0.2s; font-size:14px; }
+      #app-navbar .row { max-width:100%; margin:0 auto; padding:12px 20px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;}
+      #app-navbar .links { display:flex; align-items:center; gap:4px; flex-wrap:wrap; flex-shrink: 0; }
+      #app-navbar .links a { color:var(--nav-link); text-decoration:none; font-weight:500; padding:8px 12px; border-radius:6px; transition: all 0.2s; font-size:14px; white-space:nowrap; }
       #app-navbar .links a:hover { background:#f5f6fa; color:var(--nav-accent); }
       #app-navbar .links a.active { color:var(--nav-accent); background:#f0f2ff; font-weight:600; }
-      #app-navbar .links a.brand { font-weight:700; font-size:16px; color:var(--nav-accent); }
+      #app-navbar .links a.brand { font-weight:700; font-size:16px; color:var(--nav-accent); padding:8px 16px; }
       #app-navbar .links a.brand:hover { background:transparent; }
-      #app-navbar .role-badge { padding:4px 8px; border-radius:12px; font-size:11px; font-weight:600; margin-left:8px; }
+      #app-navbar .role-badge { padding:4px 8px; border-radius:12px; font-size:11px; font-weight:600; margin-left:4px; white-space:nowrap; }
       #app-navbar .role-admin { background:#dc3545; color:white; }
       #app-navbar .role-manager { background:#667eea; color:white; }
       #app-navbar .role-director { background:#764ba2; color:white; }
       #app-navbar .role-hr { background:#f093fb; color:white; }
       #app-navbar .role-staff { background:#a8edea; color:#333; }
-      #app-navbar .right { display:flex; align-items:center; gap:12px; font-size:13px; color:#444; }
-      #app-navbar .user-info { display:flex; align-items:center; gap:8px; padding:6px 12px; background:#f8f9fa; border-radius:6px; }
-      #app-navbar button { padding:8px 14px; border-radius:6px; border:1px solid var(--nav-border); background:#fff; cursor:pointer; font-weight:500; transition: all 0.2s; }
+      #app-navbar .right { display:flex; align-items:center; gap:12px; font-size:13px; color:#444; flex-wrap:wrap; }
+      #app-navbar .user-info { display:flex; align-items:center; gap:8px; padding:6px 12px; background:#f8f9fa; border-radius:6px; white-space:nowrap; max-width:300px; overflow:hidden; text-overflow:ellipsis; }
+      #app-navbar button { padding:8px 14px; border-radius:6px; border:1px solid var(--nav-border); background:#fff; cursor:pointer; font-weight:500; transition: all 0.2s; white-space:nowrap; }
       #app-navbar button:hover { background:#667eea; color:white; border-color:#667eea; }
-      #app-navbar .project-info { display:flex; align-items:center; gap:6px; padding:6px 10px; background:#fff3cd; border-radius:6px; font-size:12px; }
+      #app-navbar .project-info { display:flex; align-items:center; gap:6px; padding:6px 10px; background:#fff3cd; border-radius:6px; font-size:12px; white-space:nowrap; }
       #app-navbar .project-info button { padding:4px 8px; font-size:11px; margin:0; }
       .with-navbar { padding-top: 4px; }
+      
+      /* Responsive adjustments */
+      @media (max-width: 768px) {
+        #app-navbar .row { padding: 8px 12px; }
+        #app-navbar .links a { padding: 6px 8px; font-size: 13px; }
+        #app-navbar .links a.brand { font-size: 14px; padding: 6px 12px; }
+        #app-navbar .user-info { max-width: 200px; font-size: 12px; }
+      }
     `;
     document.head.appendChild(style);
   }
