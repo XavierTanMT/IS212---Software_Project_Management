@@ -13,17 +13,6 @@
         }
         .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
         
-        /* Header */
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 1rem 2rem;
-            margin-bottom: 2rem;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
-        .header h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
-        .header p { opacity: 0.9; font-size: 0.9rem; }
-        
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0; }
         .stat-card { 
             background: white;
@@ -94,14 +83,13 @@
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>👑 Admin Dashboard</h1>
-        <p>System-wide administration and user management</p>
+    <div class="container">
+    
+    <div style="margin: 2rem 0;">
+        <h1 style="color: #333; margin-bottom: 0.5rem;">👑 Admin Dashboard</h1>
+        <p style="color: #666;">System-wide administration and user management</p>
     </div>
     
-    <div id="nav"></div>
-    
-    <div class="container">
     <div class="stats-grid" id="statsGrid">
         <!-- Stats will be loaded here -->
     </div>
@@ -345,33 +333,58 @@
     </div>
     
     <!-- ✅ Load firebase-auth.js FIRST (it defines API_BASE) -->
+    <script src="common.js"></script>
     <script src="firebase-auth.js"></script>
     
     <script>
-        // ✅ Require admin role
-        const currentUser = requireAdmin();
-        
-        // ✅ DON'T redeclare API_BASE - it's already in firebase-auth.js
-        // const API_BASE = 'http://localhost:5000'; // ❌ REMOVED
-        
+        // Global variables
         let allUsers = [];
+        let currentUser = null; // Will be set after auth check
+        
+        // ==================== INITIALIZE EVENT LISTENERS ====================
+        
+        function initializeEventListeners() {
+            document.getElementById('roleFilter').addEventListener('change', filterUsers);
+            document.getElementById('statusFilter').addEventListener('change', filterUsers);
+            document.getElementById('createUserBtn').addEventListener('click', openCreateUserModal);
+            document.getElementById('closeModalBtn').addEventListener('click', closeCreateUserModal);
+            document.getElementById('createUserForm').addEventListener('submit', handleCreateUser);
+            document.getElementById('generateReportBtn').addEventListener('click', generateReport);
+        }
         
         // ==================== TAB SWITCHING (Event Listeners) ====================
         
-        document.getElementById('tab-overview').addEventListener('click', function() {
-            switchTab('overview', this);
-        });
-        
-        document.getElementById('tab-users').addEventListener('click', function() {
-            switchTab('users', this);
-        });
-        
-        document.getElementById('tab-projects').addEventListener('click', function() {
-            switchTab('projects', this);
-        });
-        
-        document.getElementById('tab-reports').addEventListener('click', function() {
-            switchTab('reports', this);
+        // Wait for DOM to be ready before attaching event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            // ✅ Require admin role - do this AFTER DOM is ready
+            try {
+                currentUser = requireAdmin();
+                console.log('Admin authenticated:', currentUser);
+            } catch (error) {
+                console.error('Admin auth failed:', error);
+                return; // Stop execution if not admin
+            }
+            document.getElementById('tab-overview').addEventListener('click', function() {
+                switchTab('overview', this);
+            });
+            
+            document.getElementById('tab-users').addEventListener('click', function() {
+                switchTab('users', this);
+            });
+            
+            document.getElementById('tab-projects').addEventListener('click', function() {
+                switchTab('projects', this);
+            });
+            
+            document.getElementById('tab-reports').addEventListener('click', function() {
+                switchTab('reports', this);
+            });
+            
+            // Initialize all other event listeners
+            initializeEventListeners();
+            
+            // Load initial data
+            loadAdminDashboard();
         });
         
         function switchTab(tabName, tabElement) {
@@ -490,9 +503,6 @@
         
         // ==================== USER FILTERING ====================
         
-        document.getElementById('roleFilter').addEventListener('change', filterUsers);
-        document.getElementById('statusFilter').addEventListener('change', filterUsers);
-        
         function filterUsers() {
             const roleFilter = document.getElementById('roleFilter').value;
             const statusFilter = document.getElementById('statusFilter').value;
@@ -514,9 +524,6 @@
         
         // ==================== CREATE USER MODAL ====================
         
-        document.getElementById('createUserBtn').addEventListener('click', openCreateUserModal);
-        document.getElementById('closeModalBtn').addEventListener('click', closeCreateUserModal);
-        
         function openCreateUserModal() {
             document.getElementById('createUserModal').style.display = 'block';
             document.getElementById('createUserForm').reset();
@@ -537,7 +544,7 @@
         
         // ==================== CREATE USER HANDLER ====================
         
-        document.getElementById('createUserForm').addEventListener('submit', async (e) => {
+        async function handleCreateUser(e) {
             e.preventDefault();
             
             const messageDiv = document.getElementById('createUserMessage');
@@ -591,7 +598,7 @@
             } catch (error) {
                 messageDiv.innerHTML = `<div class="message error">❌ Error: ${error.message}</div>`;
             }
-        });
+        }
         
         // ==================== USER MANAGEMENT ACTIONS ====================
         
@@ -687,14 +694,7 @@
             }
         }
         
-        // ==================== PAGE INITIALIZATION ====================
-        
-        // Load dashboard on page load
-        document.addEventListener('DOMContentLoaded', loadAdminDashboard);
-        
         // ==================== REPORTS & EXPORT ====================
-        
-        document.getElementById('generateReportBtn').addEventListener('click', generateReport);
         
         async function generateReport() {
             const messageDiv = document.getElementById('reportMessage');

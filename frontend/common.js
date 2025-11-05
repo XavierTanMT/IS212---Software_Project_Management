@@ -51,7 +51,7 @@ function el(id){ return document.getElementById(id); }
   }
 })();
 
-// Sticky navbar at top of every page
+// Sticky navbar at top of every page with role-based navigation
 function injectNavbar(){
   if (!document.getElementById("app-navbar-style")){
     const style = document.createElement("style");
@@ -59,77 +59,153 @@ function injectNavbar(){
     style.textContent = `
       :root { --nav-bg:#fff; --nav-border:#eaeaea; --nav-link:#333; --nav-accent:#667eea; }
       body { margin:0; }
-      #app-navbar { position: sticky; top:0; z-index:9999; background:var(--nav-bg); border-bottom:1px solid var(--nav-border); }
-      #app-navbar .row { max-width:1100px; margin:0 auto; padding:10px 14px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;}
-      #app-navbar .links a { color:var(--nav-link); text-decoration:none; font-weight:600; margin-right:12px; }
-      #app-navbar .links a.active { color:var(--nav-accent); }
-      #app-navbar .right { display:flex; align-items:center; gap:10px; font-size:13px; color:#444; }
-      #app-navbar button { padding:6px 10px; border-radius:8px; border:1px solid var(--nav-border); background:#f7f7fb; cursor:pointer; }
-      #app-navbar button:hover { background:#eef0ff; border-color:#d7dbff; }
+      #app-navbar { position: sticky; top:0; z-index:9999; background:var(--nav-bg); border-bottom:1px solid var(--nav-border); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+      #app-navbar .row { max-width:1200px; margin:0 auto; padding:12px 20px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;}
+      #app-navbar .links { display:flex; align-items:center; gap:4px; flex-wrap:wrap; }
+      #app-navbar .links a { color:var(--nav-link); text-decoration:none; font-weight:500; padding:8px 12px; border-radius:6px; transition: all 0.2s; font-size:14px; }
+      #app-navbar .links a:hover { background:#f5f6fa; color:var(--nav-accent); }
+      #app-navbar .links a.active { color:var(--nav-accent); background:#f0f2ff; font-weight:600; }
+      #app-navbar .links a.brand { font-weight:700; font-size:16px; color:var(--nav-accent); }
+      #app-navbar .links a.brand:hover { background:transparent; }
+      #app-navbar .role-badge { padding:4px 8px; border-radius:12px; font-size:11px; font-weight:600; margin-left:8px; }
+      #app-navbar .role-admin { background:#dc3545; color:white; }
+      #app-navbar .role-manager { background:#667eea; color:white; }
+      #app-navbar .role-director { background:#764ba2; color:white; }
+      #app-navbar .role-hr { background:#f093fb; color:white; }
+      #app-navbar .role-staff { background:#a8edea; color:#333; }
+      #app-navbar .right { display:flex; align-items:center; gap:12px; font-size:13px; color:#444; }
+      #app-navbar .user-info { display:flex; align-items:center; gap:8px; padding:6px 12px; background:#f8f9fa; border-radius:6px; }
+      #app-navbar button { padding:8px 14px; border-radius:6px; border:1px solid var(--nav-border); background:#fff; cursor:pointer; font-weight:500; transition: all 0.2s; }
+      #app-navbar button:hover { background:#667eea; color:white; border-color:#667eea; }
+      #app-navbar .project-info { display:flex; align-items:center; gap:6px; padding:6px 10px; background:#fff3cd; border-radius:6px; font-size:12px; }
+      #app-navbar .project-info button { padding:4px 8px; font-size:11px; margin:0; }
       .with-navbar { padding-top: 4px; }
     `;
     document.head.appendChild(style);
   }
+  
   if (!document.getElementById("app-navbar")){
     const wrap = document.createElement("header");
     wrap.id = "app-navbar";
-    wrap.innerHTML = `
-      <div class="row">
-        <div class="links">
-          <a href="index.html"><strong>TaskMgr</strong></a>
-          <a href="dashboard.html" data-route="dashboard.html">Dashboard</a>
-          <a href="projects.html" data-route="projects.html">Projects</a>
-          <a href="tasks_list.html" data-route="tasks_list.html">Tasks</a>
-          <a href="create_task.html" data-route="create_task.html">Create Task</a>
-        </div>
-        <div class="right">
-          <span id="navProject"></span>
-          <span id="navUser"></span>
-          <button id="logoutBtn" style="display:none">Sign out</button>
-          <a id="loginLink" href="login.html" style="display:none">Login</a>
-        </div>
-      </div>
-    `;
     document.body.insertAdjacentElement("afterbegin", wrap);
     document.body.classList.add("with-navbar");
   }
 
+  const u = getCurrentUser();
+  const p = getCurrentProject();
+  const userRole = (u?.role || 'staff').toLowerCase();
+  
+  // Build navigation links based on role
+  // Logo always goes to dashboard
+  let navLinks = '';
+  
+  if (u) {
+    const dashboardUrl = getRoleDashboardUrl(userRole);
+    navLinks += `<a href="${dashboardUrl}" class="brand">📋 TaskMgr</a>`;
+    
+    // Role-based dashboard links
+    if (userRole === 'staff') {
+      // Staff: Only Dashboard link
+      navLinks += `<a href="dashboard.html" data-route="dashboard.html">Dashboard</a>`;
+    } else if (['manager', 'director', 'hr'].includes(userRole)) {
+      // Manager/Director/HR: Dashboard + Manager Dashboard
+      navLinks += `<a href="dashboard.html" data-route="dashboard.html">Dashboard</a>`;
+      navLinks += `<a href="manager_dashboard.html" data-route="manager_dashboard.html">Manager Dashboard</a>`;
+    } else if (userRole === 'admin') {
+      // Admin: Dashboard + Manager Dashboard + Admin Dashboard
+      navLinks += `<a href="dashboard.html" data-route="dashboard.html">Dashboard</a>`;
+      navLinks += `<a href="manager_dashboard.html" data-route="manager_dashboard.html">Manager Dashboard</a>`;
+      navLinks += `<a href="admin_dashboard.html" data-route="admin_dashboard.html">Admin Dashboard</a>`;
+    }
+    
+    // Common links for all authenticated users
+    navLinks += `<a href="projects.html" data-route="projects.html">Projects</a>`;
+    navLinks += `<a href="tasks_list.html" data-route="tasks_list.html">Tasks</a>`;
+    navLinks += `<a href="create_task.html" data-route="create_task.html">Create Task</a>`;
+    navLinks += `<a href="labels.html" data-route="labels.html">Labels</a>`;
+  } else {
+    // Not logged in - just show brand linking to index
+    navLinks += `<a href="index.html" class="brand">📋 TaskMgr</a>`;
+  }
+  
+  // Build user info section
+  let userInfo = '';
+  if (u) {
+    const displayName = u.email || u.name || 'User';
+    const roleClass = `role-${userRole}`;
+    const roleName = userRole.charAt(0).toUpperCase() + userRole.slice(1);
+    userInfo = `
+      <div class="user-info">
+        <span>${displayName}</span>
+        <span class="role-badge ${roleClass}">${roleName}</span>
+      </div>
+    `;
+  }
+  
+  // Build project info section
+  let projectInfo = '';
+  if (p) {
+    projectInfo = `
+      <div class="project-info">
+        <span>📁 ${p.name || 'Project Selected'}</span>
+        <button id="clearProjectBtn">Clear</button>
+      </div>
+    `;
+  }
+  
+  // Build auth buttons
+  let authButtons = '';
+  if (u) {
+    authButtons = `<button id="logoutBtn">Sign Out</button>`;
+  } else {
+    authButtons = `<a href="login.html" style="padding:8px 14px; border-radius:6px; background:#667eea; color:white; text-decoration:none; font-weight:500;">Login</a>`;
+  }
+  
+  // Inject complete navbar
+  document.getElementById("app-navbar").innerHTML = `
+    <div class="row">
+      <div class="links">${navLinks}</div>
+      <div class="right">
+        ${projectInfo}
+        ${userInfo}
+        ${authButtons}
+      </div>
+    </div>
+  `;
+
+  // Highlight active page
   const current = (location.pathname.split("/").pop() || "").toLowerCase();
   document.querySelectorAll('#app-navbar .links a[data-route]').forEach(a => {
     a.classList.toggle('active', a.getAttribute('data-route').toLowerCase() === current);
   });
 
-  const u = getCurrentUser();
-  const p = getCurrentProject();
-  const navUser = document.getElementById("navUser");
-  const navProj = document.getElementById("navProject");
+  // Bind event handlers
   const logoutBtn = document.getElementById("logoutBtn");
-  const loginLink = document.getElementById("loginLink");
-
- 
-  navProj.textContent = "";
-  if (p) {
-    navProj.innerHTML = `<span style="font-size:12px;color:#666">Project selected</span> <button id="clearProjectBtn" style="margin-left:6px;padding:4px 6px;border-radius:6px;border:1px solid #eaeaea;background:#fff;font-size:11px;cursor:pointer">Clear</button>`;
-    const btn = document.getElementById('clearProjectBtn');
-    if (btn) btn.onclick = function(){ clearCurrentProject(); navProj.textContent = ''; window.location.reload(); };
-  }
-
-  // Prefer email if present, then name, never show raw uid unless nothing else exists
-  let who = "guest";
-  if (u){
-    who = u.email ? u.email : (u.name ? u.name : "signed-in");
-  }
-  navUser.textContent = "User: " + who;
-
-  if (u){
-    logoutBtn.style.display = "inline-block";
-    loginLink.style.display = "none";
+  if (logoutBtn) {
     logoutBtn.onclick = signOut;
-  } else {
-    logoutBtn.style.display = "none";
-    loginLink.style.display = "inline-block";
+  }
+  
+  const clearProjectBtn = document.getElementById('clearProjectBtn');
+  if (clearProjectBtn) {
+    clearProjectBtn.onclick = function(){ 
+      clearCurrentProject(); 
+      window.location.reload(); 
+    };
   }
 }
+
+// Helper function to get role-based dashboard URL
+function getRoleDashboardUrl(role) {
+  const dashboards = {
+    'admin': 'admin_dashboard.html',
+    'manager': 'manager_dashboard.html',
+    'director': 'manager_dashboard.html',
+    'hr': 'manager_dashboard.html',
+    'staff': 'dashboard.html'
+  };
+  return dashboards[role] || 'dashboard.html';
+}
+
 document.addEventListener("DOMContentLoaded", injectNavbar);
 
 // UI helpers

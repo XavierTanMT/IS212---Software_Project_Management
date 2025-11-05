@@ -27,7 +27,8 @@
  * However, this is NOT required - the backend-only mode works perfectly!
  */
 
-const API_BASE = "http://localhost:5000";
+// API_BASE is now defined in common.js which is loaded before this file
+// No need to redeclare it here
 
 // ============================================================================
 // Session Management

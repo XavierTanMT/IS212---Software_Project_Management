@@ -13,17 +13,6 @@
         }
         .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
         
-        /* Header */
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 1rem 2rem;
-            margin-bottom: 2rem;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
-        .header h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
-        .header p { opacity: 0.9; font-size: 0.9rem; }
-        
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0; }
         .stat-card { 
             background: white;
@@ -102,14 +91,13 @@
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>👔 Manager Dashboard</h1>
-        <p>Team management and oversight</p>
+    <div class="container">
+    
+    <div style="margin: 2rem 0;">
+        <h1 style="color: #333; margin-bottom: 0.5rem;">👔 Manager Dashboard</h1>
+        <p style="color: #666;">Team management and oversight</p>
     </div>
     
-    <div id="nav"></div>
-    
-    <div class="container">
     <!-- Statistics Cards -->
     <div class="stats-grid" id="statsGrid">
         <!-- Will be populated by JS -->
@@ -226,33 +214,71 @@
         </div>
     </div>
     
+    <script src="common.js"></script>
     <script src="firebase-auth.js"></script>
     <script>
-        // ✅ Require manager role or above
-        const currentUser = requireManager();
-        
+        // Global variables
         let dashboardData = null;
         let allStaff = [];
         let allManagers = [];
+        let currentUser = null; // Will be set after auth check
+        
+        // ==================== INITIALIZE EVENT LISTENERS ====================
+        
+        function initializeManagerEventListeners() {
+            document.getElementById('assignStaffBtn').addEventListener('click', openAssignStaffModal);
+            document.getElementById('closeAssignModal').addEventListener('click', closeAssignStaffModal);
+            document.getElementById('selectAllStaff').addEventListener('click', () => {
+                document.querySelectorAll('#staffCheckboxList input[type="checkbox"]').forEach(cb => cb.checked = true);
+            });
+            document.getElementById('deselectAllStaff').addEventListener('click', () => {
+                document.querySelectorAll('#staffCheckboxList input[type="checkbox"]').forEach(cb => cb.checked = false);
+            });
+            document.getElementById('confirmAssignBtn').addEventListener('click', assignStaffToManager);
+            document.getElementById('assignToOtherBtn').addEventListener('click', openSingleAssignModal);
+            document.getElementById('closeSingleModal').addEventListener('click', closeSingleAssignModal);
+            document.getElementById('singleAssignForm').addEventListener('submit', handleSingleAssign);
+            document.getElementById('refreshTeamBtn').addEventListener('click', () => {
+                loadMyTeam();
+                loadManageTeamTab();
+            });
+        }
         
         // ==================== TAB SWITCHING ====================
         
-        document.getElementById('tab-overview').addEventListener('click', function() {
-            switchTab('overview', this);
-        });
-        
-        document.getElementById('tab-team').addEventListener('click', function() {
-            switchTab('team', this);
-            loadMyTeam();
-        });
-        
-        document.getElementById('tab-tasks').addEventListener('click', function() {
-            switchTab('tasks', this);
-        });
-        
-        document.getElementById('tab-manage').addEventListener('click', function() {
-            switchTab('manage', this);
-            loadManageTeamTab();
+        document.addEventListener('DOMContentLoaded', function() {
+            // ✅ Require manager role or above - do this AFTER DOM is ready
+            try {
+                currentUser = requireManager();
+                console.log('Manager authenticated:', currentUser);
+            } catch (error) {
+                console.error('Manager auth failed:', error);
+                return; // Stop execution if not manager
+            }
+            // Tab switching
+            document.getElementById('tab-overview').addEventListener('click', function() {
+                switchTab('overview', this);
+            });
+            
+            document.getElementById('tab-team').addEventListener('click', function() {
+                switchTab('team', this);
+                loadMyTeam();
+            });
+            
+            document.getElementById('tab-tasks').addEventListener('click', function() {
+                switchTab('tasks', this);
+            });
+            
+            document.getElementById('tab-manage').addEventListener('click', function() {
+                switchTab('manage', this);
+                loadManageTeamTab();
+            });
+            
+            // Initialize all event listeners
+            initializeManagerEventListeners();
+            
+            // Load initial dashboard data
+            loadManagerDashboard();
         });
         
         function switchTab(tabName, tabElement) {
@@ -478,9 +504,6 @@
         
         // ==================== ASSIGN STAFF MODAL ====================
         
-        document.getElementById('assignStaffBtn').addEventListener('click', openAssignStaffModal);
-        document.getElementById('closeAssignModal').addEventListener('click', closeAssignStaffModal);
-        
         function openAssignStaffModal() {
             document.getElementById('assignStaffModal').style.display = 'block';
             populateStaffCheckboxes();
@@ -523,16 +546,6 @@
             
             select.innerHTML = options;
         }
-        
-        document.getElementById('selectAllStaff').addEventListener('click', () => {
-            document.querySelectorAll('.staff-checkbox').forEach(cb => cb.checked = true);
-        });
-        
-        document.getElementById('deselectAllStaff').addEventListener('click', () => {
-            document.querySelectorAll('.staff-checkbox').forEach(cb => cb.checked = false);
-        });
-        
-        document.getElementById('confirmAssignBtn').addEventListener('click', assignStaffToManager);
         
         async function assignStaffToManager() {
             const selectedStaffIds = Array.from(document.querySelectorAll('.staff-checkbox:checked'))
@@ -590,9 +603,6 @@
         
         // ==================== ASSIGN SINGLE STAFF MODAL ====================
         
-        document.getElementById('assignToOtherBtn').addEventListener('click', openSingleAssignModal);
-        document.getElementById('closeSingleModal').addEventListener('click', closeSingleAssignModal);
-        
         function openSingleAssignModal() {
             document.getElementById('assignSingleModal').style.display = 'block';
             populateStaffDropdown();
@@ -614,7 +624,7 @@
             select.innerHTML = options;
         }
         
-        document.getElementById('singleAssignForm').addEventListener('submit', async (e) => {
+        async function handleSingleAssign(e) {
             e.preventDefault();
             
             const staffId = document.getElementById('singleStaffSelect').value;
@@ -663,7 +673,7 @@
             } catch (error) {
                 messageDiv.innerHTML = `<div class="message error">❌ Error: ${error.message}</div>`;
             }
-        });
+        }
         
         // ==================== REMOVE STAFF ====================
         
@@ -695,13 +705,6 @@
             }
         }
         
-        // ==================== REFRESH ====================
-        
-        document.getElementById('refreshTeamBtn').addEventListener('click', () => {
-            loadManageTeamTab();
-            loadManagerDashboard();
-        });
-        
         // ==================== MODAL CLOSE ON OUTSIDE CLICK ====================
         
         window.onclick = function(event) {
@@ -715,10 +718,6 @@
                 closeSingleAssignModal();
             }
         }
-        
-        // ==================== INIT ====================
-        
-        loadManagerDashboard();
     </script>
     </div> <!-- Close container -->
 </body>
