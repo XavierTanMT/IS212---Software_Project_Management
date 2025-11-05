@@ -3,14 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <title>Task Manager — Home</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <style>
-    body{font-family:system-ui,Segoe UI,Arial;margin:0}
-    .page{max-width:1000px;margin:20px auto;padding:0 16px}
-    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
-    .card{border:1px solid #ddd;border-radius:10px;padding:14px}
-    a.btn{display:inline-block;padding:8px 12px;border:1px solid #888;border-radius:8px;text-decoration:none}
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>  <link rel="stylesheet" href="css/index.css">
 </head>
 <body>
   <div id="nav"></div>
@@ -40,31 +33,7 @@
       </div>
     </div>
   </div>
-  <script src="common.js"></script>
-
-<script>
-// --- PATCH: generic empty-state guard --- //
-(function(){
-  if (window.__genericEmptyPatchApplied) return; window.__genericEmptyPatchApplied = true;
-  function afterLoad(){
-    document.querySelectorAll('.loading,.spinner').forEach(el=>el.remove());
-    const empties = [
-      ['#labelsList,.labels-list', 'No labels yet.'],
-      ['#attachmentsList,.attachments-list', 'No attachments yet.'],
-      ['#commentsList,.comments-list', 'No comments yet.'],
-      ['#membersList,.members-list', 'No members yet.'],
-    ];
-    for (const [sel, text] of empties){
-      const host = document.querySelector(sel);
-      if (host && (host.children.length === 0 || host.innerHTML.trim() === '')){
-        host.innerHTML = `<div style="padding:12px;color:#666">${text}</div>`;
-      }
-    }
-  }
-  window.addEventListener('load', ()=> setTimeout(afterLoad, 200));
-})();
-</script>
-
+  <script src="scripts/common.js"></script>  <script src="scripts/index.js"></script>
 </body></html> -->
 
 
@@ -73,55 +42,7 @@
 <head>
   <meta charset="utf-8"/>
   <title>Task Manager — Home</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <style>
-    body{
-      font-family:system-ui,Segoe UI,Arial;
-      margin:0;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .container {
-      text-align: center;
-      background: rgba(255, 255, 255, 0.95);
-      padding: 60px 40px;
-      border-radius: 20px;
-      backdrop-filter: blur(10px);
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-      max-width: 500px;
-    }
-    h1 { 
-      font-size: 2.5em; 
-      margin: 0 0 10px 0;
-      color: #333;
-    }
-    p { 
-      font-size: 1.1em; 
-      color: #666;
-      margin-bottom: 30px;
-    }
-    .spinner {
-      border: 4px solid rgba(102, 126, 234, 0.1);
-      border-top: 4px solid #667eea;
-      border-radius: 50%;
-      width: 40px;
-      height: 40px;
-      animation: spin 1s linear infinite;
-      margin: 20px auto;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    .redirect-message {
-      color: #667eea;
-      font-weight: 500;
-      margin-top: 15px;
-    }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>  <link rel="stylesheet" href="css/index.css">
 </head>
 <body>
   <div class="container">
@@ -134,40 +55,6 @@
     </p>
   </div>
 
-  <script src="common.js"></script>
-  <script>
-    // Immediately check authentication and redirect
-    (function() {
-      // Get current user from session
-      const user = getCurrentUser();
-      
-      if (!user) {
-        // Not logged in - redirect to login
-        console.log('No user session found, redirecting to login');
-        window.location.replace('login.html');
-        return;
-      }
-      
-      // User is logged in - redirect based on role
-      console.log('User authenticated:', user.email, '| Role:', user.role);
-      
-      // Use the role-based redirect function from common.js
-      if (typeof redirectToRoleDashboard === 'function') {
-        redirectToRoleDashboard();
-      } else {
-        // Fallback if common.js doesn't have the function
-        const role = user.role;
-        
-        if (role === 'admin' || role === 'hr') {
-          window.location.replace('admin_dashboard.html');
-        } else if (role === 'manager' || role === 'director') {
-          window.location.replace('manager_dashboard.html');
-        } else {
-          // Default to staff dashboard
-          window.location.replace('dashboard.html');
-        }
-      }
-    })();
-  </script>
+  <script src="scripts/common.js"></script>  <script src="scripts/index.js"></script>
 </body>
 </html>

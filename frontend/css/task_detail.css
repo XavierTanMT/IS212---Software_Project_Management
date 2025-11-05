@@ -1,0 +1,9 @@
+
+    body{font-family:system-ui,Segoe UI,Arial;margin:0}
+    .page{max-width:800px;margin:20px auto;padding:0 16px}
+    .pill{display:inline-block;padding:2px 8px;background:#eee;border-radius:999px}
+    .subtask{padding:8px;border-bottom:1px solid #eee;display:flex;align-items:center}
+    .subtask .meta{flex:1}
+    button{padding:6px 10px}
+    input[type=text], textarea{width:100%;padding:8px;margin:4px 0}
+  
