@@ -22,10 +22,8 @@ def create_project():
     # Resolve owner_id: accept uid directly, or a custom handle, or an email
     resolve_id = owner_id
     try:
-        # 1) If a users/{uid} doc exists, use it
         user_ref = db.collection("users").document(owner_id).get()
         if not user_ref.exists:
-            # 2) Try by handle
             q = db.collection("users").where(filter=FieldFilter("handle", "==", owner_id)).limit(1).stream()
             resolved = None
             for d in q:

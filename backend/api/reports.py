@@ -50,15 +50,16 @@ def parse_date(date_str):
 
 def safe_get_user_info(user_data, field, default=""):
     """Safely extract user info from various data structures"""
-    if not user_data:
-        return default
-    
-    # If it's a list, take the first item
+    # If it's a list, take the first item (empty lists are falsy but check type first)
     if isinstance(user_data, list):
         if len(user_data) > 0:
             user_data = user_data[0]
         else:
             return default
+    
+    # Check if data is empty/falsy after list processing
+    if not user_data:
+        return default
     
     # If it's a dict, get the field
     if isinstance(user_data, dict):

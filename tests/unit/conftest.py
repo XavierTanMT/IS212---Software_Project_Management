@@ -70,9 +70,10 @@ fake_firebase.auth = fake_auth
 fake_firestore = types.ModuleType("firebase_admin.firestore")
 fake_firestore.client = Mock()
 
-# Create callable mocks for ArrayUnion and ArrayRemove
+# Create callable mocks for ArrayUnion, ArrayRemove, and Increment
 _array_union_mock = Mock(side_effect=lambda x: x)
 _array_remove_mock = Mock(side_effect=lambda x: x)
+_increment_mock = Mock(side_effect=lambda x: x)
 
 # Create Query class with constants
 class QueryMock:
@@ -85,8 +86,12 @@ def _firestore_getattr(name):
         return _array_union_mock
     elif name == "ArrayRemove":
         return _array_remove_mock
+    elif name == "Increment":
+        return _increment_mock
     elif name == "Query":
         return QueryMock
+    elif name == "DELETE_FIELD":
+        return "DELETE_FIELD_SENTINEL"
     raise AttributeError(f"module 'firebase_admin.firestore' has no attribute '{name}'")
 
 fake_firestore.__getattr__ = _firestore_getattr
@@ -94,7 +99,9 @@ fake_firestore.__getattr__ = _firestore_getattr
 # Also set them directly for direct attribute access
 fake_firestore.ArrayUnion = _array_union_mock
 fake_firestore.ArrayRemove = _array_remove_mock
+fake_firestore.Increment = _increment_mock
 fake_firestore.Query = QueryMock
+fake_firestore.DELETE_FIELD = "DELETE_FIELD_SENTINEL"
 
 fake_firebase.firestore = fake_firestore
 
