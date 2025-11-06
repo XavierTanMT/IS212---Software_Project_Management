@@ -33,17 +33,17 @@ requireAuth();
 
   // Helper function to format assignees (handles single or multiple)
   function formatAssignees(assigned_to) {
-    if (!assigned_to) return "Unassigned";
+    if (!assigned_to) return "Me";
     
     // Handle array of assignees
     if (Array.isArray(assigned_to)) {
-        if (assigned_to.length === 0) return "Unassigned";
-        if (assigned_to.length === 1) return assigned_to[0].name || "Unassigned";
+        if (assigned_to.length === 0) return "Me";
+        if (assigned_to.length === 1) return assigned_to[0].name || "Me";
         return assigned_to.map(a => a.name).join(", "); // "John, Jane, Bob"
     }
     
     // Handle single assignee object
-    return assigned_to.name || "Unassigned";
+    return assigned_to.name || "Me";
   }
 
   async function load(){
@@ -107,6 +107,13 @@ requireAuth();
     const selectedProjectId = (document.getElementById('project_id') && document.getElementById('project_id').value || '').trim();
     let filtered = list; // server-returned tasks are authoritative
 
+    // Sort by priority (highest first - 10 to 1)
+    filtered.sort((a, b) => {
+      const priorityA = Number(a.priority) || 5;
+      const priorityB = Number(b.priority) || 5;
+      return priorityB - priorityA; // Descending order (10, 9, 8... 2, 1)
+    });
+
     filtered.forEach(t=>{
       const tr = document.createElement("tr");
       const showCompleteBtn = t.status !== 'Completed';
@@ -127,7 +134,6 @@ requireAuth();
               + (showCompleteBtn ? "<button onclick='markAsDone(\"" + t.task_id + "\")' style='background:#28a745;color:white;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;margin-right:8px'>✓ Done</button>" : "")
               + "<a href='edit_task.html?task_id=" + encodeURIComponent(t.task_id) + "'>Edit</a> · "
               + "<a href='task_notes.html?task_id=" + encodeURIComponent(t.task_id) + "'>Notes</a> · "
-              + "<a href='attachments.html?task_id=" + encodeURIComponent(t.task_id) + "'>Files</a>"
             );
 
       // compute progress percentage from subtask counts (no decimals)

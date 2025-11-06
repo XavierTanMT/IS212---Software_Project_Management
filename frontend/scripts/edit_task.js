@@ -82,7 +82,7 @@ try{requireAuth();}catch(e){}
             // Populate form fields
             document.getElementById('title').value = currentTask.title || '';
             document.getElementById('description').value = currentTask.description || '';
-            document.getElementById('priority').value = currentTask.priority || 'Medium';
+            document.getElementById('priority').value = currentTask.priority || 5;
             document.getElementById('status').value = currentTask.status || 'To Do';
             
             // Handle due date

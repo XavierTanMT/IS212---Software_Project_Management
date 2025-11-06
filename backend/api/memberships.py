@@ -31,6 +31,39 @@ def add_member():
     ref = db.collection("memberships").document(f"{project_id}_{user_id}")
     doc = {"project_id": project_id, "user_id": user_id, "role": role, "added_at": now_iso()}
     ref.set(doc)
+    
+    # Send notification to the new member
+    try:
+        # Get project details
+        project_doc = db.collection("projects").document(project_id).get()
+        if project_doc.exists:
+            project_data = project_doc.to_dict() or {}
+            project_name = project_data.get("name", "a project")
+            
+            # Get who added the member (viewer)
+            added_by_name = "A manager"
+            if viewer:
+                try:
+                    viewer_doc = db.collection("users").document(viewer).get()
+                    if viewer_doc.exists:
+                        viewer_data = viewer_doc.to_dict() or {}
+                        added_by_name = viewer_data.get("name", "A manager")
+                except Exception:
+                    pass
+            
+            # Send notification
+            from . import notifications as notifications_module
+            notifications_module.create_notification(
+                db,
+                user_id,
+                f"Added to project: {project_name}",
+                f"{added_by_name} added you to the project '{project_name}' as a {role}.",
+                task_id=None,
+                send_email=True,
+            )
+    except Exception as e:
+        print(f"Failed to send project membership notification: {e}")
+    
     return jsonify(doc), 201
 
 @memberships_bp.get("/by-project/<project_id>")

@@ -10,10 +10,12 @@ async function createProject(e){
   const payload = {
     name: document.getElementById("name").value.trim(),
     // Do not send key from UI (backend accepts optional key)
-    owner_id: current ? (current.user_id || current.user_id) : (ownerInput ? ownerInput.value.trim() : ""),
+    owner_id: current ? (current.user_id || current.uid || '') : (ownerInput ? ownerInput.value.trim() : ""),
     description: document.getElementById("description").value.trim()
   };
   if (!payload.name){ alert("Name is required"); return; }
+  if (!payload.owner_id){ alert("Owner ID is required"); return; }
+  
   btn.disabled = true; const old = btn.textContent; btn.textContent = "Creating...";
   try{
     const res = await fetch(API_BASE + "/api/projects", {
@@ -28,25 +30,52 @@ async function createProject(e){
       alert("Create project failed: " + err);
       return;
     }
-    alert("Project created");
-    setCurrentProject({ project_id: data.project_id, name: data.name });
-    form.reset();
+    
+    console.log('Project created:', data);
+    
     // If the creator selected initial team members, add memberships
-    try{
-      const sel = document.getElementById('member_select');
-      if (sel){
-        const selected = Array.from(sel.selectedOptions).map(o=>o.value).filter(Boolean);
+    const sel = document.getElementById('member_select');
+    if (sel){
+      const selected = Array.from(sel.selectedOptions).map(o=>o.value).filter(Boolean);
+      console.log('Selected team members:', selected);
+      if (selected.length > 0){
+        let successCount = 0;
         for (const user_id of selected){
           try{
-            await fetch(API_BASE + '/api/memberships', {
-              method: 'POST', headers: {'Content-Type':'application/json'},
+            const memberRes = await fetch(API_BASE + '/api/memberships', {
+              method: 'POST', 
+              headers: {
+                'Content-Type':'application/json'
+              },
               body: JSON.stringify({ project_id: data.project_id, user_id })
             });
-          }catch(e){ console.warn('failed to add membership', e); }
+            if (!memberRes.ok){
+              const errData = await memberRes.json().catch(()=>null);
+              console.error('Failed to add member:', user_id, errData);
+              alert(`Failed to add member ${user_id}: ${errData?.error || memberRes.status}`);
+            } else {
+              console.log('Successfully added member:', user_id);
+              successCount++;
+            }
+          }catch(e){ 
+            console.error('Failed to add membership for', user_id, e);
+            alert(`Error adding member ${user_id}: ${e.message}`);
+          }
         }
+        if (successCount > 0){
+          alert(`Project created! ${successCount} member(s) added.`);
+        } else if (selected.length > 0){
+          alert("Project created, but failed to add members. You can add them later.");
+        }
+      } else {
+        alert("Project created");
       }
-    }catch(e){ console.warn('add members error', e); }
-
+    } else {
+      alert("Project created");
+    }
+    
+    setCurrentProject({ project_id: data.project_id, name: data.name });
+    form.reset();
     // Autofill owner if needed
     load();
 }catch(err){
@@ -239,7 +268,12 @@ load();
           removeBtn.addEventListener('click', async ()=>{
             if (!confirm('Remove this member?')) return;
             try{
-              const r = await fetch(API_BASE + '/api/memberships/' + encodeURIComponent(project_id) + '/' + encodeURIComponent(uid), { method: 'DELETE' });
+              const r = await fetch(API_BASE + '/api/memberships/' + encodeURIComponent(project_id) + '/' + encodeURIComponent(uid), { 
+                method: 'DELETE',
+                headers: {
+                  'X-User-Id': currentUser ? (currentUser.user_id || currentUser.uid || '') : ''
+                }
+              });
               if (!r.ok){
                 // try to show server error message when available
                 let errText = 'Remove failed';
@@ -290,8 +324,17 @@ load();
       const sel = document.getElementById('membersAddSelect');
       const user_id = sel.value;
       if (!user_id) return alert('Select a user to add');
+      const currentUser = (getCurrentUser && getCurrentUser()) || null;
+      const viewerId = currentUser ? (currentUser.user_id || currentUser.uid || '') : '';
       try{
-        const r = await fetch(API_BASE + '/api/memberships', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ project_id, user_id }) });
+        const r = await fetch(API_BASE + '/api/memberships', { 
+          method: 'POST', 
+          headers: {
+            'Content-Type':'application/json',
+            'X-User-Id': viewerId
+          }, 
+          body: JSON.stringify({ project_id, user_id }) 
+        });
         if (!r.ok){ const d = await r.json().catch(()=>null); alert('Add failed: ' + (d && d.error ? d.error : r.status)); return; }
         // refresh
         await openMembersModal(project_id, project_name);

@@ -13,7 +13,7 @@ def task_to_json(d):
         "task_id": d.id,
         "title": data.get("title"),
         "description": data.get("description"),
-        "priority": data.get("priority", "Medium"),
+        "priority": data.get("priority", 5),
         "status": data.get("status", "To Do"),
         "due_date": data.get("due_date"),
         "created_at": data.get("created_at"),
@@ -76,7 +76,7 @@ def _can_view_task_doc(db, task_doc):
     if viewer_role == 'admin':
         return True
 
-    manager_roles = ["manager", "director", "hr"]
+    manager_roles = ["manager"]
     if viewer_role in manager_roles:
         # Allow if the creator or assignee report to this manager
         try:
@@ -194,16 +194,19 @@ def _notify_task_changes(db, task_id, old_data, updates, editor_id, notification
     notification_body = f"{editor_name} made changes to the task:\n\n{changes_text}"
     
     for user_id in recipients:
+        # Skip notifying the editor themselves
+        if user_id == editor_id:
+            continue
+            
         try:
-            # Create in-app notification. Defer/send emails via background job or
-            # the notifications service to avoid extra DB lookups during request-based flows.
+            # Create in-app notification and send email
             notifications_module.create_notification(
                 db,
                 user_id,
                 notification_title,
                 notification_body,
                 task_id=task_id,
-                send_email=False,
+                send_email=True,
             )
         except Exception as e:
             print(f"Failed to notify user {user_id} about task changes: {e}")
@@ -248,7 +251,7 @@ def _create_next_recurring_task(db, completed_task_doc):
     new_task_data = {
         "title": task_data.get("title"),
         "description": task_data.get("description"),
-        "priority": task_data.get("priority", "Medium"),
+        "priority": task_data.get("priority", 5),
         "status": "To Do",  # Reset to To Do
         "due_date": next_due_date,
         "created_at": now_iso(),
@@ -276,7 +279,7 @@ def create_task():
 
     title = (payload.get("title") or "").strip()
     description = (payload.get("description") or "").strip()
-    priority = payload.get("priority", "Medium")
+    priority = payload.get("priority", 5)
     status = payload.get("status", "To Do")
     due_date = payload.get("due_date")
     project_id = (payload.get("project_id") or "").strip()
@@ -290,6 +293,14 @@ def create_task():
         return jsonify({"error": "Description must be at least 10 characters"}), 400
     if not created_by_id:
         return jsonify({"error": "created_by_id is required"}), 400
+
+    # Validate priority is between 1 and 10
+    try:
+        priority = int(priority)
+        if priority < 1 or priority > 10:
+            return jsonify({"error": "Priority must be between 1 and 10"}), 400
+    except (ValueError, TypeError):
+        priority = 5  # Default to medium priority
 
     created_by_doc = db.collection("users").document(created_by_id).get()
     if not created_by_doc.exists:
@@ -508,7 +519,7 @@ def list_tasks():
         add_docs(q2.limit(limit_fetch))
 
         # Managers (and similar roles) can see team members' tasks
-        manager_roles = ["manager", "director", "hr"]
+        manager_roles = ["manager"]
         if viewer_role in manager_roles:
             # Find team members (users who have manager_id == viewer)
             try:
@@ -714,7 +725,7 @@ def reassign_task(task_id):
     
     viewer_data = viewer_doc.to_dict() or {}
     viewer_role = viewer_data.get("role", "staff")
-    manager_roles = ["manager", "director", "hr"]
+    manager_roles = ["manager"]
     
     if viewer_role not in manager_roles:
         return jsonify({"error": "Only managers and above can reassign tasks"}), 403

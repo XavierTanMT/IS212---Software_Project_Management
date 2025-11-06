@@ -56,8 +56,6 @@ def get_admin_dashboard():
     role_breakdown = {
         "staff": 0,
         "manager": 0,
-        "director": 0,
-        "hr": 0,
         "admin": 0
     }
     active_users = 0
@@ -167,7 +165,7 @@ def get_all_users():
     Admin can see everyone.
     
     Query params:
-    - role: Filter by role (staff, manager, director, hr, admin)
+    - role: Filter by role (staff, manager, admin)
     - status: Filter by status (active, inactive)
     """
     db = firestore.client()
@@ -283,13 +281,13 @@ def add_staff():
 @admin_bp.post("/managers")
 def add_manager():
     """
-    Add new manager - Admin.addManager(Manager) from class diagram.
+    Add new manager or admin - Admin.addManager(Manager) from class diagram.
     
     Body: {
         "email": "manager@example.com",
         "password": "password123",
         "name": "Jane Smith",
-        "manager_type": "manager" // or "director" or "hr"
+        "manager_type": "manager" // or "admin"
     }
     """
     db = firestore.client()
@@ -314,8 +312,8 @@ def add_manager():
     if not email or not password or not name:
         return jsonify({"error": "email, password, and name are required"}), 400
     
-    # Validate manager type
-    valid_manager_types = ["manager", "director", "hr"]
+    # Validate manager type - only 3 roles: staff, manager, admin
+    valid_manager_types = ["manager", "admin"]
     if manager_type not in valid_manager_types:
         return jsonify({"error": f"manager_type must be one of: {valid_manager_types}"}), 400
     
@@ -458,8 +456,8 @@ def remove_manager(user_id):
     
     user_data = user_doc.to_dict()
     
-    # Verify user is manager
-    manager_roles = ["manager", "director", "hr"]
+    # Verify user is manager or admin
+    manager_roles = ["manager", "admin"]
     if user_data.get("role") not in manager_roles:
         return jsonify({
             "error": "This endpoint is for removing managers only",
@@ -508,7 +506,7 @@ def change_user_role(user_id):
     Change user role.
     
     Body: {
-        "role": "staff" | "manager" | "director" | "hr" | "admin"
+        "role": "staff" | "manager" | "admin"
     }
     """
     db = firestore.client()
@@ -525,8 +523,8 @@ def change_user_role(user_id):
     data = request.get_json()
     new_role = data.get("role")
     
-    # Validate role
-    valid_roles = ["staff", "manager", "director", "hr", "admin"]
+    # Validate role - only 3 roles: staff, manager, admin
+    valid_roles = ["staff", "manager", "admin"]
     if new_role not in valid_roles:
         return jsonify({"error": f"Invalid role. Must be one of: {valid_roles}"}), 400
     

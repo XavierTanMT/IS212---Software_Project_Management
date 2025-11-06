@@ -137,7 +137,7 @@ def task_completion_report():
             "task_id": task_doc.id,
             "title": task_data.get("title", "N/A"),
             "status": task_data.get("status", "To Do"),
-            "priority": task_data.get("priority", "Medium"),
+            "priority": task_data.get("priority", 5),
             "due_date": due_date_str,
             "assigned_to": safe_get_user_info(assigned_to_data, "name", "Unassigned"),
             "assigned_to_id": safe_get_user_info(assigned_to_data, "user_id", ""),

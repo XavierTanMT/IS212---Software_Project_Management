@@ -107,11 +107,11 @@ def check_deadlines():
     """Check for tasks with due dates approaching and create notifications for involved users.
 
     Query params:
-      hours - lookahead window in hours (default 24)
+      hours - lookahead window in hours (default 24, starting from tomorrow)
     """
     db = firestore.client()
     # Allow callers to specify an explicit start/end ISO window (UTC strings).
-    # If not provided, fall back to the `hours` lookahead window from now.
+    # If not provided, fall back to the `hours` lookahead window starting from tomorrow.
     start_iso = request.args.get("start_iso")
     end_iso = request.args.get("end_iso")
     if not start_iso or not end_iso:
@@ -121,8 +121,10 @@ def check_deadlines():
             hours = 24
 
         now = datetime.now(timezone.utc)
-        window_end = now + timedelta(hours=hours)
-        start_iso = now.isoformat()
+        # Start from tomorrow (24 hours from now)
+        tomorrow = now + timedelta(hours=24)
+        window_end = tomorrow + timedelta(hours=hours)
+        start_iso = tomorrow.isoformat()
         end_iso = window_end.isoformat()
 
     # Query tasks with due_date between start_iso and end_iso (ISO strings)
@@ -174,8 +176,8 @@ def check_deadlines():
         task_id = t.id
         due_date = tdata.get("due_date")
         title = tdata.get("title") or "Task"
-        msg_title = f"Upcoming deadline: {title}"
-        msg_body = f"Task '{title}' is due at {due_date}. Please review or update the task."
+        msg_title = f"Upcoming deadline tomorrow: {title}"
+        msg_body = f"Task '{title}' is due tomorrow at {due_date}. Please review or update the task."
 
         user_ids = set()
         # creator
@@ -305,8 +307,8 @@ def _notify_user_due_tasks(db, user_id: str, start_iso: str, end_iso: str) -> in
 
         if involved:
             title = data.get("title") or "Task"
-            msg_title = f"Upcoming deadline: {title}"
-            msg_body = f"Task '{title}' is due at {data.get('due_date')}. Please review or update the task."
+            msg_title = f"Upcoming deadline tomorrow: {title}"
+            msg_body = f"Task '{title}' is due tomorrow at {data.get('due_date')}. Please review or update the task."
 
             # Fetch user email for debugging
             try:

@@ -28,7 +28,7 @@ def _safe_iso_to_dt(s):
 
 def _is_manager_role(role):
     """Check if role is manager or above."""
-    manager_roles = ["manager", "director", "hr", "admin"]
+    manager_roles = ["manager", "admin"]
     return role in manager_roles
 
 def _get_task_status_flags(due_date_str):
@@ -799,7 +799,7 @@ def get_all_users():
             
             if user_role == "staff":
                 staff_list.append(user_info)
-            elif user_role in ["manager", "director", "hr", "admin"]:
+            elif user_role in ["manager", "admin"]:
                 manager_list.append(user_info)
         
         return jsonify({
@@ -1273,7 +1273,7 @@ def remove_manager_from_staff(staff_id):
     current_manager_id = staff_data.get("manager_id")
     
     # Verify current user is the assigned manager (or admin)
-    if current_manager_id != manager_id and manager_data.get("role") not in ["admin", "director"]:
+    if current_manager_id != manager_id and manager_data.get("role") not in ["admin"]:
         return jsonify({"error": "You are not assigned to this staff member"}), 403
     
     # Remove manager fields from staff document

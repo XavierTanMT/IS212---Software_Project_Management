@@ -46,6 +46,93 @@ def add_note():
         "edited_at": None,
     }
     ref.set(doc)
+    
+    # Send notifications about the new note
+    try:
+        # Get task details
+        task_ref = db.collection("tasks").document(task_id)
+        task_doc = task_ref.get()
+        
+        if task_doc.exists:
+            task_data = task_doc.to_dict() or {}
+            task_title = task_data.get("title", "Task")
+            
+            # Get author name
+            author_doc = db.collection("users").document(author_id).get()
+            author_name = "Someone"
+            if author_doc.exists:
+                author_data = author_doc.to_dict() or {}
+                author_name = author_data.get("name", "Someone")
+            
+            # Collect recipients
+            recipients = set()
+            
+            # 1. Task creator
+            creator_id = (task_data.get("created_by") or {}).get("user_id")
+            if creator_id:
+                recipients.add(creator_id)
+            
+            # 2. Task assignee
+            assignee_id = (task_data.get("assigned_to") or {}).get("user_id")
+            if assignee_id:
+                recipients.add(assignee_id)
+            
+            # 3. Mentioned users - resolve usernames to user IDs
+            if mentions:
+                # Query users collection to find user IDs from usernames
+                for username in mentions:
+                    try:
+                        # Try to find user by username (assuming username might be stored as 'name' or 'user_id')
+                        # First try exact user_id match
+                        user_doc = db.collection("users").document(username).get()
+                        if user_doc.exists:
+                            recipients.add(username)
+                        else:
+                            # Try to find by name field
+                            users_q = db.collection("users").where(
+                                filter=FieldFilter("name", "==", username)
+                            ).limit(1).stream()
+                            for u in users_q:
+                                recipients.add(u.id)
+                    except Exception as e:
+                        print(f"Failed to resolve mention @{username}: {e}")
+            
+            # 4. Project members (if task is in a project)
+            project_id = task_data.get("project_id")
+            if project_id:
+                mem_q = db.collection("memberships").where(
+                    filter=FieldFilter("project_id", "==", project_id)
+                ).stream()
+                for m in mem_q:
+                    md = m.to_dict() or {}
+                    uid = md.get("user_id")
+                    if uid:
+                        recipients.add(uid)
+            
+            # 5. Exclude the note author
+            recipients.discard(author_id)
+            
+            # Send notifications
+            from . import notifications as notifications_module
+            notification_title = f"New comment on: {task_title}"
+            notification_body = f"{author_name} commented:\n\n{body}"
+            
+            for user_id in recipients:
+                try:
+                    notifications_module.create_notification(
+                        db,
+                        user_id,
+                        notification_title,
+                        notification_body,
+                        task_id=task_id,
+                        send_email=True,
+                    )
+                except Exception as e:
+                    print(f"Failed to notify user {user_id} about new note: {e}")
+    
+    except Exception as e:
+        print(f"Failed to send note notifications: {e}")
+    
     return jsonify({"note_id": ref.id, **doc}), 201
 
 @notes_bp.get("/by-task/<task_id>")

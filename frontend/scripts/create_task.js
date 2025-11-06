@@ -52,7 +52,7 @@ document.getElementById("form").addEventListener("submit", async (e)=>{
   const payload = {
     title: document.getElementById("title").value.trim(),
     description: document.getElementById("description").value.trim(),
-    priority: document.getElementById("priority").value,
+    priority: parseInt(document.getElementById("priority").value),
     status: document.getElementById("status").value,
     due_date: dueDate || null,
     created_by_id: current.user_id,

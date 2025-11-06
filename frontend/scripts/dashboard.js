@@ -376,23 +376,28 @@ async function loadDashboardData() {
                 return;
             }
 
-            const priorityColors = {
-                'High': '#e74c3c',
-                'Medium': '#f39c12',
-                'Low': '#27ae60'
-            };
+            // Define color ranges for numeric priorities
+            function getPriorityColor(priority) {
+                const p = Number(priority);
+                if (p >= 8) return '#e74c3c';  // High priority (8-10) - red
+                if (p >= 5) return '#f39c12';  // Medium priority (5-7) - orange
+                return '#27ae60';               // Low priority (1-4) - green
+            }
 
             const total = Object.values(priorityData).reduce((sum, count) => sum + count, 0);
 
             let chartHTML = '';
-            for (const [priority, count] of Object.entries(priorityData)) {
+            // Sort priorities in descending order (10 to 1)
+            const sortedPriorities = Object.entries(priorityData).sort((a, b) => Number(b[0]) - Number(a[0]));
+            
+            for (const [priority, count] of sortedPriorities) {
                 if (count > 0) {
                     const percentage = total > 0 ? Math.round((count / total) * 100) : 0;
                     chartHTML += `
                         <div class="chart-item">
                             <div class="chart-label">
-                                <div class="chart-dot" style="background: ${priorityColors[priority] || '#666'}"></div>
-                                <span>${priority}</span>
+                                <div class="chart-dot" style="background: ${getPriorityColor(priority)}"></div>
+                                <span>Priority ${priority}</span>
                             </div>
                             <div class="chart-value">${count} (${percentage}%)</div>
                         </div>
@@ -420,7 +425,7 @@ async function loadDashboardData() {
             let tasksHTML = '';
             tasks.forEach(task => {
                 const statusClass = `status-${task.status.toLowerCase().replace(' ', '-')}`;
-                const priorityClass = `priority-${task.priority.toLowerCase()}`;
+                const priorityClass = getPriorityClass(task.priority);
 
                 // Only show delete button for tasks created by current user and for non-staff roles
                 const role = (currentUser && (currentUser.role || '')).toLowerCase();
@@ -434,7 +439,7 @@ async function loadDashboardData() {
                             <span class="task-status ${statusClass}">${task.status}</span>
                             <span class="priority ${priorityClass}">
                                 <span class="priority-dot"></span>
-                                ${task.priority}
+                                Priority ${task.priority}
                             </span>
                             ${task.due_date ? `<span>Due: ${formatDate(task.due_date)}</span>` : ''}
                         </div>
@@ -900,10 +905,11 @@ function createTaskCard(task) {
 }
 
 function getPriorityClass(priority) {
-    const p = priority?.toLowerCase() || 'medium';
-    if (p.includes('high')) return 'priority-high';
-    if (p.includes('low')) return 'priority-low';
-    return 'priority-medium';
+    const p = Number(priority);
+    if (isNaN(p)) return 'priority-medium';
+    if (p >= 8) return 'priority-high';    // 8-10
+    if (p >= 5) return 'priority-medium';  // 5-7
+    return 'priority-low';                 // 1-4
 }
 
 function formatDate(dateStr) {
@@ -1159,9 +1165,9 @@ function populateCalendarWithTasks(allTasks) {
             const visibleTasks = tasks.slice(0, 3);
             visibleTasks.forEach(task => {
                 const miniTask = document.createElement('div');
-                miniTask.className = `calendar-task-mini priority-${task.priority.toLowerCase()}`;
+                miniTask.className = `calendar-task-mini ${getPriorityClass(task.priority)}`;
                 miniTask.textContent = task.title;
-                miniTask.title = `${task.title} - ${task.priority} priority`;
+                miniTask.title = `${task.title} - Priority ${task.priority}`;
                 miniTask.dataset.taskId = task.task_id;
                 miniTask.draggable = true;
                 miniTask.onclick = () => showTaskDetails(task);

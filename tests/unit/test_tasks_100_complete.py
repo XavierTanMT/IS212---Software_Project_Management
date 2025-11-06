@@ -31,7 +31,7 @@ class TestHelperFunctions:
         mock_doc.to_dict.return_value = {
             "title": "Test Task",
             "description": "Description",
-            "priority": "High",
+            "priority": 8,
             "status": "In Progress"
         }
         
@@ -40,7 +40,7 @@ class TestHelperFunctions:
         assert result["task_id"] == "task123"
         assert result["title"] == "Test Task"
         assert result["description"] == "Description"
-        assert result["priority"] == "High"
+        assert result["priority"] == 8
         assert result["status"] == "In Progress"
     
     def test_task_to_json_with_defaults(self):
@@ -53,7 +53,7 @@ class TestHelperFunctions:
         
         result = task_to_json(mock_doc)
         
-        assert result["priority"] == "Medium"  # Default
+        assert result["priority"] == 5  # Default (medium)
         assert result["status"] == "To Do"  # Default
         assert result["archived"] == False  # Default
         assert result["is_recurring"] == False  # Default
@@ -69,7 +69,7 @@ class TestHelperFunctions:
         mock_doc.to_dict.return_value = {
             "title": "Task",
             "description": "Desc",
-            "priority": "Low",
+            "priority": 3,
             "status": "Done",
             "due_date": "2025-12-01",
             "created_at": "2025-01-01",
@@ -363,7 +363,7 @@ class TestCreateTask:
             json={
                 "title": "New Task Title",
                 "description": "This is a longer task description with enough characters",
-                "priority": "High",
+                "priority": 8,
                 "created_by_id": "creator123"
             })
         
@@ -509,7 +509,7 @@ class TestListTasks:
         mock_task.to_dict.return_value = {
             "title": "My Task",
             "status": "To Do",
-            "priority": "Medium",
+            "priority": 5,
             "created_by": {"user_id": "user123"},
             "archived": False,
             "created_at": "2024-01-01T00:00:00Z"
@@ -561,7 +561,7 @@ class TestListTasks:
         mock_task.to_dict.return_value = {
             "title": "Assigned Task",
             "status": "In Progress",
-            "priority": "High",
+            "priority": 8,
             "assigned_to": {"user_id": "user123"},
             "created_by": {"user_id": "other123"},
             "archived": False,
@@ -607,7 +607,7 @@ class TestListTasks:
         mock_task.to_dict.return_value = {
             "title": "Task",
             "status": "In Progress",
-            "priority": "Medium",
+            "priority": 5,
             "created_by": {"user_id": "user123"},
             "archived": False,
             "created_at": "2024-01-01T00:00:00Z"
@@ -654,7 +654,7 @@ class TestListTasks:
         mock_task.id = "task123"
         mock_task.to_dict.return_value = {
             "title": "High Priority Task",
-            "priority": "High",
+            "priority": 8,
             "status": "To Do",
             "created_by": {"user_id": "user123"},
             "archived": False,
@@ -685,7 +685,7 @@ class TestListTasks:
         
         mock_db.collection = Mock(side_effect=collection_side_effect)
         
-        response = client.get("/api/tasks?role=creator&priority=High",
+        response = client.get("/api/tasks?role=creator&priority=8",
             headers={"X-User-Id": "user123"})
         
         assert response.status_code == 200
@@ -693,7 +693,7 @@ class TestListTasks:
         assert len(data) >= 1
         # Verify at least one high priority task exists
         priorities = [t["priority"] for t in data]
-        assert "High" in priorities
+        assert 8 in priorities
     
     def test_list_tasks_no_viewer(self, client, mock_db):
         """Test listing tasks without viewer_id"""
@@ -708,7 +708,7 @@ class TestListTasks:
         mock_task1.to_dict.return_value = {
             "title": "Active",
             "status": "To Do",
-            "priority": "Medium",
+            "priority": 5,
             "archived": False,
             "created_by": {"user_id": "user123"},
             "created_at": "2024-01-01T00:00:00Z"
@@ -719,7 +719,7 @@ class TestListTasks:
         mock_task2.to_dict.return_value = {
             "title": "Archived",
             "status": "Done",
-            "priority": "Low",
+            "priority": 3,
             "archived": True,
             "created_by": {"user_id": "user123"},
             "created_at": "2024-01-02T00:00:00Z"
@@ -1657,7 +1657,7 @@ class TestProjectMembership:
             "project_id": "proj123",
             "created_by": {"user_id": "user123"},
             "status": "To Do",
-            "priority": "Medium",
+            "priority": 5,
             "archived": False,
             "created_at": "2024-01-01T00:00:00Z"
         }
@@ -1706,7 +1706,7 @@ class TestProjectMembership:
             "assigned_to": {"user_id": "user456"},
             "created_by": {"user_id": "user123"},
             "status": "In Progress",
-            "priority": "High",
+            "priority": 8,
             "archived": False,
             "created_at": "2024-01-01T00:00:00Z"
         }
