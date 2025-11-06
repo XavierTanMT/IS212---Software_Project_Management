@@ -544,11 +544,11 @@ class TestMiscellaneousBranches:
         
         old_data = {
             "title": "Task",
-            "labels": ["label1", "label2"],
+            "tags": ["tag1", "tag2"],
             "created_by": {"user_id": "user1"}
         }
         updates = {
-            "labels": ["label3"]  # Changed labels
+            "tags": ["tag3"]  # Changed tags
         }
         
         mock_db.collection.return_value.where.return_value.stream.return_value = []
@@ -557,7 +557,7 @@ class TestMiscellaneousBranches:
         
         _notify_task_changes(mock_db, "task1", old_data, updates, "user1", mock_notifications)
         
-        # Should create notification for label change
+        # Should create notification for tag change
         assert mock_notifications.create_notification.called
     
     def test_list_tasks_debug_mode(self, client, mock_db, monkeypatch):

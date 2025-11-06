@@ -1,0 +1,8 @@
+form, .card{border:1px solid #ddd;padding:12px;border-radius:8px;margin:12px 0}
+    input, select, textarea{padding:8px;margin:4px 0;width:100%}
+    button{padding:8px 12px;cursor:pointer}
+    /* Scope row class to not affect navbar */
+    body .row, .page .row, .card .row{display:flex;gap:12px;flex-wrap:wrap}
+    .row > .col{flex:1 1 280px}
+    .list > div{padding:10px;border-bottom:1px dashed #e3e3e3}
+    .pill{display:inline-block;padding:2px 8px;border-radius:999px;background:#eee;margin-left:6px}

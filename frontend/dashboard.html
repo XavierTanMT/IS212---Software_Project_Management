@@ -2,6 +2,8 @@
 <html lang="en">
 
 <head>
+  <link rel="stylesheet" href="css/common.css">
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - Task Manager</title>
@@ -1234,6 +1236,10 @@
     </script>
 
     <!-- Main Container -->
+    <script src="scripts/common.js"></script>
+  <script src="scripts/utils.js"></script>
+    <script src="scripts/firebase-auth.js"></script><!-- Notifications: reminder banner (inlined) -->
+    <div id="reminderBannerContainer" style="position:relative;z-index:40"></div><!-- Main Container -->
     <div class="container">
         <!-- Statistics Cards -->
         <div class="stats-grid">
@@ -1465,6 +1471,7 @@
         const clearAutoRefresh = window.clearAutoRefresh;
     </script>
     <!-- Delete Confirmation Modal -->
+    </div><!-- Delete Confirmation Modal -->
     <div id="deleteModal" class="modal">
         <div class="modal-content">
             <h3>🗑️ Archive Task</h3>
@@ -2776,3 +2783,5 @@
 </body>
 
 </html>
+    </div>  <script src="scripts/dashboard.js"></script>
+</body></html>

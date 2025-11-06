@@ -1,0 +1,8 @@
+body{font-family:system-ui,Segoe UI,Arial;margin:0}
+    
+    .toolbar{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:10px}
+    input, select{padding:6px}
+    table{width:100%;border-collapse:collapse;table-layout:fixed}
+    th, td{padding:8px;border-bottom:1px solid #eee;text-align:left}
+    th:last-child, td:last-child{width:25%}
+    .pill{display:inline-block;padding:2px 8px;background:#eee;border-radius:999px}

@@ -1,0 +1,105 @@
+body{font-family:system-ui,Segoe UI,Arial;margin:0}
+    
+    .pill{display:inline-block;padding:2px 8px;background:#eee;border-radius:999px}
+    .subtask{padding:8px;border-bottom:1px solid #eee;display:flex;align-items:center}
+    .subtask .meta{flex:1}
+    button{padding:6px 10px}
+    input[type=text], textarea{width:100%;padding:8px;margin:4px 0}
+
+    /* Attachment styles */
+    #attachmentsSection {
+      margin: 20px 0;
+    }
+
+    #attachmentsList {
+      margin-bottom: 16px;
+    }
+
+    #uploadSection {
+      margin-top: 16px;
+      padding: 16px;
+      background: #f9f9f9;
+      border-radius: 6px;
+      max-width: 600px;
+    }
+
+    #uploadSection h3 {
+      margin-top: 0;
+      margin-bottom: 12px;
+      color: #333;
+    }
+
+    #fileInput {
+      display: block;
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background: white;
+    }
+
+    #uploadProgress {
+      padding: 8px;
+      background: #e8f5e9;
+      border-radius: 4px;
+      color: #2e7d32;
+      font-size: 0.9em;
+    }
+
+    .attachment-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      margin: 8px 0;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      transition: box-shadow 0.2s;
+    }
+
+    .attachment-item:hover {
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .attachment-icon {
+      font-size: 24px;
+      flex-shrink: 0;
+    }
+
+    .attachment-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .attachment-filename {
+      font-weight: 600;
+      color: #333;
+      word-break: break-word;
+      margin-bottom: 4px;
+    }
+
+    .attachment-meta {
+      font-size: 0.85em;
+      color: #666;
+    }
+
+    .attachment-actions {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .attachment-actions button {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.85em;
+      transition: opacity 0.2s;
+    }
+
+    .attachment-actions button:hover {
+      opacity: 0.8;
+    }

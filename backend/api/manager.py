@@ -28,7 +28,7 @@ def _safe_iso_to_dt(s):
 
 def _is_manager_role(role):
     """Check if role is manager or above."""
-    manager_roles = ["manager", "director", "hr"]
+    manager_roles = ["manager", "director", "hr", "admin"]
     return role in manager_roles
 
 def _get_task_status_flags(due_date_str):

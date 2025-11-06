@@ -1,0 +1,47 @@
+.section h2 { color: #333; margin-bottom: 1rem; }
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        /* Modal Styles */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); }
+        .modal-content { background: white; margin: 5% auto; padding: 30px; border-radius: 10px; width: 90%; max-width: 600px; max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+        .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; line-height: 20px; }
+        .close:hover { color: #333; }
+        
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: 600; color: #333; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; }
+        
+        .checkbox-list { max-height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 5px; background: white; }
+        .checkbox-item { padding: 8px; margin: 4px 0; border-radius: 4px; background: #f5f5f5; }
+        .checkbox-item:hover { background: #e9ecef; }
+        .checkbox-item input[type="checkbox"] { margin-right: 10px; }
+        
+        .message { padding: 12px; border-radius: 5px; margin: 10px 0; }
+        .message.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .message.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        
+        
+        .badge-todo { background: #ffc107; color: #000; }
+        .badge-inprogress { background: #17a2b8; color: white; }
+        .badge-completed { background: #28a745; color: white; }
+        .badge-high { background: #dc3545; color: white; }
+        .badge-medium { background: #ffc107; color: #000; }
+        .badge-low { background: #6c757d; color: white; }
+        
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #f0f0f0; }
+        .tab { padding: 10px 20px; cursor: pointer; border: none; background: none; font-size: 16px; color: #666; transition: all 0.3s; }
+        .tab:hover { color: #667eea; }
+        .tab.active { border-bottom: 3px solid #667eea; font-weight: bold; color: #667eea; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }

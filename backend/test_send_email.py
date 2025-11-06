@@ -2,6 +2,7 @@ from dotenv import load_dotenv
 import os
 
 # Ensure .env is loaded
+# This is purely for testing purposes
 load_dotenv()
 
 from email_utils import send_email

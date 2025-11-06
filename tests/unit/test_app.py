@@ -153,7 +153,7 @@ def test_create_app_registers_blueprints(monkeypatch):
     
     expected_blueprints = [
         'users', 'tasks', 'dashboard', 'projects', 
-        'notes', 'labels', 'memberships', 'attachments'
+        'notes', 'tags', 'memberships', 'attachments'
     ]
     
     for bp_name in expected_blueprints:

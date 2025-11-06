@@ -350,3 +350,109 @@ class TestAttachmentEdgeCases:
         # Cleanup
         for attachment_id in attachment_ids:
             db.collection(attachments_collection).document(attachment_id).delete()
+
+
+class TestAttachmentValidation:
+    """Test attachment validation with new file type restrictions."""
+    
+    def test_allowed_file_types(self):
+        """Test that allowed file types pass validation."""
+        from backend.api.attachments import is_allowed_file
+        
+        allowed_files = [
+            ("document.pdf", "application/pdf", 1024),
+            ("spreadsheet.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", 2048),
+            ("image.png", "image/png", 512),
+            ("photo.jpg", "image/jpeg", 1024),
+            ("data.csv", "text/csv", 256),
+            ("readme.txt", "text/plain", 128),
+            ("notes.md", "text/markdown", 256),
+            ("presentation.pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation", 5120),
+            ("archive.zip", "application/zip", 10240),
+        ]
+        
+        for filename, mime_type, size in allowed_files:
+            is_valid, msg = is_allowed_file(filename, mime_type, size)
+            assert is_valid, f"File {filename} should be allowed but got error: {msg}"
+    
+    def test_blocked_file_types(self):
+        """Test that blocked file types (executables/scripts) are rejected."""
+        from backend.api.attachments import is_allowed_file
+        
+        blocked_files = [
+            ("malware.exe", "application/x-msdownload", 1024),
+            ("script.bat", "application/x-bat", 512),
+            ("runner.sh", "application/x-sh", 256),
+            ("code.js", "application/javascript", 128),
+            ("installer.dmg", "application/x-apple-diskimage", 2048),
+        ]
+        
+        for filename, mime_type, size in blocked_files:
+            is_valid, msg = is_allowed_file(filename, mime_type, size)
+            assert not is_valid, f"File {filename} should be blocked but was allowed"
+            assert "not allowed" in msg.lower() or "not supported" in msg.lower()
+    
+    def test_file_size_limit(self):
+        """Test that files exceeding 50 MB are rejected."""
+        from backend.api.attachments import is_allowed_file, MAX_FILE_SIZE
+        
+        # File just under limit
+        is_valid, _ = is_allowed_file("large.pdf", "application/pdf", MAX_FILE_SIZE - 1)
+        assert is_valid
+        
+        # File at exact limit
+        is_valid, _ = is_allowed_file("exact.pdf", "application/pdf", MAX_FILE_SIZE)
+        assert is_valid
+        
+        # File over limit
+        is_valid, msg = is_allowed_file("toolarge.pdf", "application/pdf", MAX_FILE_SIZE + 1)
+        assert not is_valid
+        assert "50 MB" in msg or "limit" in msg.lower()
+    
+    def test_unknown_mime_type(self):
+        """Test that unknown MIME types are rejected."""
+        from backend.api.attachments import is_allowed_file
+        
+        is_valid, msg = is_allowed_file("unknown.xyz", "application/x-unknown", 1024)
+        assert not is_valid
+        assert "not allowed" in msg.lower() or "not supported" in msg.lower()
+    
+    def test_attachment_metadata_structure(self, db, test_collection_prefix, cleanup_collections):
+        """Test that attachment documents have the correct metadata structure."""
+        attachments_collection = f"{test_collection_prefix}_attachments"
+        cleanup_collections.append(attachments_collection)
+        
+        task_id = f"task_{datetime.now(timezone.utc).timestamp()}"
+        attachment_id = f"attachment_{datetime.now(timezone.utc).timestamp()}"
+        
+        attachment_data = {
+            "task_id": task_id,
+            "filename": "test_document.pdf",
+            "mime_type": "application/pdf",
+            "size_bytes": 1024576,
+            "uploaded_by": "user123",
+            "uploaded_at": datetime.now(timezone.utc).isoformat(),
+            "storage_path": f"attachments/{task_id}/test_document.pdf",
+            "file_hash": "abc123def456"
+        }
+        
+        db.collection(attachments_collection).document(attachment_id).set(attachment_data)
+        
+        # Verify document structure
+        doc = db.collection(attachments_collection).document(attachment_id).get()
+        assert doc.exists
+        
+        retrieved = doc.to_dict()
+        assert "task_id" in retrieved
+        assert "filename" in retrieved
+        assert "mime_type" in retrieved
+        assert "size_bytes" in retrieved
+        assert "uploaded_by" in retrieved
+        assert "uploaded_at" in retrieved
+        assert "storage_path" in retrieved
+        assert "file_hash" in retrieved
+        
+        assert retrieved["filename"] == "test_document.pdf"
+        assert retrieved["mime_type"] == "application/pdf"
+        assert retrieved["size_bytes"] == 1024576
+        assert retrieved["storage_path"] == f"attachments/{task_id}/test_document.pdf"

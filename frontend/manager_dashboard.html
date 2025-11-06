@@ -2,6 +2,8 @@
 <html lang="en">
 
 <head>
+  <link rel="stylesheet" href="css/common.css">
+
     <meta charset="UTF-8">
     <title>Manager Dashboard - TaskMgr</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css">
@@ -362,6 +364,7 @@
             display: block;
         }
     </style>
+    <title>Manager Dashboard - TaskMgr</title>  <link rel="stylesheet" href="css/manager_dashboard.css">
 </head>
 
 <body>
@@ -373,6 +376,13 @@
         <p style="font-size: 1.1rem; color: #6c757d; margin: 10px 0 0 0;">Team management and oversight</p>
     </div>
 
+    <div class="container">
+    
+    <div style="margin: 2rem 0;">
+        <h1 style="color: #333; margin-bottom: 0.5rem;">👔 Manager Dashboard</h1>
+        <p style="color: #666;">Team management and oversight</p>
+    </div>
+    
     <!-- Statistics Cards -->
     <div class="stats-grid" id="statsGrid">
         <!-- Will be populated by JS -->
@@ -1000,6 +1010,11 @@
 
         loadManagerDashboard();
     </script>
+    
+    <script src="scripts/common.js"></script>
+  <script src="scripts/utils.js"></script>
+    <script src="scripts/firebase-auth.js"></script></div> <!-- Close container -->  <script src="scripts/manager_dashboard.js"></script>
+
 </body>
 
 </html>

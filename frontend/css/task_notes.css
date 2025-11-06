@@ -1,0 +1,118 @@
+.container {
+      max-width: 900px;
+      margin: 20px auto;
+      padding: 0 20px;
+    }
+
+    form,
+    .card {
+      border: 1px solid #ddd;
+      padding: 12px;
+      border-radius: 8px;
+      margin: 12px 0
+    }
+
+    textarea,
+    input {
+      padding: 8px;
+      margin: 4px 0;
+      width: 100%
+    }
+
+    button {
+      padding: 8px 12px;
+      cursor: pointer;
+      margin: 2px;
+    }
+
+    .btn-edit {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+    }
+
+    .btn-delete {
+      background-color: #f44336;
+      color: white;
+      border: none;
+      border-radius: 4px;
+    }
+
+    .btn-save {
+      background-color: #2196F3;
+      color: white;
+      border: none;
+      border-radius: 4px;
+    }
+
+    .btn-cancel {
+      background-color: #9E9E9E;
+      color: white;
+      border: none;
+      border-radius: 4px;
+    }
+
+    .note {
+      padding: 10px;
+      border-bottom: 1px dashed #e3e3e3;
+      position: relative;
+    }
+
+    .meta {
+      color: #666;
+      font-size: 12px;
+      margin-top: 8px;
+    }
+
+    .mention {
+      background-color: #E3F2FD;
+      color: #1976D2;
+      padding: 2px 4px;
+      border-radius: 3px;
+      font-weight: 500;
+    }
+
+    .actions {
+      margin-top: 8px;
+      display: flex;
+      gap: 8px;
+    }
+
+    .edit-form {
+      margin-top: 8px;
+    }
+
+    .edit-form textarea {
+      width: calc(100% - 20px);
+      min-height: 60px;
+    }
+
+    .edited-badge {
+      color: #999;
+      font-style: italic;
+      font-size: 11px;
+    }
+
+    .hint {
+      color: #666;
+      font-size: 12px;
+      margin-top: 4px;
+    }
+
+    #loginStatus {
+      font-size: 11px;
+      margin-left: 8px;
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+
+    .logged-in {
+      background-color: #4CAF50;
+      color: white;
+    }
+
+    .not-logged-in {
+      background-color: #ff9800;
+      color: white;
+    }

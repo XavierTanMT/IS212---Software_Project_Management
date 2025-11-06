@@ -49,21 +49,36 @@
 </head>
 
 <body>
-  <div id="nav"></div>
   <div class="page">
     <a href="tasks_list.html">← Back to tasks</a>
     <h1 id="title">Task</h1>
     <div id="taskMeta"></div>
+    
+    <h2>Attachments</h2>
+    <div id="attachmentsSection">
+      <div id="attachmentsList"></div>
+      <div id="uploadSection" style="margin-top:16px;padding:16px;background:#f9f9f9;border-radius:6px;max-width:600px">
+        <h3 style="margin-top:0">Upload Attachment</h3>
+        <input type="file" id="fileInput" accept=".pdf,.docx,.xlsx,.xls,.csv,.png,.jpg,.jpeg,.txt,.md,.pptx,.zip" style="margin-bottom:12px" />
+        <div style="font-size:0.9em;color:#666;margin-bottom:12px">
+          Allowed: PDF, DOCX, XLSX/CSV, PNG/JPEG, TXT/MD, PPTX, ZIP (max 700 KB)<br>
+          <small>Files stored in Firestore (free tier) - no Firebase Storage billing required!</small>
+        </div>
+        <button id="uploadBtn" style="background:#27ae60;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer">Upload</button>
+        <div id="uploadProgress" style="display:none;margin-top:12px;padding:8px;background:#e8f5e9;border-radius:4px"></div>
+      </div>
+    </div>
+    
     <h2>Subtasks <small id="subcounts"></small></h2>
-    <div id="subtasks"></div>
+    <div id="subtasks" style="margin-bottom:20px"></div>
 
     <div id="creatorActions" style="margin-top:16px;display:none">
       <h3>Add subtask</h3>
-      <div>
-        <input id="sub_title" placeholder="Subtask title" />
-        <textarea id="sub_description" placeholder="Description (optional)" rows="3"></textarea>
-        <input id="sub_due_date" type="date" placeholder="Due date (optional)" />
-        <button id="addSub">Add Subtask</button>
+      <div style="display:flex;flex-direction:column;gap:8px;max-width:500px">
+        <input id="sub_title" placeholder="Subtask title" style="padding:8px" />
+        <textarea id="sub_description" placeholder="Description (optional)" rows="3" style="padding:8px"></textarea>
+        <input id="sub_due_date" type="date" placeholder="Due date (optional)" style="padding:8px" />
+        <button id="addSub" style="width:fit-content">Add Subtask</button>
       </div>
     </div>
   </div>

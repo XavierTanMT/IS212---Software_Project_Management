@@ -1,913 +1,117 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit Task - Task Manager</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            /* Stack navbar on top and place content below */
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-start;
-            /* Reserve space for fixed navbar so content isn't overlapped */
-            padding: 20px 20px 40px 20px;
-            padding-top: 80px;
-        }
-        
-        .container {
-            background: white;
-            padding: 2.5rem;
-            border-radius: 15px;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
-            width: 100%;
-            max-width: 600px;
-        }
+  <link rel="stylesheet" href="css/common.css">
 
-        /* Place the app navbar at the top of the page and span the full viewport width */
-        #nav {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            z-index: 1000;
-            /* Use 100% instead of 100vw to avoid horizontal overflow issues */
-            width: 100%;
-            box-sizing: border-box;
-        }
-
-        /* Allow injected navbar content to span the full width too.
-           Some injected navbars include inner containers with fixed widths;
-           forcing full width ensures the navbar and its contents stretch edge-to-edge. */
-        #nav > * {
-            max-width: none;
-            margin: 0;
-            box-sizing: border-box;
-            width: 100%;
-        }
-
-        /* Target common injected navbar structure to ensure its inner row
-           spans the full viewport and uses flex layout (user-provided). */
-        #app-navbar .row {
-            width: 100vw;
-            padding: 10px 14px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            flex-wrap: wrap;
-        }
-        
-        .header {
-            text-align: center;
-            margin-bottom: 2rem;
-        }
-        
-        .header .logo {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-        }
-        
-        .header h1 {
-            color: #333;
-            margin-bottom: 0.5rem;
-            font-size: 1.8rem;
-        }
-        
-        .header p {
-            color: #666;
-            font-size: 0.95rem;
-        }
-        
-        .task-info {
-            background: #f8f9fa;
-            padding: 1rem;
-            border-radius: 8px;
-            margin-bottom: 1.5rem;
-            border-left: 4px solid #667eea;
-        }
-        
-        .task-meta {
-            display: flex;
-            gap: 1rem;
-            font-size: 0.9rem;
-            color: #666;
-            flex-wrap: wrap;
-        }
-        
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
-        
-        .form-group label {
-            display: block;
-            margin-bottom: 0.5rem;
-            color: #333;
-            font-weight: 500;
-            font-size: 0.95rem;
-        }
-        
-        .form-group input,
-        .form-group select,
-        .form-group textarea {
-            width: 100%;
-            padding: 1rem;
-            border: 2px solid #e1e5e9;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-family: inherit;
-            transition: border-color 0.3s, box-shadow 0.3s;
-            background-color: #fafafa;
-        }
-        
-        .form-group textarea {
-            resize: vertical;
-            min-height: 120px;
-        }
-        
-        .form-group input:focus,
-        .form-group select:focus,
-        .form-group textarea:focus {
-            outline: none;
-            border-color: #667eea;
-            background-color: white;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-        
-        .form-group input:valid,
-        .form-group textarea:valid {
-            border-color: #28a745;
-        }
-        
-        .input-hint {
-            font-size: 0.8rem;
-            color: #666;
-            margin-top: 0.25rem;
-        }
-        
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-        }
-        
-        .btn {
-            padding: 1rem 2rem;
-            border: none;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-            margin-right: 1rem;
-            margin-bottom: 1rem;
-        }
-        
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-        
-        .btn-secondary {
-            background: #6c757d;
-            color: white;
-        }
-        
-        .btn-danger {
-            background: #dc3545;
-            color: white;
-        }
-        
-        .btn:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
-        }
-        
-        .btn-danger:hover:not(:disabled) {
-            box-shadow: 0 8px 25px rgba(220, 53, 69, 0.3);
-        }
-        
-        .btn:active {
-            transform: translateY(0);
-        }
-        
-        .btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-        
-        .btn-group {
-            display: flex;
-            gap: 1rem;
-            flex-wrap: wrap;
-            margin-top: 1rem;
-        }
-        
-        .message {
-            margin-bottom: 1.5rem;
-            padding: 1rem;
-            border-radius: 8px;
-            font-weight: 500;
-            display: none;
-            animation: slideIn 0.3s ease;
-        }
-        
-        .message.success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        
-        .message.error {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-        
-        .loading {
-            display: none;
-            text-align: center;
-            color: #667eea;
-            font-weight: 500;
-            margin: 1rem 0;
-        }
-        
-        .loading::after {
-            content: '';
-            width: 20px;
-            height: 20px;
-            border: 2px solid #667eea;
-            border-top: 2px solid transparent;
-            border-radius: 50%;
-            display: inline-block;
-            margin-left: 10px;
-            animation: spin 1s linear infinite;
-        }
-        
-        .form-footer {
-            text-align: center;
-            margin-top: 1.5rem;
-            padding-top: 1.5rem;
-            border-top: 1px solid #e1e5e9;
-            color: #666;
-            font-size: 0.9rem;
-        }
-        
-        .back-link {
-            display: inline-block;
-            color: #667eea;
-            text-decoration: none;
-            font-size: 0.95rem;
-            font-weight: 500;
-            transition: color 0.3s;
-            margin: 0 0.5rem;
-        }
-        
-        .back-link:hover {
-            color: #764ba2;
-            text-decoration: underline;
-        }
-        
-        .required {
-            color: #dc3545;
-        }
-        
-        .status-badge {
-            padding: 0.3rem 0.8rem;
-            border-radius: 15px;
-            font-size: 0.8rem;
-            font-weight: 500;
-        }
-        
-        .status-todo {
-            background: #e3f2fd;
-            color: #1976d2;
-        }
-        
-        .status-progress {
-            background: #fff3e0;
-            color: #f57c00;
-        }
-        
-        .status-completed {
-            background: #e8f5e8;
-            color: #2e7d32;
-        }
-        
-        .status-blocked {
-            background: #ffebee;
-            color: #c62828;
-        }
-        
-        .priority-badge {
-            padding: 0.3rem 0.8rem;
-            border-radius: 15px;
-            font-size: 0.8rem;
-            font-weight: 500;
-        }
-        
-        .priority-high {
-            background: #ffebee;
-            color: #c62828;
-        }
-        
-        .priority-medium {
-            background: #fff3e0;
-            color: #f57c00;
-        }
-        
-        .priority-low {
-            background: #e8f5e8;
-            color: #2e7d32;
-        }
-        
-        /* Modal styles for delete confirmation */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-        }
-        
-        .modal-content {
-            background: white;
-            margin: 10% auto;
-            padding: 2rem;
-            border-radius: 10px;
-            width: 90%;
-            max-width: 400px;
-            text-align: center;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-        }
-        
-        .modal h3 {
-            color: #dc3545;
-            margin-bottom: 1rem;
-        }
-        
-        .modal p {
-            color: #666;
-            margin-bottom: 1.5rem;
-            line-height: 1.5;
-        }
-        
-        .modal-actions {
-            display: flex;
-            gap: 1rem;
-            justify-content: center;
-        }
-        
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        @media (max-width: 768px) {
-            .form-row {
-                grid-template-columns: 1fr;
-            }
-            
-            .btn-group {
-                flex-direction: column;
-            }
-            
-            .btn {
-                margin-right: 0;
-                width: 100%;
-            }
-            
-            .container {
-                padding: 1.5rem;
-                margin: 10px;
-            }
-            
-            .header h1 {
-                font-size: 1.5rem;
-            }
-        }
-    </style>
+  <meta charset="utf-8"/>
+  <title>Edit Task</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>  <link rel="stylesheet" href="css/edit_task.css">
 </head>
 <body>
-  <div id="nav"></div>
-  <script src="common.js"></script>
-  <script>try{requireAuth();}catch(e){}</script>
-    <div class="container">
-        <div class="header">
-            <div class="logo">✏️</div>
-            <h1>Edit Task</h1>
-            <p>Update task details and track progress</p>
-        </div>
-        
-        <div class="message" id="message"></div>
-        
-        <!-- Task Info Display -->
-        <div class="task-info" id="taskInfo" style="display: none;">
-            <div class="task-meta">
-                <span><strong>Task ID:</strong> <span id="taskId">-</span></span>
-                <span><strong>Created:</strong> <span id="createdDate">-</span></span>
-                <span><strong>Created by:</strong> <span id="createdBy">-</span></span>
-            </div>
-        </div>
-        
-        <div class="loading" id="pageLoading">
-            Loading task details
-        </div>
-        
-        <form id="editTaskForm" style="display: none;" novalidate>
-            <div class="form-group">
-                <label for="title">
-                    Task Title <span class="required">*</span>
-                </label>
-                <input 
-                    type="text" 
-                    id="title" 
-                    name="title" 
-                    placeholder="e.g., Fix login bug or Design homepage" 
-                    required
-                    maxlength="100"
-                >
-                <div class="input-hint">Brief, descriptive title (3-100 characters)</div>
-            </div>
-            
-            <div class="form-group">
-                <label for="description">
-                    Description <span class="required">*</span>
-                </label>
-                <textarea 
-                    id="description" 
-                    name="description" 
-                    placeholder="Describe what needs to be done..."
-                    required
-                    maxlength="500"
-                ></textarea>
-                <div class="input-hint">Detailed description of the task (10-500 characters)</div>
-            </div>
-            
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="priority">Priority</label>
-                    <select id="priority" name="priority">
-                        <option value="Low">🟢 Low Priority</option>
-                        <option value="Medium">🟡 Medium Priority</option>
-                        <option value="High">🔴 High Priority</option>
-                        <option value="Urgent">🚨 Urgent</option>
-                    </select>
-                    <div class="input-hint">How urgent is this task?</div>
-                </div>
-                
-                <div class="form-group">
-                    <label for="status">Status</label>
-                    <select id="status" name="status">
-                        <option value="To Do">📋 To Do</option>
-                        <option value="In Progress">⏳ In Progress</option>
-                        <option value="Completed">✅ Completed</option>
-                        <option value="Blocked">🚫 Blocked</option>
-                    </select>
-                    <div class="input-hint">Current task status</div>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label for="due_date">Due Date (Optional)</label>
-                <input 
-                    type="datetime-local" 
-                    id="due_date" 
-                    name="due_date"
-                >
-                <div class="input-hint">When should this task be completed?</div>
-            </div>
-            
-            <div style="border:1px solid #e1e5e9;padding:1rem;margin:1.5rem 0;border-radius:8px;background:#f8f9fa">
-                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:500;margin-bottom:0">
-                    <input type="checkbox" id="is_recurring" style="width:auto;margin:0" />
-                    <span>🔄 Make this a recurring task</span>
-                </label>
-                <div id="recurring_options" style="display:none;margin-top:1rem">
-                    <div class="form-group" style="margin-bottom:0.5rem">
-                        <label for="recurrence_interval_days">Recurrence Interval (days)</label>
-                        <input type="number" id="recurrence_interval_days" min="1" placeholder="e.g., 1 for daily, 7 for weekly" />
-                    </div>
-                    <div class="input-hint" style="margin-top:0.5rem">
-                        📅 The task will automatically recur after completion. The next occurrence will be created with a due date calculated from the original due date + interval.
-                    </div>
-                    <div id="recurring_info" style="display:none;margin-top:0.5rem;padding:0.75rem;background:#e3f2fd;border-radius:6px;color:#1976d2;font-size:0.9rem">
-                        ℹ️ <span id="recurring_info_text"></span>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="loading" id="formLoading">
-                Updating task
-            </div>
-            
-            <div class="btn-group">
-                <button type="submit" class="btn btn-primary" id="updateBtn">
-                    Update Task
-                </button>
-                
-                <button type="button" class="btn btn-secondary" onclick="goToDashboard()">
-                    Cancel
-                </button>
-                
-                <button type="button" class="btn btn-danger" onclick="confirmDelete()" id="deleteBtn">
-                    Archive Task
-                </button>
-            </div>
-        </form>
-        
-        <div class="form-footer">
-            <a href="dashboard.html" class="back-link">← Back to Dashboard</a>
-            <span>|</span>
-            <a href="create_task.html" class="back-link">Create New Task</a>
-        </div>
+  <div class="page">
+    <h1>Edit Task</h1>
+    
+    <div id="message"></div>
+    
+    <div id="taskInfo" style="margin:12px 0;padding:12px;background:#f0f0f0;border-radius:4px;display:none;">
+      <div style="display:flex;gap:20px;flex-wrap:wrap;font-size:0.9em;color:#555;">
+        <span><strong>Task ID:</strong> <span id="taskId">-</span></span>
+        <span><strong>Created:</strong> <span id="createdDate">-</span></span>
+        <span><strong>Created by:</strong> <span id="createdBy">-</span></span>
+      </div>
     </div>
-
-    <!-- Delete Confirmation Modal -->
-    <div id="deleteModal" class="modal">
-        <div class="modal-content">
-            <h3>🗑️ Archive Task</h3>
-            <p id="deleteMessage">Are you sure you want to Archive this task?</p>
-            <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeDeleteModal()">Cancel</button>
-                <button class="btn btn-danger" onclick="executeDelete()" id="confirmDeleteBtn">
-                    Archive Task
-                </button>
-            </div>
-        </div>
+    
+    <div id="pageLoading" style="padding:20px;text-align:center;color:#666;">
+      Loading task details...
     </div>
+    
+    <form id="editTaskForm" style="display:none;">
+      <label>Title</label>
+      <input id="title" name="title" required maxlength="100" />
+      
+      <label>Description</label>
+      <textarea id="description" name="description" rows="4" required maxlength="500"></textarea>
 
-    <script>
-        const API_BASE_URL = 'http://localhost:5000';
-        let currentUser = null;
-        let currentTask = null;
-        let taskId = null;
-        
-        // Get elements
-        const form = document.getElementById('editTaskForm');
-        const updateBtn = document.getElementById('updateBtn');
-        const deleteBtn = document.getElementById('deleteBtn');
-        const pageLoading = document.getElementById('pageLoading');
-        const formLoading = document.getElementById('formLoading');
-        const message = document.getElementById('message');
-        const taskInfo = document.getElementById('taskInfo');
-        
-        // Check authentication and load task
-        window.addEventListener('load', async () => {
-            // Check if user is logged in
-            const userData = sessionStorage.getItem('currentUser');
-            if (!userData) {
-                window.location.href = 'login.html';
-                return;
-            }
-            
-            currentUser = JSON.parse(userData);
-            
-            // Get task ID from URL parameter
-            const urlParams = new URLSearchParams(window.location.search);
-            taskId = urlParams.get('task_id');
-            
-            if (!taskId) {
-                showMessage('❌ No task ID provided. Redirecting to dashboard...', 'error');
-                setTimeout(() => {
-                    window.location.href = 'dashboard.html';
-                }, 2000);
-                return;
-            }
-            
-            await loadTaskData();
-        });
-        
-        async function loadTaskData() {
-            try {
-                pageLoading.style.display = 'block';
-                
-                const response = await fetch(`${API_BASE_URL}/api/tasks/${taskId}`);
-                
-                if (!response.ok) {
-                    if (response.status === 404) {
-                        throw new Error('Task not found');
-                    }
-                    throw new Error('Failed to load task');
-                }
-                
-                currentTask = await response.json();
-                populateForm();
-                
-            } catch (error) {
-                console.error('Error loading task:', error);
-                showMessage(`❌ Error loading task: ${error.message}`, 'error');
-                
-                setTimeout(() => {
-                    window.location.href = 'dashboard.html';
-                }, 3000);
-            } finally {
-                pageLoading.style.display = 'none';
-            }
-        }
-        
-        function populateForm() {
-            // Update page title
-            document.title = `Edit: ${currentTask.title}`;
-            
-            // Show task info
-            document.getElementById('taskId').textContent = currentTask.task_id;
-            document.getElementById('createdDate').textContent = formatDate(currentTask.created_at);
-            document.getElementById('createdBy').textContent = currentTask.created_by?.name || 'Unknown';
-            taskInfo.style.display = 'block';
-            
-            // Populate form fields
-            document.getElementById('title').value = currentTask.title || '';
-            document.getElementById('description').value = currentTask.description || '';
-            document.getElementById('priority').value = currentTask.priority || 'Medium';
-            document.getElementById('status').value = currentTask.status || 'To Do';
-            
-            // Handle due date
-            if (currentTask.due_date) {
-                const dueDate = new Date(currentTask.due_date);
-                dueDate.setMinutes(dueDate.getMinutes() - dueDate.getTimezoneOffset());
-                document.getElementById('due_date').value = dueDate.toISOString().slice(0, 16);
-            }
-            
-            // Set minimum due date to current date/time
-            const now = new Date();
-            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-            document.getElementById('due_date').min = now.toISOString().slice(0, 16);
-            
-            // Populate recurring task fields
-            const isRecurringCheckbox = document.getElementById('is_recurring');
-            const recurringOptions = document.getElementById('recurring_options');
-            const recurringInfo = document.getElementById('recurring_info');
-            const recurringInfoText = document.getElementById('recurring_info_text');
-            
-            if (currentTask.is_recurring) {
-                isRecurringCheckbox.checked = true;
-                recurringOptions.style.display = 'block';
-                document.getElementById('recurrence_interval_days').value = currentTask.recurrence_interval_days || '';
-                
-                // Show info about recurring task
-                if (currentTask.parent_recurring_task_id) {
-                    recurringInfo.style.display = 'block';
-                    recurringInfoText.textContent = `This task was created from a recurring series (Parent: ${currentTask.parent_recurring_task_id})`;
-                }
-            }
-            
-            // Check if current user can edit/delete this task
-            const canEdit = currentTask.created_by?.user_id === currentUser.user_id;
-            if (!canEdit) {
-                showMessage('⚠️ You can only edit tasks that you created.', 'error');
-                updateBtn.disabled = true;
-                deleteBtn.disabled = true;
-                
-                // Make form read-only
-                const inputs = form.querySelectorAll('input, select, textarea');
-                inputs.forEach(input => input.disabled = true);
-            }
-            
-            // Show the form
-            form.style.display = 'block';
-        }
-        
-        // Toggle recurring options visibility
-        document.getElementById("is_recurring").addEventListener("change", (e) => {
-            const options = document.getElementById("recurring_options");
-            options.style.display = e.target.checked ? "block" : "none";
-            if (!e.target.checked) {
-                document.getElementById("recurrence_interval_days").value = "";
-            }
-        });
-        
-        // Handle form submission
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const formData = new FormData(form);
-            const isRecurring = document.getElementById('is_recurring').checked;
-            const recurrenceInterval = document.getElementById('recurrence_interval_days').value;
-            const dueDate = formData.get('due_date');
-            
-            // Validation for recurring tasks
-            if (isRecurring) {
-                if (!dueDate) {
-                    showMessage('❌ Recurring tasks must have a due date', 'error');
-                    return;
-                }
-                if (!recurrenceInterval || parseInt(recurrenceInterval) <= 0) {
-                    showMessage('❌ Please specify a positive number of days for recurrence interval', 'error');
-                    return;
-                }
-            }
-            
-            const taskData = {
-                ...currentTask, // Keep existing data
-                title: formData.get('title').trim(),
-                description: formData.get('description').trim(),
-                priority: formData.get('priority'),
-                status: formData.get('status'),
-                due_date: dueDate || null,
-                is_recurring: isRecurring,
-                recurrence_interval_days: isRecurring ? parseInt(recurrenceInterval) : null
-            };
-            
-            // Validation
-            if (!taskData.title || taskData.title.length < 3) {
-                showMessage('❌ Please enter a task title (at least 3 characters)', 'error');
-                return;
-            }
-            
-            if (!taskData.description || taskData.description.length < 10) {
-                showMessage('❌ Please enter a detailed description (at least 10 characters)', 'error');
-                return;
-            }
-            
-            setLoading(true);
-            hideMessage();
-            
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/tasks/${taskId}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-User-Id': currentUser.user_id
-                    },
-                    body: JSON.stringify(taskData)
-                });
-                
-                const result = await response.json();
-                
-                if (response.ok) {
-                    let message = `✅ Task "${taskData.title}" updated successfully!`;
-                    
-                    // Check if a new recurring task was created
-                    if (result.next_recurring_task_id) {
-                        message += ` 🔄 Next occurrence created (ID: ${result.next_recurring_task_id})`;
-                    }
-                    
-                    showMessage(message, 'success');
-                    
-                    // Update current task data
-                    currentTask = result;
-                    
-                    // Redirect to dashboard after 2 seconds
-                    setTimeout(() => {
-                        window.location.href = 'dashboard.html';
-                    }, 2000);
-                    
-                } else {
-                    showMessage(`❌ Error: ${result.error}`, 'error');
-                }
-                
-            } catch (error) {
-                console.error('Error updating task:', error);
-                showMessage('❌ Network error. Please check server connection.', 'error');
-            } finally {
-                setLoading(false);
-            }
-        });
-        
-        // Delete functionality
-        function confirmDelete() {
-            document.getElementById('deleteMessage').textContent = 
-                `Are you sure you want to delete "${currentTask.title}"? This action cannot be undone.`;
-            document.getElementById('deleteModal').style.display = 'block';
-        }
-        
-        function closeDeleteModal() {
-            document.getElementById('deleteModal').style.display = 'none';
-        }
-        
-        async function executeDelete() {
-            const confirmBtn = document.getElementById('confirmDeleteBtn');
-            const originalText = confirmBtn.textContent;
-            
-            try {
-                confirmBtn.textContent = 'Deleting...';
-                confirmBtn.disabled = true;
-                
-                const response = await fetch(`${API_BASE_URL}/api/tasks/${taskId}`, {
-                    method: 'DELETE'
-                });
-                
-                if (response.ok) {
-                    showMessage(`✅ Task deleted successfully!`, 'success');
-                    closeDeleteModal();
-                    
-                    setTimeout(() => {
-                        window.location.href = 'dashboard.html';
-                    }, 1500);
-                    
-                } else {
-                    const result = await response.json();
-                    showMessage(`❌ Error: ${result.error}`, 'error');
-                }
-                
-            } catch (error) {
-                console.error('Error deleting task:', error);
-                showMessage('❌ Network error. Please try again.', 'error');
-            } finally {
-                confirmBtn.textContent = originalText;
-                confirmBtn.disabled = false;
-            }
-        }
-        
-        // Helper functions
-        function setLoading(isLoading) {
-            updateBtn.disabled = isLoading;
-            deleteBtn.disabled = isLoading;
-            formLoading.style.display = isLoading ? 'block' : 'none';
-            updateBtn.textContent = isLoading ? 'Updating...' : 'Update Task';
-        }
-        
-        function showMessage(text, type) {
-            message.textContent = text;
-            message.className = `message ${type}`;
-            message.style.display = 'block';
-            
-            if (type === 'error') {
-                setTimeout(() => {
-                    if (message.classList.contains('error')) {
-                        hideMessage();
-                    }
-                }, 8000);
-            }
-        }
-        
-        function hideMessage() {
-            message.style.display = 'none';
-        }
-        
-        function formatDate(dateString) {
-            const date = new Date(dateString);
-            return date.toLocaleString();
-        }
-        
-        function goToDashboard() {
-            window.location.href = 'dashboard.html';
-        }
-        
-        // Close modal when clicking outside
-        window.addEventListener('click', (event) => {
-            const modal = document.getElementById('deleteModal');
-            if (event.target === modal) {
-                closeDeleteModal();
-            }
-        });
-        
-        // Close modal with Escape key
-        window.addEventListener('keydown', (event) => {
-            if (event.key === 'Escape') {
-                closeDeleteModal();
-            }
-        });
-    </script>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <div style="flex:1 1 180px">
+          <label>Priority</label>
+          <select id="priority" name="priority">
+            <option value="Low">Low</option>
+            <option value="Medium">Medium</option>
+            <option value="High">High</option>
+            <option value="Urgent">Urgent</option>
+          </select>
+        </div>
+        <div style="flex:1 1 180px">
+          <label>Status</label>
+          <select id="status" name="status">
+            <option value="To Do">To Do</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Completed">Completed</option>
+            <option value="Blocked">Blocked</option>
+          </select>
+        </div>
+        <div style="flex:1 1 180px">
+          <label>Due Date</label>
+          <input id="due_date" name="due_date" type="datetime-local"/>
+        </div>
+      </div>
 
-<script>
-// --- PATCH: generic empty-state guard --- //
-(function(){
-  if (window.__genericEmptyPatchApplied) return; window.__genericEmptyPatchApplied = true;
-  function afterLoad(){
-    document.querySelectorAll('.loading,.spinner').forEach(el=>el.remove());
-    const empties = [
-      ['#labelsList,.labels-list', 'No labels yet.'],
-      ['#attachmentsList,.attachments-list', 'No attachments yet.'],
-      ['#commentsList,.comments-list', 'No comments yet.'],
-      ['#membersList,.members-list', 'No members yet.'],
-    ];
-    for (const [sel, text] of empties){
-      const host = document.querySelector(sel);
-      if (host && (host.children.length === 0 || host.innerHTML.trim() === '')){
-        host.innerHTML = `<div style="padding:12px;color:#666">${text}</div>`;
-      }
-    }
-  }
-  window.addEventListener('load', ()=> setTimeout(afterLoad, 200));
-})();
-</script>
+      <label>Tags (optional, max 3, max 12 chars each)</label>
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <input id="tag1" maxlength="12" placeholder="Tag 1" style="flex:1"/>
+        <input id="tag2" maxlength="12" placeholder="Tag 2" style="flex:1"/>
+        <input id="tag3" maxlength="12" placeholder="Tag 3" style="flex:1"/>
+      </div>
 
-</body></html>
+      <div style="border:1px solid #ddd;padding:12px;margin:12px 0;border-radius:6px;background:#f9f9f9">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="is_recurring" style="width:auto;margin:0" />
+          <strong>Make this a recurring task</strong>
+        </label>
+        <div id="recurring_options" style="display:none;margin-top:10px">
+          <label>Recurrence Interval (days)</label>
+          <input type="number" id="recurrence_interval_days" min="1" placeholder="e.g., 1 for daily, 7 for weekly" />
+          <p style="margin:6px 0;color:#666;font-size:0.9em">
+            The task will automatically recur after completion. The next occurrence will be created with a due date calculated from the original due date + interval.
+          </p>
+          <div id="recurring_info" style="display:none;margin-top:8px;padding:8px;background:#e3f2fd;border-radius:4px;color:#1976d2;font-size:0.9em">
+            <span id="recurring_info_text"></span>
+          </div>
+        </div>
+      </div>
+      
+      <div id="formLoading" style="display:none;padding:10px;text-align:center;color:#666;">
+        Updating task...
+      </div>
+      
+      <div style="display:flex;gap:10px;margin-top:16px;">
+        <button type="submit" id="updateBtn">Update Task</button>
+        <button type="button" onclick="goToDashboard()" style="background:#6c757d">Cancel</button>
+        <button type="button" onclick="confirmDelete()" id="deleteBtn" style="background:#dc3545">Archive Task</button>
+      </div>
+    </form>
+    
+    <div style="margin-top:16px;padding-top:16px;border-top:1px solid #ddd;">
+      <a href="dashboard.html">← Back to Dashboard</a>
+      <span style="margin:0 8px;color:#ccc">|</span>
+      <a href="create_task.html">Create New Task</a>
+    </div>
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  <div id="deleteModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000">
+    <div style="background:white; max-width:400px; margin:100px auto; padding:20px; border-radius:8px; box-shadow:0 4px 6px rgba(0,0,0,0.1)">
+      <h3 style="margin-top:0">Archive Task</h3>
+      <p id="deleteMessage">Are you sure you want to archive this task?</p>
+      <div style="display:flex;gap:10px;margin-top:20px;">
+        <button onclick="closeDeleteModal()" style="background:#6c757d;color:white;border:none;padding:10px 20px;border-radius:4px;cursor:pointer;">Cancel</button>
+        <button onclick="executeDelete()" id="confirmDeleteBtn" style="background:#dc3545;color:white;border:none;padding:10px 20px;border-radius:4px;cursor:pointer;">Archive Task</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="scripts/common.js"></script>
+  <script src="scripts/utils.js"></script>  <script src="scripts/edit_task.js"></script>
+</body>
+</html>

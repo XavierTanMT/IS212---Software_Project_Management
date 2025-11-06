@@ -54,9 +54,12 @@ class TestAddAttachment:
         # Test data
         payload = {
             "task_id": "task1",
-            "file_name": "document.pdf",
-            "file_path": "gs://bucket/document.pdf",
-            "uploaded_by": "user1"
+            "filename": "document.pdf",
+            "mime_type": "application/pdf",
+            "size_bytes": 1024,
+            "uploaded_by": "user1",
+            "file_data": "base64encodeddata",
+            "file_hash": "hash123"
         }
         
         response = client.post(
@@ -70,10 +73,10 @@ class TestAddAttachment:
         data = response.get_json()
         assert data["attachment_id"] == "attachment123"
         assert data["task_id"] == "task1"
-        assert data["file_name"] == "document.pdf"
-        assert data["file_path"] == "gs://bucket/document.pdf"
+        assert data["filename"] == "document.pdf"
+        assert data["mime_type"] == "application/pdf"
         assert data["uploaded_by"] == "user1"
-        assert "upload_date" in data
+        assert "uploaded_at" in data
         
         # Verify Firestore was called correctly
         mock_db.collection.assert_called_once_with("attachments")
@@ -98,13 +101,15 @@ class TestAddAttachment:
         assert "task_id" in data["error"]
     
     def test_add_attachment_missing_file_name(self, client, mock_db, monkeypatch):
-        """Test adding attachment without file_name."""
+        """Test adding attachment without filename."""
         monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
         
         payload = {
             "task_id": "task1",
-            "file_path": "gs://bucket/document.pdf",
-            "uploaded_by": "user1"
+            "mime_type": "application/pdf",
+            "size_bytes": 1024,
+            "uploaded_by": "user1",
+            "file_data": "base64encodeddata"
         }
         
         response = client.post("/api/attachments", json=payload)
@@ -112,15 +117,17 @@ class TestAddAttachment:
         assert response.status_code == 400
         data = response.get_json()
         assert "error" in data
-        assert "file_name" in data["error"]
+        assert "filename" in data["error"]
     
     def test_add_attachment_missing_file_path(self, client, mock_db, monkeypatch):
-        """Test adding attachment without file_path."""
+        """Test adding attachment without file_data."""
         monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
         
         payload = {
             "task_id": "task1",
-            "file_name": "document.pdf",
+            "filename": "document.pdf",
+            "mime_type": "application/pdf",
+            "size_bytes": 1024,
             "uploaded_by": "user1"
         }
         
@@ -129,7 +136,7 @@ class TestAddAttachment:
         assert response.status_code == 400
         data = response.get_json()
         assert "error" in data
-        assert "file_path" in data["error"]
+        assert "file_data" in data["error"]
     
     def test_add_attachment_missing_uploaded_by(self, client, mock_db, monkeypatch):
         """Test adding attachment without uploaded_by."""
@@ -189,9 +196,11 @@ class TestAddAttachment:
         
         payload = {
             "task_id": "  task1  ",
-            "file_name": "  document.pdf  ",
-            "file_path": "  gs://bucket/document.pdf  ",
-            "uploaded_by": "  user1  "
+            "filename": "  document.pdf  ",
+            "mime_type": "  application/pdf  ",
+            "size_bytes": 1024,
+            "uploaded_by": "  user1  ",
+            "file_data": "base64encodeddata"
         }
         
         response = client.post("/api/attachments", json=payload)
@@ -201,8 +210,8 @@ class TestAddAttachment:
         
         # Verify trimmed values
         assert data["task_id"] == "task1"
-        assert data["file_name"] == "document.pdf"
-        assert data["file_path"] == "gs://bucket/document.pdf"
+        assert data["filename"] == "document.pdf"
+        assert data["mime_type"] == "application/pdf"
         assert data["uploaded_by"] == "user1"
 
 
@@ -216,20 +225,20 @@ class TestListAttachments:
         mock_doc1.id = "attachment1"
         mock_doc1.to_dict = Mock(return_value={
             "task_id": "task1",
-            "file_name": "doc1.pdf",
-            "file_path": "gs://bucket/doc1.pdf",
+            "filename": "doc1.pdf",
+            "mime_type": "application/pdf",
             "uploaded_by": "user1",
-            "upload_date": "2025-01-01T00:00:00+00:00"
+            "uploaded_at": "2025-01-01T00:00:00+00:00"
         })
         
         mock_doc2 = Mock()
         mock_doc2.id = "attachment2"
         mock_doc2.to_dict = Mock(return_value={
             "task_id": "task1",
-            "file_name": "doc2.pdf",
-            "file_path": "gs://bucket/doc2.pdf",
+            "filename": "doc2.pdf",
+            "mime_type": "application/pdf",
             "uploaded_by": "user2",
-            "upload_date": "2025-01-02T00:00:00+00:00"
+            "uploaded_at": "2025-01-02T00:00:00+00:00"
         })
         
         # Mock query chain
@@ -253,14 +262,14 @@ class TestListAttachments:
         # Verify response
         assert len(data) == 2
         assert data[0]["attachment_id"] == "attachment1"
-        assert data[0]["file_name"] == "doc1.pdf"
+        assert data[0]["filename"] == "doc1.pdf"
         assert data[1]["attachment_id"] == "attachment2"
-        assert data[1]["file_name"] == "doc2.pdf"
+        assert data[1]["filename"] == "doc2.pdf"
         
         # Verify Firestore query (FieldFilter syntax uses filter parameter)
         mock_db.collection.assert_called_once_with("attachments")
         assert mock_collection.where.called
-        mock_where.order_by.assert_called_once_with("upload_date")
+        mock_where.order_by.assert_called_once_with("uploaded_at", direction='DESCENDING')
     
     def test_list_attachments_empty_result(self, client, mock_db, monkeypatch):
         """Test listing attachments when no attachments exist."""
@@ -316,7 +325,7 @@ class TestListAttachments:
         assert data[0]["file_name"] == "single.pdf"
     
     def test_list_attachments_ordered_by_date(self, client, mock_db, monkeypatch):
-        """Test that attachments are ordered by upload_date."""
+        """Test that attachments are ordered by uploaded_at."""
         mock_query = Mock()
         mock_query.stream = Mock(return_value=[])
         
@@ -331,8 +340,8 @@ class TestListAttachments:
         
         client.get("/api/attachments/by-task/task1")
         
-        # Verify order_by was called with upload_date
-        mock_where.order_by.assert_called_once_with("upload_date")
+        # Verify order_by was called with uploaded_at
+        mock_where.order_by.assert_called_once_with("uploaded_at", direction='DESCENDING')
     
     def test_list_attachments_index_error_fallback(self, client, mock_db, monkeypatch):
         """Test fallback when Firestore index is missing."""
@@ -422,19 +431,21 @@ class TestEdgeCases:
         
         payload = {
             "task_id": "task1",
-            "file_name": "résumé-2025_v1.2.pdf",
-            "file_path": "gs://bucket/résumé-2025_v1.2.pdf",
-            "uploaded_by": "user1"
+            "filename": "résumé-2025_v1.2.pdf",
+            "mime_type": "application/pdf",
+            "size_bytes": 1024,
+            "uploaded_by": "user1",
+            "file_data": "base64encodeddata"
         }
         
         response = client.post("/api/attachments", json=payload)
         
         assert response.status_code == 201
         data = response.get_json()
-        assert data["file_name"] == "résumé-2025_v1.2.pdf"
+        assert data["filename"] == "résumé-2025_v1.2.pdf"
     
     def test_add_attachment_with_long_file_path(self, client, mock_db, monkeypatch):
-        """Test adding attachment with very long file path."""
+        """Test adding attachment with very long filename."""
         mock_doc_ref = Mock()
         mock_doc_ref.id = "attachment999"
         mock_collection = Mock()
@@ -443,16 +454,18 @@ class TestEdgeCases:
         
         monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
         
-        long_path = "gs://bucket/" + "a" * 500 + ".pdf"
+        long_filename = "a" * 200 + ".pdf"
         payload = {
             "task_id": "task1",
-            "file_name": "document.pdf",
-            "file_path": long_path,
-            "uploaded_by": "user1"
+            "filename": long_filename,
+            "mime_type": "application/pdf",
+            "size_bytes": 1024,
+            "uploaded_by": "user1",
+            "file_data": "base64encodeddata"
         }
         
         response = client.post("/api/attachments", json=payload)
         
         assert response.status_code == 201
         data = response.get_json()
-        assert data["file_path"] == long_path
+        assert data["filename"] == long_filename
