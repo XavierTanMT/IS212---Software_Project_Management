@@ -71,7 +71,7 @@ def assign_label():
         "assigned_at": now_iso()
     })
     
-    return jsonify({"success": True, "message": "Label assigned to task"}), 200
+    return jsonify({"ok": True, "message": "Label assigned to task"}), 200
 
 @labels_bp.post("/unassign")
 def unassign_label():
@@ -99,4 +99,4 @@ def unassign_label():
     # Delete task_labels mapping
     db.collection("task_labels").document(f"{task_id}_{label_id}").delete()
     
-    return jsonify({"success": True, "message": "Label unassigned from task"}), 200
+    return jsonify({"ok": True, "message": "Label unassigned from task"}), 200

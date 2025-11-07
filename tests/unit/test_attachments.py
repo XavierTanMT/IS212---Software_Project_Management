@@ -402,6 +402,95 @@ class TestListAttachments:
         # The exception should bubble up and Flask will catch it
         with pytest.raises(Exception, match="database connection failed"):
             attachments_module.list_attachments("task1")
+    
+    def test_list_attachments_index_error_fallback_sorting(self, client, mock_db, monkeypatch):
+        """Test that fallback sorting works correctly when index is missing."""
+        # Mock documents with different upload dates
+        mock_doc1 = Mock()
+        mock_doc1.id = "attachment1"
+        mock_doc1.to_dict = Mock(return_value={
+            "task_id": "task1",
+            "filename": "older.pdf",
+            "uploaded_by": "user1",
+            "uploaded_at": "2025-01-01T00:00:00+00:00"
+        })
+        
+        mock_doc2 = Mock()
+        mock_doc2.id = "attachment2"
+        mock_doc2.to_dict = Mock(return_value={
+            "task_id": "task1",
+            "filename": "newer.pdf",
+            "uploaded_by": "user1",
+            "uploaded_at": "2025-01-02T00:00:00+00:00"
+        })
+        
+        # Mock query that raises index error, then fallback query that works
+        mock_ordered_query = Mock()
+        mock_ordered_query.stream = Mock(side_effect=Exception("requires an index for task_id"))
+        
+        mock_where = Mock()
+        mock_where.order_by = Mock(return_value=mock_ordered_query)
+        # Return documents in wrong order to test sorting
+        mock_where.stream = Mock(return_value=[mock_doc1, mock_doc2])  # older first
+        
+        mock_collection = Mock()
+        mock_collection.where = Mock(return_value=mock_where)
+        
+        mock_db.collection = Mock(return_value=mock_collection)
+        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
+        
+        response = client.get("/api/attachments/by-task/task1")
+        
+        # Should succeed with fallback and proper sorting
+        assert response.status_code == 200
+        data = response.get_json()
+        assert len(data) == 2
+        # Should be sorted by uploaded_at descending (newer first)
+        assert data[0]["filename"] == "newer.pdf"
+        assert data[1]["filename"] == "older.pdf"
+    
+    def test_list_attachments_index_error_fallback_no_dates(self, client, mock_db, monkeypatch):
+        """Test fallback sorting when some documents lack uploaded_at."""
+        mock_doc1 = Mock()
+        mock_doc1.id = "attachment1"
+        mock_doc1.to_dict = Mock(return_value={
+            "task_id": "task1",
+            "filename": "no_date.pdf",
+            "uploaded_by": "user1"
+            # No uploaded_at field
+        })
+        
+        mock_doc2 = Mock()
+        mock_doc2.id = "attachment2"
+        mock_doc2.to_dict = Mock(return_value={
+            "task_id": "task1",
+            "filename": "with_date.pdf",
+            "uploaded_by": "user1",
+            "uploaded_at": "2025-01-01T00:00:00+00:00"
+        })
+        
+        mock_ordered_query = Mock()
+        mock_ordered_query.stream = Mock(side_effect=Exception("requires an index"))
+        
+        mock_where = Mock()
+        mock_where.order_by = Mock(return_value=mock_ordered_query)
+        mock_where.stream = Mock(return_value=[mock_doc1, mock_doc2])
+        
+        mock_collection = Mock()
+        mock_collection.where = Mock(return_value=mock_where)
+        
+        mock_db.collection = Mock(return_value=mock_collection)
+        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
+        
+        response = client.get("/api/attachments/by-task/task1")
+        
+        # Should succeed with fallback
+        assert response.status_code == 200
+        data = response.get_json()
+        assert len(data) == 2
+        # Documents with dates should sort first (descending order), then documents without dates
+        assert data[0]["filename"] == "with_date.pdf"
+        assert data[1]["filename"] == "no_date.pdf"
 
 
 class TestBlueprintRegistration:
@@ -469,3 +558,133 @@ class TestEdgeCases:
         assert response.status_code == 201
         data = response.get_json()
         assert data["filename"] == long_filename
+
+
+class TestIsAllowedFile:
+    """Test the is_allowed_file validation function."""
+    
+    def test_is_allowed_file_valid_pdf(self):
+        """Test valid PDF file."""
+        result, message = attachments_module.is_allowed_file("document.pdf", "application/pdf", 1024)
+        assert result is True
+        assert message == "OK"
+    
+    def test_is_allowed_file_valid_image(self):
+        """Test valid image file."""
+        result, message = attachments_module.is_allowed_file("photo.jpg", "image/jpeg", 2048)
+        assert result is True
+        assert message == "OK"
+    
+    def test_is_allowed_file_missing_filename(self):
+        """Test with missing filename."""
+        result, message = attachments_module.is_allowed_file("", "application/pdf", 1024)
+        assert result is False
+        assert message == "Missing filename or MIME type"
+    
+    def test_is_allowed_file_missing_mime_type(self):
+        """Test with missing MIME type."""
+        result, message = attachments_module.is_allowed_file("document.pdf", "", 1024)
+        assert result is False
+        assert message == "Missing filename or MIME type"
+    
+    def test_is_allowed_file_file_too_large(self):
+        """Test file size exceeding MAX_FILE_SIZE."""
+        large_size = attachments_module.MAX_FILE_SIZE + 1
+        result, message = attachments_module.is_allowed_file("large.pdf", "application/pdf", large_size)
+        assert result is False
+        assert "File size exceeds" in message
+    
+    def test_is_allowed_file_blocked_extension(self):
+        """Test blocked file extension."""
+        result, message = attachments_module.is_allowed_file("script.exe", "application/octet-stream", 1024)
+        assert result is False
+        assert "File type not allowed" in message
+        assert ".exe" in message
+    
+    def test_is_allowed_file_disallowed_extension(self):
+        """Test disallowed file extension."""
+        result, message = attachments_module.is_allowed_file("document.xyz", "application/octet-stream", 1024)
+        assert result is False
+        assert "File type not supported" in message
+        assert ".xyz" in message
+    
+    def test_is_allowed_file_invalid_mime_type(self):
+        """Test invalid MIME type."""
+        result, message = attachments_module.is_allowed_file("document.pdf", "application/javascript", 1024)
+        assert result is False
+        assert "MIME type not allowed" in message
+    
+    def test_is_allowed_file_case_insensitive_extension(self):
+        """Test that extension checking is case insensitive."""
+        result, message = attachments_module.is_allowed_file("document.PDF", "application/pdf", 1024)
+        assert result is True
+        assert message == "OK"
+    
+    def test_is_allowed_file_blocked_case_insensitive(self):
+        """Test that blocked extension checking is case insensitive."""
+        result, message = attachments_module.is_allowed_file("script.EXE", "application/octet-stream", 1024)
+        assert result is False
+        assert "File type not allowed" in message
+    
+    def test_add_attachment_file_too_large_encoded(self, client, mock_db, monkeypatch):
+        """Test adding attachment with file_data too large for Firestore."""
+        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
+        
+        # Create a large base64 string (>900KB)
+        large_data = "a" * 950000  # ~950KB
+        
+        payload = {
+            "task_id": "task1",
+            "filename": "large.pdf",
+            "mime_type": "application/pdf",
+            "size_bytes": 1024,  # Original size is small, but encoded is large
+            "uploaded_by": "user1",
+            "file_data": large_data
+        }
+        
+        response = client.post("/api/attachments", json=payload)
+        
+        assert response.status_code == 400
+        data = response.get_json()
+        assert "error" in data
+        assert "File too large for Firestore storage" in data["error"]
+    
+    def test_add_attachment_invalid_file_validation(self, client, mock_db, monkeypatch):
+        """Test adding attachment with invalid file (blocked extension)."""
+        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
+        
+        payload = {
+            "task_id": "task1",
+            "filename": "script.exe",
+            "mime_type": "application/octet-stream",
+            "size_bytes": 1024,
+            "uploaded_by": "user1",
+            "file_data": "base64encodeddata"
+        }
+        
+        response = client.post("/api/attachments", json=payload)
+        
+        assert response.status_code == 400
+        data = response.get_json()
+        assert "error" in data
+        assert "File type not allowed" in data["error"]
+    
+    def test_add_attachment_invalid_mime_type(self, client, mock_db, monkeypatch):
+        """Test adding attachment with invalid MIME type."""
+        monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
+        
+        payload = {
+            "task_id": "task1",
+            "filename": "document.pdf",
+            "mime_type": "application/javascript",
+            "size_bytes": 1024,
+            "uploaded_by": "user1",
+            "file_data": "base64encodeddata"
+        }
+        
+        response = client.post("/api/attachments", json=payload)
+        
+        assert response.status_code == 400
+        data = response.get_json()
+        assert "error" in data
+        assert "MIME type not allowed" in data["error"]

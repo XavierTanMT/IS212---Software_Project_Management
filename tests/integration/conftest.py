@@ -83,6 +83,11 @@ print("=" * 80)
 # Pytest hook to auto-skip integration tests if Firebase is not available
 def pytest_collection_modifyitems(config, items):
     """Automatically skip integration tests if Firebase emulators are not running."""
+    # Check if user wants to skip emulator check (for CI/CD)
+    if os.environ.get("SKIP_EMULATOR_CHECK", "").lower() in ("true", "1", "yes"):
+        print("ℹ SKIP_EMULATOR_CHECK is set - skipping emulator availability check")
+        return
+        
     # Check if emulators are available
     import socket
     
