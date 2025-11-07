@@ -14,7 +14,7 @@ import atexit
 
 from api import (
     users_bp, tasks_bp, dashboard_bp, manager_bp,
-    projects_bp, notes_bp, tags_bp, memberships_bp, attachments_bp, admin_bp, staff_bp, reports_bp
+    projects_bp, notes_bp, tags_bp, memberships_bp, attachments_bp, admin_bp, staff_bp, reports_bp, labels_bp
 )
 from api import notifications_bp
 from firebase_utils import get_firebase_credentials
@@ -162,6 +162,7 @@ def create_app(run_startup_checks: bool = False):
     app.register_blueprint(admin_bp)  # ✅ ADD THIS LINE
     app.register_blueprint(notifications_bp)
     app.register_blueprint(reports_bp)  # Reports API
+    app.register_blueprint(labels_bp)  # Labels API
     # Add OPTIONS handler for CORS preflight (register before any requests)
     @app.route('/<path:path>', methods=['OPTIONS'])
     def handle_options(path):
