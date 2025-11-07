@@ -53,7 +53,7 @@ class TestHelperFunctions:
         
         result = task_to_json(mock_doc)
         
-        assert result["priority"] == 5  # Default (medium)
+        assert result["priority"] == "Medium"  # Default (medium)
         assert result["status"] == "To Do"  # Default
         assert result["archived"] == False  # Default
         assert result["is_recurring"] == False  # Default

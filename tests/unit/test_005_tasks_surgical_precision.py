@@ -56,7 +56,8 @@ def test_lines_171_to_175_editor_is_creator(mock_db):
     
     old_data = {
         "title": "Old",
-        "created_by": {"user_id": "user1", "name": "Creator"}
+        "created_by": {"user_id": "user1", "name": "Creator"},
+        "assigned_to": {"user_id": "user2", "name": "Assignee"}  # Add assignee to receive notification
     }
     updates = {"title": "New"}
     editor_id = "user1"  # Editor IS creator
@@ -67,7 +68,7 @@ def test_lines_171_to_175_editor_is_creator(mock_db):
     
     _notify_task_changes(mock_db, "task1", old_data, updates, editor_id, mock_notifications)
     
-    # Should use creator's name, not look up in DB
+    # Should use creator's name, not look up in DB, and notify assignee
     assert mock_notifications.create_notification.called
 
 

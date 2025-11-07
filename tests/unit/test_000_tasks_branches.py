@@ -218,7 +218,8 @@ class TestNotifyTaskChanges:
         
         old_data = {
             "title": "Old Title",
-            "created_by": {"user_id": "editor1", "name": "Editor One"}
+            "created_by": {"user_id": "editor1", "name": "Editor One"},
+            "assigned_to": {"user_id": "other_user", "name": "Other User"}  # Add recipient
         }
         updates = {"title": "New Title"}
         
@@ -226,7 +227,7 @@ class TestNotifyTaskChanges:
         
         _notify_task_changes(mock_db, "task1", old_data, updates, "editor1", mock_notifications)
         
-        # Should use creator name from old_data
+        # Should use creator name from old_data and notify assignee
         assert mock_notifications.create_notification.called
     
     def test_editor_is_assignee(self, mock_db):
@@ -235,7 +236,7 @@ class TestNotifyTaskChanges:
         
         old_data = {
             "title": "Old Title",
-            "created_by": {"user_id": "creator1"},
+            "created_by": {"user_id": "creator1", "name": "Creator One"},  # Add creator to receive notification
             "assigned_to": {"user_id": "editor1", "name": "Assignee One"}
         }
         updates = {"title": "New Title"}
@@ -244,7 +245,7 @@ class TestNotifyTaskChanges:
         
         _notify_task_changes(mock_db, "task1", old_data, updates, "editor1", mock_notifications)
         
-        # Should use assignee name from old_data
+        # Should use assignee name from old_data and notify creator
         assert mock_notifications.create_notification.called
     
     def test_editor_db_lookup_success(self, mock_db):

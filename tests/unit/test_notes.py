@@ -55,10 +55,34 @@ class TestAddComment:
         mock_doc_ref = Mock()
         mock_doc_ref.id = "comment123"
         mock_doc_ref.set = Mock()
-        mock_collection = Mock()
-        mock_collection.document = Mock(return_value=mock_doc_ref)
-        mock_db.collection = Mock(return_value=mock_collection)
         
+        mock_task_doc = Mock()
+        mock_task_doc.exists = True
+        mock_task_doc.to_dict.return_value = {
+            "title": "Test Task",
+            "created_by": {"user_id": "user1"},
+            "assigned_to": {"user_id": "user2"}
+        }
+        
+        mock_author_doc = Mock()
+        mock_author_doc.exists = True
+        mock_author_doc.to_dict.return_value = {"name": "Author Name"}
+        
+        def collection_side_effect(name):
+            mock_coll = Mock()
+            if name == "notes":
+                mock_coll.document.return_value = mock_doc_ref
+            elif name == "tasks":
+                mock_coll.document.return_value.get.return_value = mock_task_doc
+            elif name == "users":
+                mock_coll.document.return_value.get.return_value = mock_author_doc
+            elif name == "memberships":
+                mock_coll.where.return_value.stream.return_value = []
+            elif name == "notifications":
+                mock_coll.document.return_value = Mock()
+            return mock_coll
+        
+        mock_db.collection.side_effect = collection_side_effect
         monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
         
         # Test data
@@ -84,9 +108,8 @@ class TestAddComment:
         assert "created_at" in data
         assert data["edited_at"] is None
         
-        # Verify Firestore was called correctly
-        mock_db.collection.assert_called_once_with("notes")
-        mock_collection.document.assert_called_once()
+        # Verify Firestore was called correctly (use assert_any_call since notifications are also created)
+        mock_db.collection.assert_any_call("notes")
         mock_doc_ref.set.assert_called_once()
         
         # Verify the document structure

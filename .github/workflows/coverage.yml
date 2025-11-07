@@ -23,6 +23,12 @@ jobs:
         with:
           node-version: '18'
 
+      - name: Set up Java (for Firebase emulators)
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+
       - name: Install Firebase CLI
         run: |
           npm install -g firebase-tools
@@ -36,17 +42,20 @@ jobs:
 
       - name: Start Firebase emulators
         run: |
-          firebase emulators:start --only firestore,auth --project demo-no-project &
-          sleep 10
-        env:
-          FIRESTORE_EMULATOR_HOST: localhost:8080
-          FIREBASE_AUTH_EMULATOR_HOST: localhost:9099
+          firebase emulators:start --only firestore,auth --project demo-no-project > emulator.log 2>&1 &
+          EMULATOR_PID=$!
+          echo "Emulator PID: $EMULATOR_PID"
+          echo $EMULATOR_PID > emulator.pid
 
       - name: Wait for emulators to be ready
         run: |
-          timeout 30 bash -c 'until nc -z localhost 8080; do sleep 1; done'
-          timeout 30 bash -c 'until nc -z localhost 9099; do sleep 1; done'
-          echo "Emulators are ready!"
+          echo "Waiting for Firestore emulator on port 8080..."
+          timeout 60 bash -c 'until nc -z localhost 8080; do sleep 2; done' || (cat emulator.log && exit 1)
+          echo "Firestore emulator is ready!"
+          echo "Waiting for Auth emulator on port 9099..."
+          timeout 60 bash -c 'until nc -z localhost 9099; do sleep 2; done' || (cat emulator.log && exit 1)
+          echo "Auth emulator is ready!"
+          echo "All emulators are ready!"
 
       - name: Run backend tests with coverage
         env:
@@ -75,5 +84,13 @@ jobs:
         with:
           name: backend-coverage-html
           path: backend-htmlcov
+
+      - name: Stop Firebase emulators
+        if: always()
+        run: |
+          if [ -f emulator.pid ]; then
+            kill $(cat emulator.pid) || true
+          fi
+          pkill -f "firebase.*emulators" || true
 
 

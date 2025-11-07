@@ -9,11 +9,22 @@ def now_iso():
 
 def task_to_json(d):
     data = d.to_dict() or {}
+    priority = data.get("priority", "Medium")
+    
+    # If priority is a string, keep it as is
+    # If priority is an int, validate range
+    # Otherwise default to "Medium"
+    if isinstance(priority, int):
+        if priority < 1 or priority > 10:
+            priority = 5
+    elif not isinstance(priority, str):
+        priority = "Medium"
+    
     return {
         "task_id": d.id,
         "title": data.get("title"),
         "description": data.get("description"),
-        "priority": data.get("priority", 5),
+        "priority": priority,
         "status": data.get("status", "To Do"),
         "due_date": data.get("due_date"),
         "created_at": data.get("created_at"),
@@ -76,7 +87,7 @@ def _can_view_task_doc(db, task_doc):
     if viewer_role == 'admin':
         return True
 
-    manager_roles = ["manager"]
+    manager_roles = ["manager", "director", "hr"]
     if viewer_role in manager_roles:
         # Allow if the creator or assignee report to this manager
         try:
@@ -279,7 +290,7 @@ def create_task():
 
     title = (payload.get("title") or "").strip()
     description = (payload.get("description") or "").strip()
-    priority = payload.get("priority", 5)
+    priority = payload.get("priority", "Medium")
     status = payload.get("status", "To Do")
     due_date = payload.get("due_date")
     project_id = (payload.get("project_id") or "").strip()
@@ -294,13 +305,17 @@ def create_task():
     if not created_by_id:
         return jsonify({"error": "created_by_id is required"}), 400
 
-    # Validate priority is between 1 and 10
-    try:
-        priority = int(priority)
+    # Validate priority - accept both string and integer formats
+    if isinstance(priority, int):
+        # If integer, validate range 1-10
         if priority < 1 or priority > 10:
             return jsonify({"error": "Priority must be between 1 and 10"}), 400
-    except (ValueError, TypeError):
-        priority = 5  # Default to medium priority
+    elif isinstance(priority, str):
+        # String priorities are accepted as-is (e.g., "High", "Medium", "Low")
+        pass
+    else:
+        # For other types, default to "Medium"
+        priority = "Medium"
 
     created_by_doc = db.collection("users").document(created_by_id).get()
     if not created_by_doc.exists:

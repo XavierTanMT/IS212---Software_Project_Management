@@ -545,7 +545,8 @@ class TestMiscellaneousBranches:
         old_data = {
             "title": "Task",
             "tags": ["tag1", "tag2"],
-            "created_by": {"user_id": "user1"}
+            "created_by": {"user_id": "user1"},
+            "assigned_to": {"user_id": "user2"}  # Add recipient to receive notification
         }
         updates = {
             "tags": ["tag3"]  # Changed tags

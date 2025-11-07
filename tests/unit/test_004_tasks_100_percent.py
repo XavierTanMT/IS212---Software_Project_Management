@@ -341,7 +341,8 @@ class TestNotificationExceptionBranches:
         
         old_data = {
             "title": "Old",
-            "created_by": {"user_id": "user1"}
+            "created_by": {"user_id": "user1"},
+            "assigned_to": {"user_id": "user2"}  # Add recipient to receive notification
         }
         updates = {"title": "New"}
         

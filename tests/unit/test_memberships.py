@@ -37,7 +37,21 @@ class TestAddMember:
         """Test successfully adding a member to a project"""
         # Setup mock
         mock_ref = Mock()
-        mock_db.collection.return_value.document.return_value = mock_ref
+        mock_project_doc = Mock()
+        mock_project_doc.exists = True
+        mock_project_doc.to_dict.return_value = {"name": "Test Project"}
+        
+        def collection_side_effect(name):
+            mock_coll = Mock()
+            if name == "memberships":
+                mock_coll.document.return_value = mock_ref
+            elif name == "projects":
+                mock_coll.document.return_value.get.return_value = mock_project_doc
+            elif name == "notifications":
+                mock_coll.document.return_value = Mock()
+            return mock_coll
+        
+        mock_db.collection.side_effect = collection_side_effect
         monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
         
         # Make request
@@ -56,9 +70,8 @@ class TestAddMember:
         assert data["role"] == "admin"
         assert "added_at" in data
         
-        # Verify database calls
-        mock_db.collection.assert_called_with("memberships")
-        mock_db.collection.return_value.document.assert_called_with("proj123_user456")
+        # Verify database calls (use assert_any_call since notifications are also created)
+        mock_db.collection.assert_any_call("memberships")
         mock_ref.set.assert_called_once()
         
     def test_add_member_default_role(self, client, mock_db, monkeypatch):
@@ -80,7 +93,30 @@ class TestAddMember:
     def test_add_member_trims_whitespace(self, client, mock_db, monkeypatch):
         """Test that project_id, user_id, and role are trimmed"""
         mock_ref = Mock()
-        mock_db.collection.return_value.document.return_value = mock_ref
+        mock_project_doc = Mock()
+        mock_project_doc.exists = True
+        mock_project_doc.to_dict.return_value = {"name": "Test Project"}
+        
+        membership_doc_ref = None
+        
+        def collection_side_effect(name):
+            nonlocal membership_doc_ref
+            mock_coll = Mock()
+            if name == "memberships":
+                membership_doc_ref = Mock()
+                def document_side_effect(doc_id):
+                    mock_doc = Mock()
+                    if doc_id == "proj123_user456":
+                        mock_doc = mock_ref
+                    return mock_doc
+                mock_coll.document.side_effect = document_side_effect
+            elif name == "projects":
+                mock_coll.document.return_value.get.return_value = mock_project_doc
+            elif name == "notifications":
+                mock_coll.document.return_value = Mock()
+            return mock_coll
+        
+        mock_db.collection.side_effect = collection_side_effect
         monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
         
         payload = {
@@ -96,8 +132,8 @@ class TestAddMember:
         assert data["user_id"] == "user456"
         assert data["role"] == "admin"
         
-        # Verify document name is trimmed
-        mock_db.collection.return_value.document.assert_called_with("proj123_user456")
+        # Verify that the document was created with trimmed IDs
+        mock_ref.set.assert_called_once()
         
     def test_add_member_missing_project_id(self, client, mock_db, monkeypatch):
         """Test error when project_id is missing"""
@@ -198,7 +234,28 @@ class TestAddMember:
     def test_add_member_document_naming_convention(self, client, mock_db, monkeypatch):
         """Test that membership document is named correctly"""
         mock_ref = Mock()
-        mock_db.collection.return_value.document.return_value = mock_ref
+        mock_project_doc = Mock()
+        mock_project_doc.exists = True
+        mock_project_doc.to_dict.return_value = {"name": "Test Project"}
+        
+        document_id_used = None
+        
+        def collection_side_effect(name):
+            nonlocal document_id_used
+            mock_coll = Mock()
+            if name == "memberships":
+                def document_side_effect(doc_id):
+                    nonlocal document_id_used
+                    document_id_used = doc_id
+                    return mock_ref
+                mock_coll.document.side_effect = document_side_effect
+            elif name == "projects":
+                mock_coll.document.return_value.get.return_value = mock_project_doc
+            elif name == "notifications":
+                mock_coll.document.return_value = Mock()
+            return mock_coll
+        
+        mock_db.collection.side_effect = collection_side_effect
         monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
         
         payload = {
@@ -210,7 +267,7 @@ class TestAddMember:
         
         assert response.status_code == 201
         # Verify document is named {project_id}_{user_id}
-        mock_db.collection.return_value.document.assert_called_with("myproject_myuser")
+        assert document_id_used == "myproject_myuser"
 
 
 class TestListProjectMembers:
@@ -311,7 +368,28 @@ class TestEdgeCases:
     def test_add_member_with_special_characters_in_ids(self, client, mock_db, monkeypatch):
         """Test adding member with special characters in project_id and user_id"""
         mock_ref = Mock()
-        mock_db.collection.return_value.document.return_value = mock_ref
+        mock_project_doc = Mock()
+        mock_project_doc.exists = True
+        mock_project_doc.to_dict.return_value = {"name": "Test Project"}
+        
+        document_id_used = None
+        
+        def collection_side_effect(name):
+            nonlocal document_id_used
+            mock_coll = Mock()
+            if name == "memberships":
+                def document_side_effect(doc_id):
+                    nonlocal document_id_used
+                    document_id_used = doc_id
+                    return mock_ref
+                mock_coll.document.side_effect = document_side_effect
+            elif name == "projects":
+                mock_coll.document.return_value.get.return_value = mock_project_doc
+            elif name == "notifications":
+                mock_coll.document.return_value = Mock()
+            return mock_coll
+        
+        mock_db.collection.side_effect = collection_side_effect
         monkeypatch.setattr(fake_firestore, "client", Mock(return_value=mock_db))
         
         payload = {
@@ -323,7 +401,7 @@ class TestEdgeCases:
         
         assert response.status_code == 201
         # Document name should include special characters
-        mock_db.collection.return_value.document.assert_called_with("proj-123_test_user.456@test")
+        assert document_id_used == "proj-123_test_user.456@test"
         
     def test_add_member_role_case_sensitivity(self, client, mock_db, monkeypatch):
         """Test that role value is case-sensitive and not modified"""

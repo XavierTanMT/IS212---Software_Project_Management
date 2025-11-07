@@ -6,15 +6,21 @@ from google.cloud.firestore_v1.base_query import FieldFilter
 
 def task_to_json(d):
     data = d.to_dict()
-    priority = data.get("priority", 5)
+    priority = data.get("priority", "Medium")
     
-    # Ensure priority is an integer between 1 and 10
-    try:
-        priority = int(priority)
+    # If priority is a string, keep it as is (for string priorities like "High", "Medium", "Low")
+    # If priority is an int, convert to int and validate range
+    # Otherwise default to "Medium"
+    if isinstance(priority, str):
+        # Keep string priorities as they are
+        pass
+    elif isinstance(priority, int):
+        # Validate integer priorities (1-10 range)
         if priority < 1 or priority > 10:
             priority = 5
-    except (ValueError, TypeError):
-        priority = 5
+    else:
+        # For any other type (dict, list, etc.), default to "Medium"
+        priority = "Medium"
     
     return {
         "task_id": d.id,
