@@ -6,26 +6,26 @@ title C2 - Container Diagram
 
 Person(staff, "Staff Member", "Regular employee")
 Person(manager, "Manager/Director", "Team leader")
-Person(admin, "Admin", "System administrator")
+Person(admin, "Admin/HR", "System administrator")
 
 System_Ext(firebaseAuth, "Firebase Authentication", "Google's auth service")
 System_Ext(emailService, "Email Service", "SMTP server")
 
 System_Boundary(taskSystem, "Task Management System") {
-    Container(webApp, "Web Application", "HTML/CSS/JavaScript", "Provides task management UI, handles user interactions, integrates Firebase auth")
-    Container(apiServer, "API Server", "Python Flask", "Handles business logic, REST API endpoints for tasks, projects, users, notifications")
-    ContainerDb(firestore, "Firestore Database", "Firebase Firestore (NoSQL)", "Stores users, tasks, projects, notes, labels, memberships, notifications, attachments metadata")
-    Container(fileStorage, "File Storage", "Local File System", "Stores task attachment files in /uploads/task_{id}/ structure")
+    Container(webApp, "Web Application", "HTML/CSS/JavaScript", "Provides task management UI with role-based views, handles user interactions, integrates Firebase auth for authentication")
+    Container(apiServer, "API Server", "Python Flask", "Handles business logic, REST API endpoints for tasks, projects, users, notifications, notes, attachments, reports")
+    ContainerDb(firestore, "Firestore Database", "Firebase Firestore (NoSQL)", "Stores users, tasks, projects, notes, tags, memberships, notifications, attachments metadata, subtasks")
+    Container(fileStorage, "File Storage", "Local File System", "Stores task attachment files in /uploads/task_{id}/ directory structure")
 }
 
-Rel(staff, webApp, "Creates tasks, views assignments", "HTTPS")
-Rel(manager, webApp, "Manages team, assigns tasks", "HTTPS")
-Rel(admin, webApp, "Administers system, manages users", "HTTPS")
+Rel(staff, webApp, "Creates tasks, manages subtasks, collaborates on projects", "HTTPS")
+Rel(manager, webApp, "Manages team, assigns tasks, views reports", "HTTPS")
+Rel(admin, webApp, "Administers system, manages users, views diagnostics", "HTTPS")
 
-Rel(webApp, firebaseAuth, "Authenticates users, manages sessions", "Firebase SDK/HTTPS")
-Rel(webApp, apiServer, "Makes API calls (tasks, projects, users, etc.)", "JSON/HTTPS")
-Rel(apiServer, firestore, "Reads/writes data", "Firebase Admin SDK")
+Rel(webApp, firebaseAuth, "Authenticates users, manages user sessions", "Firebase SDK/HTTPS")
+Rel(webApp, apiServer, "Makes API calls (tasks, projects, users, notes, attachments, etc.)", "JSON/HTTPS")
+Rel(apiServer, firestore, "Reads/writes application data (CRUD operations)", "Firebase Admin SDK")
 Rel(apiServer, fileStorage, "Stores/retrieves attachment files", "File I/O")
-Rel(apiServer, emailService, "Sends notification emails", "SMTP")
+Rel(apiServer, emailService, "Sends notification emails for task assignments, deadlines, mentions", "SMTP")
 
 @enduml

@@ -9,12 +9,6 @@ enum Role {
     admin
 }
 
-enum Priority {
-    Low
-    Medium
-    High
-}
-
 enum Status {
     To Do
     In Progress
@@ -49,7 +43,7 @@ class Task {
   - task_id: String
   - title: String
   - description: String
-  - priority: Priority
+  - priority: Integer
   - status: Status
   - due_date: DateTime
   - created_at: DateTime
@@ -57,7 +51,7 @@ class Task {
   - created_by: User
   - assigned_to: User
   - project_id: String
-  - labels: List<String>
+  - tags: List<String>
   - archived: Boolean
   - archived_at: DateTime
   - archived_by: String
@@ -70,8 +64,8 @@ class Task {
   + updateTask(): void
   + archiveTask(user_id: String): void
   + assignTo(user: User): void
-  + addLabel(label_id: String): void
-  + addSubtask(subtask: Task): void
+  + addTag(tag: String): void
+  + addSubtask(subtask: Subtask): void
 }
 
 class Project {
@@ -114,13 +108,17 @@ class Note {
   + extractMentions(body: String): List<String>
 }
 
-class Label {
-  - label_id: String
-  - name: String
-  - color: String
-  + createLabel(): Label
-  + assignToTask(task_id: String): void
-  + unassignFromTask(task_id: String): void
+class Subtask {
+  - subtask_id: String
+  - parent_task_id: String
+  - title: String
+  - description: String
+  - completed: Boolean
+  - order: Integer
+  + createSubtask(): Subtask
+  + updateSubtask(): void
+  + toggleComplete(): void
+  + deleteSubtask(): void
 }
 
 class Attachment {
@@ -173,11 +171,25 @@ Project "1" -- "1" User : owned by
 
 Task "1" -- "0..*" Note : has
 Task "1" -- "0..*" Attachment : has
-Task "1" -- "0..*" Label : tagged with
-Task "1" -- "0..*" Task : has subtasks
+Task "1" -- "0..*" Subtask : has
 Task "1" -- "0..*" Notification : triggers
+Task "0..*" -- "0..*" String : tagged with (tags array)
 
 Membership "*" -- "1" Project
 Membership "*" -- "1" User
+
+Subtask "*" -- "1" Task : belongs to
+
+note right of Task
+  **Priority**: Integer scale 1-10
+  (1 = lowest, 10 = highest)
+  Default value: 5
+  
+  **Tags**: Simple string array
+  stored directly on Task.
+  Max 3 tags per task, 
+  max 12 chars per tag.
+  No separate Tag entity.
+end note
 
 @enduml

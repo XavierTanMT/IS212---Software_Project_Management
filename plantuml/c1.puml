@@ -3,20 +3,22 @@
 
 title C1 - System Context Diagram
 
-Person(staff, "Staff Member", "Regular employee who creates and manages their own tasks")
-Person(manager, "Manager/Director", "Team leader who manages staff and assigns tasks to team members")
-Person(admin, "Admin", "HR and Senior Leadership who manage users and have system-wide access")
+Person(staff, "Staff Member", "Regular employee who creates and manages their own tasks, works on assigned projects")
+Person(manager, "Manager/Director", "Team leader who manages staff, assigns tasks, views team performance and reports")
+Person(admin, "Admin/HR", "HR and Senior Leadership who manage users, system configuration, and have system-wide access")
 
-System(taskMgmtSystem, "Task Management System", "Web-based task management system with project tracking, assignments, notifications, and reporting")
+System(taskMgmtSystem, "Task Management System", "Web-based task management system with project tracking, task assignments, subtasks, notifications, team collaboration, file attachments, and reporting")
 
 System_Ext(firebaseAuth, "Firebase Authentication", "Google's authentication service for user login and identity management")
-System_Ext(emailService, "Email Service (SMTP)", "External email service for sending notifications and alerts")
+System_Ext(firebaseFirestore, "Firebase Firestore", "NoSQL cloud database for storing tasks, projects, users, notes, notifications")
+System_Ext(emailService, "Email Service (SMTP)", "External email service for sending notification emails and task alerts")
 
-Rel(staff, taskMgmtSystem, "Creates and manages tasks, views assignments", "HTTPS")
-Rel(manager, taskMgmtSystem, "Manages team tasks, assigns work, views team reports", "HTTPS")
-Rel(admin, taskMgmtSystem, "Manages users, views all data, generates reports", "HTTPS")
+Rel(staff, taskMgmtSystem, "Creates and manages tasks, collaborates on projects, uploads attachments", "HTTPS")
+Rel(manager, taskMgmtSystem, "Manages team tasks, assigns work, views team reports, monitors performance", "HTTPS")
+Rel(admin, taskMgmtSystem, "Manages users, system configuration, views all data, generates reports", "HTTPS")
 
-Rel(taskMgmtSystem, firebaseAuth, "Authenticates users", "HTTPS/Firebase SDK")
+Rel(taskMgmtSystem, firebaseAuth, "Authenticates users, manages sessions", "HTTPS/Firebase SDK")
+Rel(taskMgmtSystem, firebaseFirestore, "Stores and retrieves application data", "Firebase Admin SDK")
 Rel(taskMgmtSystem, emailService, "Sends notification emails", "SMTP")
 
 @enduml
